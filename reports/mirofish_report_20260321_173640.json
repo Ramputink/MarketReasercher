@@ -1,0 +1,209 @@
+{
+  "timestamp": "2026-03-21 17:36:40.259422+00:00",
+  "symbol": "XRP/USDT",
+  "regime": {
+    "regime": "breakout",
+    "confidence": 0.5,
+    "signals": [
+      "BB_compression: 2th pctile",
+      "Weak_trend: ADX=18"
+    ],
+    "timestamp": "2026-03-21 17:36:00.150411+00:00"
+  },
+  "scenarios": [
+    {
+      "name": "Upside Breakout",
+      "description": "Volatility compression resolves to the upside with volume confirmation",
+      "probability": 0.35,
+      "regime": "breakout",
+      "direction": "up",
+      "magnitude_%": 0.8343253968254019,
+      "catalysts": [
+        "Volume surge",
+        "Order flow imbalance",
+        "Compression exhaustion"
+      ],
+      "risks": [
+        "False breakout / head fake",
+        "Lack of follow-through volume"
+      ],
+      "strategy_implications": {
+        "volatility_breakout": "ACTIVE \u2014 primary setup",
+        "mean_reversion": "AVOID \u2014 breakout environment",
+        "trend_following": "STANDBY \u2014 wait for trend confirmation"
+      }
+    },
+    {
+      "name": "Downside Breakout",
+      "description": "Compression resolves to the downside",
+      "probability": 0.3,
+      "regime": "breakout",
+      "direction": "down",
+      "magnitude_%": 0.8343253968254019,
+      "catalysts": [
+        "Liquidation cascade",
+        "Support breach"
+      ],
+      "risks": [
+        "False breakdown",
+        "Immediate buy-back"
+      ],
+      "strategy_implications": {
+        "volatility_breakout": "ACTIVE \u2014 short setup",
+        "mean_reversion": "AVOID",
+        "trend_following": "STANDBY"
+      }
+    },
+    {
+      "name": "False Breakout / Whipsaw",
+      "description": "Price tests extremes but fails to sustain",
+      "probability": 0.35,
+      "regime": "lateral",
+      "direction": "flat",
+      "magnitude_%": 0.4171626984127009,
+      "catalysts": [
+        "Low conviction",
+        "Thin orderbook"
+      ],
+      "risks": [
+        "Stopped out on both sides"
+      ],
+      "strategy_implications": {
+        "volatility_breakout": "CAUTION \u2014 false signal risk",
+        "mean_reversion": "POSSIBLE \u2014 after false breakout",
+        "trend_following": "AVOID"
+      }
+    }
+  ],
+  "agent_consensus": {
+    "agents": {
+      "whale": {
+        "archetype": "whale_accumulator",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "long",
+        "last_action": "hold"
+      },
+      "momentum": {
+        "archetype": "momentum_trader",
+        "bias": "neutral",
+        "confidence": 0.3,
+        "time_horizon": "short",
+        "last_action": "wait"
+      },
+      "mean_reversion": {
+        "archetype": "mean_reversion_trader",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "short",
+        "last_action": "hold"
+      },
+      "retail": {
+        "archetype": "retail_fomo",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "short",
+        "last_action": "hold"
+      },
+      "market_maker": {
+        "archetype": "market_maker",
+        "bias": "neutral",
+        "confidence": 0.6,
+        "time_horizon": "short",
+        "last_action": "provide_liquidity"
+      },
+      "institutional": {
+        "archetype": "institutional",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "medium",
+        "last_action": "hold"
+      }
+    },
+    "consensus": {
+      "bullish": 0,
+      "bearish": 0,
+      "neutral": 6,
+      "net_sentiment": 0.0
+    }
+  },
+  "recommended_strategies": [
+    "volatility_breakout"
+  ],
+  "avoid_strategies": [
+    "mean_reversion",
+    "trend_following"
+  ],
+  "risk_flags": [
+    "LLM_RISK: Potential false breakout or reversal due to ADX indicating a weak trend."
+  ],
+  "hypotheses": [
+    {
+      "id": "H_BREAKOUT_VOL",
+      "statement": "Volatility breakout signals with volume > 2x average produce higher Sharpe than baseline",
+      "test": "Compare Sharpe of vol_breakout with volume_surge_threshold=2.0 vs 1.5",
+      "priority": "high",
+      "strategy": "volatility_breakout",
+      "param_changes": {
+        "volume_surge_threshold": [
+          1.5,
+          2.0,
+          2.5
+        ]
+      }
+    },
+    {
+      "id": "H_BREAKOUT_CONFIRM",
+      "statement": "Requiring 2 confirmation candles reduces false breakouts without excessive lag",
+      "test": "Compare win_rate and expectancy with confirmation_candles=1 vs 2 vs 3",
+      "priority": "medium",
+      "strategy": "volatility_breakout",
+      "param_changes": {
+        "breakout_confirmation_candles": [
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "id": "H_LLM_1",
+      "statement": "During an upside breakout regime, the volatility_breakout strategy will perform better when using a shorter look-back period (LBP) of 20-30 days compared to the standard LBP of 50 days.",
+      "test": "Backtest both strategies on historical data with a sample size of at least 100 instances of upside breakouts. Compare their cumulative returns and Sharpe ratios over a 3-month holding period.",
+      "priority": "high",
+      "strategy": "volatility_breakout",
+      "param_changes": {
+        "look_back_period": [
+          20,
+          30
+        ]
+      }
+    },
+    {
+      "id": "H_LLM_2",
+      "statement": "The mean_reversion strategy will be more effective in downside breakout scenarios when using a stop-loss threshold of 5-7% compared to the standard threshold of 3%.",
+      "test": "Backtest both strategies on historical data with a sample size of at least 50 instances of downside breakouts. Compare their cumulative returns and drawdowns over a 2-month holding period.",
+      "priority": "medium",
+      "strategy": "mean_reversion",
+      "param_changes": {
+        "stop_loss_threshold": [
+          5,
+          7
+        ]
+      }
+    },
+    {
+      "id": "H_LLM_3",
+      "statement": "The trend_following strategy will exhibit better performance in false breakout/whipsaw scenarios when using a moving average with a longer period of 100-150 days compared to the standard period of 50 days.",
+      "test": "Backtest both strategies on historical data with a sample size of at least 80 instances of false breakouts/whipsaws. Compare their cumulative returns and maximum drawdowns over a 4-month holding period.",
+      "priority": "low",
+      "strategy": "trend_following",
+      "param_changes": {
+        "moving_average_period": [
+          100,
+          150
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "strategy": "ichimoku_kumo",
+  "params": {
+    "tenkan_period": 8,
+    "kijun_period": 32,
+    "senkou_b_period": 64,
+    "displacement": 26,
+    "require_chikou_confirm": true,
+    "require_tk_cross": false,
+    "adx_min": 22.3377,
+    "stop_loss_atr_mult": 2.9635,
+    "take_profit_atr_mult": 6.2346
+  },
+  "fitness": 1.833487449681798,
+  "sharpe": 1.0230829954328682,
+  "wf_sharpe": 2.2791040740968516,
+  "trades": 106,
+  "net_pnl": 418.0600930745532,
+  "wf_robust": true
+}

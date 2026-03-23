@@ -1,0 +1,209 @@
+{
+  "timestamp": "2026-03-21 16:33:44.490850+00:00",
+  "symbol": "XRP/USDT",
+  "regime": {
+    "regime": "breakout",
+    "confidence": 0.5,
+    "signals": [
+      "BB_compression: 1th pctile",
+      "Weak_trend: ADX=19"
+    ],
+    "timestamp": "2026-03-21 16:33:08.429555+00:00"
+  },
+  "scenarios": [
+    {
+      "name": "Upside Breakout",
+      "description": "Volatility compression resolves to the upside with volume confirmation",
+      "probability": 0.35,
+      "regime": "breakout",
+      "direction": "up",
+      "magnitude_%": 0.7979623107078213,
+      "catalysts": [
+        "Volume surge",
+        "Order flow imbalance",
+        "Compression exhaustion"
+      ],
+      "risks": [
+        "False breakout / head fake",
+        "Lack of follow-through volume"
+      ],
+      "strategy_implications": {
+        "volatility_breakout": "ACTIVE \u2014 primary setup",
+        "mean_reversion": "AVOID \u2014 breakout environment",
+        "trend_following": "STANDBY \u2014 wait for trend confirmation"
+      }
+    },
+    {
+      "name": "Downside Breakout",
+      "description": "Compression resolves to the downside",
+      "probability": 0.3,
+      "regime": "breakout",
+      "direction": "down",
+      "magnitude_%": 0.7979623107078213,
+      "catalysts": [
+        "Liquidation cascade",
+        "Support breach"
+      ],
+      "risks": [
+        "False breakdown",
+        "Immediate buy-back"
+      ],
+      "strategy_implications": {
+        "volatility_breakout": "ACTIVE \u2014 short setup",
+        "mean_reversion": "AVOID",
+        "trend_following": "STANDBY"
+      }
+    },
+    {
+      "name": "False Breakout / Whipsaw",
+      "description": "Price tests extremes but fails to sustain",
+      "probability": 0.35,
+      "regime": "lateral",
+      "direction": "flat",
+      "magnitude_%": 0.39898115535391065,
+      "catalysts": [
+        "Low conviction",
+        "Thin orderbook"
+      ],
+      "risks": [
+        "Stopped out on both sides"
+      ],
+      "strategy_implications": {
+        "volatility_breakout": "CAUTION \u2014 false signal risk",
+        "mean_reversion": "POSSIBLE \u2014 after false breakout",
+        "trend_following": "AVOID"
+      }
+    }
+  ],
+  "agent_consensus": {
+    "agents": {
+      "whale": {
+        "archetype": "whale_accumulator",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "long",
+        "last_action": "hold"
+      },
+      "momentum": {
+        "archetype": "momentum_trader",
+        "bias": "neutral",
+        "confidence": 0.3,
+        "time_horizon": "short",
+        "last_action": "wait"
+      },
+      "mean_reversion": {
+        "archetype": "mean_reversion_trader",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "short",
+        "last_action": "hold"
+      },
+      "retail": {
+        "archetype": "retail_fomo",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "short",
+        "last_action": "hold"
+      },
+      "market_maker": {
+        "archetype": "market_maker",
+        "bias": "neutral",
+        "confidence": 0.6,
+        "time_horizon": "short",
+        "last_action": "provide_liquidity"
+      },
+      "institutional": {
+        "archetype": "institutional",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "medium",
+        "last_action": "hold"
+      }
+    },
+    "consensus": {
+      "bullish": 0,
+      "bearish": 0,
+      "neutral": 6,
+      "net_sentiment": 0.0
+    }
+  },
+  "recommended_strategies": [
+    "volatility_breakout"
+  ],
+  "avoid_strategies": [
+    "mean_reversion",
+    "trend_following"
+  ],
+  "risk_flags": [
+    "LLM_RISK: Potential reversal due to overbought RSI and negative z-score"
+  ],
+  "hypotheses": [
+    {
+      "id": "H_BREAKOUT_VOL",
+      "statement": "Volatility breakout signals with volume > 2x average produce higher Sharpe than baseline",
+      "test": "Compare Sharpe of vol_breakout with volume_surge_threshold=2.0 vs 1.5",
+      "priority": "high",
+      "strategy": "volatility_breakout",
+      "param_changes": {
+        "volume_surge_threshold": [
+          1.5,
+          2.0,
+          2.5
+        ]
+      }
+    },
+    {
+      "id": "H_BREAKOUT_CONFIRM",
+      "statement": "Requiring 2 confirmation candles reduces false breakouts without excessive lag",
+      "test": "Compare win_rate and expectancy with confirmation_candles=1 vs 2 vs 3",
+      "priority": "medium",
+      "strategy": "volatility_breakout",
+      "param_changes": {
+        "breakout_confirmation_candles": [
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "id": "H_LLM_1",
+      "statement": "Volatility Breakout strategy will outperform in Upside Breakout scenarios when using a higher threshold for the breakout price (p=0.05)",
+      "test": "Backtest Volatility Breakout strategy with different threshold values and compare performance metrics (e.g., Sharpe Ratio) across Upside Breakout scenarios",
+      "priority": "high",
+      "strategy": "volatility_breakout",
+      "param_changes": {
+        "breakout_threshold": [
+          1.5,
+          2.0
+        ]
+      }
+    },
+    {
+      "id": "H_LLM_2",
+      "statement": "Mean Reversion strategy will perform better in False Breakout / Whipsaw scenarios when using a longer look-back period for the moving average (p=0.01)",
+      "test": "Backtest Mean Reversion strategy with different look-back periods and compare performance metrics across False Breakout / Whipsaw scenarios",
+      "priority": "medium",
+      "strategy": "mean_reversion",
+      "param_changes": {
+        "look_back_period": [
+          20,
+          30
+        ]
+      }
+    },
+    {
+      "id": "H_LLM_3",
+      "statement": "Trend Following strategy will exhibit higher returns in Downside Breakout scenarios when using a more aggressive position sizing (p=0.05)",
+      "test": "Backtest Trend Following strategy with different position sizing factors and compare performance metrics across Downside Breakout scenarios",
+      "priority": "low",
+      "strategy": "trend_following",
+      "param_changes": {
+        "position_sizing_factor": [
+          1.2,
+          1.5
+        ]
+      }
+    }
+  ]
+}

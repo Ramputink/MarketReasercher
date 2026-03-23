@@ -1,0 +1,19 @@
+{
+  "strategy": "fisher_transform",
+  "params": {
+    "period": 19,
+    "signal_threshold": 2.1717,
+    "require_divergence": false,
+    "divergence_lookback": 14,
+    "adx_filter": true,
+    "adx_max": 35.7788,
+    "stop_loss_atr_mult": 1.9654,
+    "take_profit_atr_mult": 3.7008
+  },
+  "fitness": 2.6447306716981753,
+  "sharpe": 2.6655955235029256,
+  "wf_sharpe": 3.674215720958628,
+  "trades": 8,
+  "net_pnl": 145.07058857545405,
+  "wf_robust": false
+}

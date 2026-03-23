@@ -1,0 +1,19 @@
+{
+  "strategy": "donchian_breakout",
+  "params": {
+    "entry_period": 41,
+    "exit_period": 10,
+    "volume_surge_threshold": 1.5495,
+    "adx_min": 27.6524,
+    "atr_filter_mult": 0.2,
+    "use_volatility_filter": true,
+    "stop_loss_atr_mult": 2.681,
+    "take_profit_atr_mult": 7.8633
+  },
+  "fitness": 2.8174557985237354,
+  "sharpe": 2.787349659056618,
+  "wf_sharpe": 2.985941417096226,
+  "trades": 132,
+  "net_pnl": 1014.9622107449748,
+  "wf_robust": true
+}

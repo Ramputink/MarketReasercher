@@ -1,0 +1,192 @@
+[
+  {
+    "combo_id": 26,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 20.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 5.0,
+      "fib_zone_tolerance_pct": 2.0
+    },
+    "trades": 137,
+    "sharpe": 0.04887352930783836,
+    "sortino": 0.06119730218002297,
+    "pf": 1.0674838043779067,
+    "win_rate": 0.5036496350364964,
+    "max_dd": 1.9976000978591177,
+    "net_pnl": 91.82919215337384,
+    "expectancy": 6.702860741122194e-05,
+    "avg_holding_h": 2.5678832116788323e-05
+  },
+  {
+    "combo_id": 71,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 30.0,
+      "stop_loss_atr_mult": 2.5,
+      "take_profit_atr_mult": 5.0,
+      "fib_zone_tolerance_pct": 2.0
+    },
+    "trades": 126,
+    "sharpe": 0.0010077715570066573,
+    "sortino": 0.0012136112993934155,
+    "pf": 1.0597293074579102,
+    "win_rate": 0.4444444444444444,
+    "max_dd": 2.340309702612309,
+    "net_pnl": 75.91846511711248,
+    "expectancy": 6.0252750092946176e-05,
+    "avg_holding_h": 2.4380952380952378e-05
+  },
+  {
+    "combo_id": 102,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 35.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 4.0,
+      "fib_zone_tolerance_pct": 1.0
+    },
+    "trades": 82,
+    "sharpe": -0.16306901690013684,
+    "sortino": -0.16408597925139948,
+    "pf": 1.0360409454070338,
+    "win_rate": 0.5121951219512195,
+    "max_dd": 2.6176015400933887,
+    "net_pnl": 29.547955170977083,
+    "expectancy": 3.603409167192329e-05,
+    "avg_holding_h": 2.4146341463414634e-05
+  },
+  {
+    "combo_id": 25,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 20.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 5.0,
+      "fib_zone_tolerance_pct": 1.5
+    },
+    "trades": 126,
+    "sharpe": -0.2136895725736448,
+    "sortino": -0.2711930755083784,
+    "pf": 1.0309362092518006,
+    "win_rate": 0.4603174603174603,
+    "max_dd": 2.9838823242020194,
+    "net_pnl": 38.1209406540896,
+    "expectancy": 3.0254714804832795e-05,
+    "avg_holding_h": 2.5904761904761905e-05
+  },
+  {
+    "combo_id": 23,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 20.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 4.0,
+      "fib_zone_tolerance_pct": 2.0
+    },
+    "trades": 143,
+    "sharpe": -0.29789307578855134,
+    "sortino": -0.37235399764207067,
+    "pf": 1.0217091374267704,
+    "win_rate": 0.5244755244755245,
+    "max_dd": 2.26279007082241,
+    "net_pnl": 29.75122631461641,
+    "expectancy": 2.080505336686489e-05,
+    "avg_holding_h": 2.4335664335664337e-05
+  },
+  {
+    "combo_id": 22,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 20.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 4.0,
+      "fib_zone_tolerance_pct": 1.5
+    },
+    "trades": 134,
+    "sharpe": -0.3085433259492934,
+    "sortino": -0.3889037554483486,
+    "pf": 1.0223958837833296,
+    "win_rate": 0.5,
+    "max_dd": 2.3710283984845155,
+    "net_pnl": 28.124979394624376,
+    "expectancy": 2.0988790593003335e-05,
+    "avg_holding_h": 2.396268656716418e-05
+  },
+  {
+    "combo_id": 19,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 20.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 3.0,
+      "fib_zone_tolerance_pct": 1.5
+    },
+    "trades": 146,
+    "sharpe": -0.34654932745162575,
+    "sortino": -0.42111614251143326,
+    "pf": 1.024350879884181,
+    "win_rate": 0.541095890410959,
+    "max_dd": 2.6804881067693547,
+    "net_pnl": 29.416125073810964,
+    "expectancy": 2.0148030872473476e-05,
+    "avg_holding_h": 2.1369863013698632e-05
+  },
+  {
+    "combo_id": 20,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 20.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 3.0,
+      "fib_zone_tolerance_pct": 2.0
+    },
+    "trades": 163,
+    "sharpe": -0.48350106881820715,
+    "sortino": -0.5872077893520632,
+    "pf": 1.0055481213975646,
+    "win_rate": 0.5705521472392638,
+    "max_dd": 2.9188323372645995,
+    "net_pnl": 7.965707085820441,
+    "expectancy": 4.886936862466485e-06,
+    "avg_holding_h": 2.1067484662576687e-05
+  },
+  {
+    "combo_id": 75,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 30.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 4.0,
+      "fib_zone_tolerance_pct": 1.0
+    },
+    "trades": 92,
+    "sharpe": -0.5255991974420917,
+    "sortino": -0.5632968556502649,
+    "pf": 0.9737743838278907,
+    "win_rate": 0.5,
+    "max_dd": 3.2250771391468986,
+    "net_pnl": -23.404594587728006,
+    "expectancy": -2.5439776725791142e-05,
+    "avg_holding_h": 2.4989130434782615e-05
+  },
+  {
+    "combo_id": 48,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 25.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 4.0,
+      "fib_zone_tolerance_pct": 1.0
+    },
+    "trades": 111,
+    "sharpe": -0.5321093760629658,
+    "sortino": -0.6176561031384572,
+    "pf": 0.9833558320394448,
+    "win_rate": 0.4954954954954955,
+    "max_dd": 3.0491126861072484,
+    "net_pnl": -17.228927565893635,
+    "expectancy": -1.552155636566983e-05,
+    "avg_holding_h": 2.432432432432433e-05
+  }
+]

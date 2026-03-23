@@ -1,0 +1,18 @@
+{
+  "strategy": "trend_following",
+  "params": {
+    "adx_threshold": 28.0896,
+    "fib_zone_tolerance_pct": 1.9019,
+    "stop_loss_atr_mult": 4.2874,
+    "take_profit_atr_mult": 7.383,
+    "min_volume_ratio": 0.8259,
+    "rsi_lower_bound": 30,
+    "rsi_upper_bound": 72
+  },
+  "fitness": 1.1137005471972878,
+  "sharpe": 1.6245586783615553,
+  "wf_sharpe": 1.9553130434593957,
+  "trades": 181,
+  "net_pnl": 734.9867833664687,
+  "wf_robust": false
+}

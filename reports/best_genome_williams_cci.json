@@ -1,0 +1,22 @@
+{
+  "strategy": "williams_cci",
+  "params": {
+    "wr_period": 10,
+    "wr_oversold": -89.5301,
+    "wr_overbought": -21.6745,
+    "cci_period": 15,
+    "cci_long_threshold": -92.6157,
+    "cci_short_threshold": 148.9217,
+    "require_bb_squeeze": true,
+    "require_volume_spike": true,
+    "volume_spike_threshold": 1.7638,
+    "stop_loss_atr_mult": 1.3198,
+    "take_profit_atr_mult": 2.6337
+  },
+  "fitness": 1.1337666174851502,
+  "sharpe": 1.5926329378366817,
+  "wf_sharpe": 1.499711355085904,
+  "trades": 19,
+  "net_pnl": 108.8251157641114,
+  "wf_robust": true
+}

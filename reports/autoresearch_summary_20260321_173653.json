@@ -1,0 +1,14 @@
+{
+  "session_id": "20260321_173640",
+  "total_experiments": 9,
+  "accepted": 0,
+  "rejected": 9,
+  "acceptance_rate": 0.0,
+  "strategies_tested": [
+    "trend_following",
+    "mean_reversion",
+    "volatility_breakout"
+  ],
+  "best_params": {},
+  "best_metrics": {}
+}

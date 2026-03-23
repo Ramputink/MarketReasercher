@@ -1,0 +1,21 @@
+{
+  "strategy": "momentum",
+  "params": {
+    "rsi_long_threshold": 63.4129,
+    "rsi_short_threshold": 45.5328,
+    "rsi_overbought": 69.9867,
+    "rsi_oversold": 19.7349,
+    "roc_min_magnitude": 0.5516,
+    "adx_min": 19.2893,
+    "volume_surge_threshold": 1.311,
+    "use_acceleration_filter": false,
+    "stop_loss_atr_mult": 2.844,
+    "take_profit_atr_mult": 6.0472
+  },
+  "fitness": 1.6068704281058093,
+  "sharpe": 0.9030056028052361,
+  "wf_sharpe": 1.5808732714569367,
+  "trades": 234,
+  "net_pnl": 409.05278741289703,
+  "wf_robust": true
+}

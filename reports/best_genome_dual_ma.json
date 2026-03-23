@@ -1,0 +1,20 @@
+{
+  "strategy": "dual_ma",
+  "params": {
+    "fast_period": 17,
+    "slow_period": 27,
+    "signal_type": "sma",
+    "require_adx": false,
+    "adx_min": 28.9929,
+    "require_volume": true,
+    "volume_threshold": 1.7066,
+    "stop_loss_atr_mult": 3.5518,
+    "take_profit_atr_mult": 6.7914
+  },
+  "fitness": 2.4871134792320504,
+  "sharpe": 1.8406141767652802,
+  "wf_sharpe": 3.1271440390640715,
+  "trades": 41,
+  "net_pnl": 35.23237257994802,
+  "wf_robust": true
+}

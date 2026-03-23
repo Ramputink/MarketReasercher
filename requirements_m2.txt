@@ -1,0 +1,44 @@
+# ═══════════════════════════════════════════════════════════
+# CryptoResearchLab — Mac M2 Pro + Metal GPU
+# Python 3.11 | numpy 2.0 | TF 2.18.1 + Metal 1.2.0
+# Combo confirmado en Apple Developer Forums (Feb 2025)
+# ═══════════════════════════════════════════════════════════
+
+# ── Core Scientific Stack ──────────────────────────────────
+numpy==2.0.2
+pandas==2.2.3
+scipy==1.14.1
+
+# ── ML / Backtesting ──────────────────────────────────────
+scikit-learn==1.5.2
+joblib==1.4.2
+
+# ── TensorFlow + Metal GPU acceleration ───────────────────
+tensorflow==2.18.1
+tensorflow-metal==1.2.0
+
+# ── Visualization ─────────────────────────────────────────
+matplotlib==3.9.3
+seaborn==0.13.2
+
+# ── Jupyter / Notebooks ──────────────────────────────────
+jupyter==1.1.1
+ipykernel==6.29.5
+notebook==7.3.2
+
+# ── Progress bars ─────────────────────────────────────────
+tqdm==4.67.1
+
+# ── Exchange data ─────────────────────────────────────────
+ccxt>=4.4.53
+
+# ── Data storage ──────────────────────────────────────────
+pyarrow==18.1.0
+
+# ── Ollama (LLM local para MiroFish) ─────────────────────
+ollama>=0.4.0
+
+# ── Utilidades ────────────────────────────────────────────
+python-dateutil==2.9.0
+pytz==2024.2
+requests==2.32.3

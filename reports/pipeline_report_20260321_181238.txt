@@ -1,0 +1,64 @@
+╔════════════════════════════════════════════════════════════════════╗
+║              CRYPTORESEARCHLAB — FULL PIPELINE REPORT              ║
+║                        2026-03-21 18:12 UTC                        ║
+╚════════════════════════════════════════════════════════════════════╝
+
+┌─── MIROFISH: MARKET CONTEXT ─────────────────────────┐
+  Regime: LATERAL (confidence: 57%)
+    • BB_compression: 2th pctile
+    • Weak_trend: ADX=15
+  Scenarios:
+    50% — Range Continuation (flat, ±0.4%)
+  ⚠ Risk Flags:
+    • LLM_RISK: Breakout or reversal of the current trend
+└──────────────────────────────────────────────────────┘
+
+┌─── STRATEGY BACKTESTS ────────────────────────────────┐
+
+  [VOLATILITY_BREAKOUT] — ✗ BLOCKED
+  ┄┄┄ Full-sample ┄┄┄
+    Sharpe: 0.213  |  Sortino: 0.075
+    Max DD: 1.21%  |  PF: 1.190
+    Win Rate: 48.4%  |  Trades: 31
+    Net PnL: $45.46  |  Expectancy: 0.0001
+    Costs: $35.15 (comm $23.43 + slip $11.72)
+  ┄┄┄ Walk-Forward (NOT ROBUST) ┄┄┄
+    OOS Sharpe: -1.184  |  Degradation: 256.2%
+    OOS Trades: 22  |  OOS PF: 2.041
+
+  [MEAN_REVERSION] — ✗ BLOCKED
+  ┄┄┄ Full-sample ┄┄┄
+    Sharpe: 0.000  |  Sortino: 0.000
+    Max DD: 0.00%  |  PF: 0.000
+    Win Rate: 0.0%  |  Trades: 0
+    Net PnL: $0.00  |  Expectancy: 0.0000
+    Costs: $0.00 (comm $0.00 + slip $0.00)
+  ┄┄┄ Walk-Forward (NOT ROBUST) ┄┄┄
+    OOS Sharpe: 0.000  |  Degradation: 100.0%
+    OOS Trades: 0  |  OOS PF: 0.000
+
+  [TREND_FOLLOWING] — ✗ BLOCKED
+  ┄┄┄ Full-sample ┄┄┄
+    Sharpe: -0.277  |  Sortino: -0.348
+    Max DD: 2.77%  |  PF: 1.022
+    Win Rate: 47.5%  |  Trades: 282
+    Net PnL: $59.48  |  Expectancy: 0.0000
+    Costs: $261.45 (comm $174.30 + slip $87.15)
+  ┄┄┄ Walk-Forward (NOT ROBUST) ┄┄┄
+    OOS Sharpe: 0.768  |  Degradation: 136.9%
+    OOS Trades: 163  |  OOS PF: 1.274
+
+└──────────────────────────────────────────────────────┘
+
+┌─── AUTORESEARCH SESSION ──────────────────────────────┐
+  Experiments: 12
+  Accepted: 0
+  Rejected: 12
+  Acceptance Rate: 0.0%
+└──────────────────────────────────────────────────────┘
+
+┌─── RECOMMENDATIONS ──────────────────────────────────┐
+  ✗ volatility_breakout: NEEDS WORK — failed: sharpe_ok, walk_forward_robust
+  ✗ mean_reversion: NEEDS WORK — failed: sharpe_ok, trades_ok, profit_factor_ok, walk_forward_robust
+  ✗ trend_following: NEEDS WORK — failed: sharpe_ok, walk_forward_robust
+└──────────────────────────────────────────────────────┘

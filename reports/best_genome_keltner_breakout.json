@@ -1,0 +1,19 @@
+{
+  "strategy": "keltner_breakout",
+  "params": {
+    "ema_period": 15,
+    "atr_mult": 2.0758,
+    "rsi_long_min": 55.7786,
+    "rsi_short_max": 52.2507,
+    "adx_min": 21.679,
+    "volume_threshold": 1.7688,
+    "stop_loss_atr_mult": 2.7369,
+    "take_profit_atr_mult": 5.177
+  },
+  "fitness": 1.7196555372631932,
+  "sharpe": 1.084803905922673,
+  "wf_sharpe": 2.3002614611941503,
+  "trades": 142,
+  "net_pnl": 360.64308747999934,
+  "wf_robust": true
+}

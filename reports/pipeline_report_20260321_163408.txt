@@ -1,0 +1,66 @@
+╔════════════════════════════════════════════════════════════════════╗
+║              CRYPTORESEARCHLAB — FULL PIPELINE REPORT              ║
+║                        2026-03-21 16:34 UTC                        ║
+╚════════════════════════════════════════════════════════════════════╝
+
+┌─── MIROFISH: MARKET CONTEXT ─────────────────────────┐
+  Regime: BREAKOUT (confidence: 50%)
+    • BB_compression: 1th pctile
+    • Weak_trend: ADX=19
+  Scenarios:
+    35% — Upside Breakout (up, ±0.8%)
+    30% — Downside Breakout (down, ±0.8%)
+    35% — False Breakout / Whipsaw (flat, ±0.4%)
+  ⚠ Risk Flags:
+    • LLM_RISK: Potential reversal due to overbought RSI and negative z-score
+└──────────────────────────────────────────────────────┘
+
+┌─── STRATEGY BACKTESTS ────────────────────────────────┐
+
+  [VOLATILITY_BREAKOUT] — ✗ BLOCKED
+  ┄┄┄ Full-sample ┄┄┄
+    Sharpe: 2.248  |  Sortino: 0.400
+    Max DD: 0.24%  |  PF: inf
+    Win Rate: 100.0%  |  Trades: 2
+    Net PnL: $75.96  |  Expectancy: 0.0038
+    Costs: $3.01 (comm $2.00 + slip $1.00)
+  ┄┄┄ Walk-Forward (NOT ROBUST) ┄┄┄
+    OOS Sharpe: 0.000  |  Degradation: 100.0%
+    OOS Trades: 0  |  OOS PF: 0.000
+
+  [MEAN_REVERSION] — ✗ BLOCKED
+  ┄┄┄ Full-sample ┄┄┄
+    Sharpe: 0.000  |  Sortino: 0.000
+    Max DD: 0.00%  |  PF: 0.000
+    Win Rate: 0.0%  |  Trades: 0
+    Net PnL: $0.00  |  Expectancy: 0.0000
+    Costs: $0.00 (comm $0.00 + slip $0.00)
+  ┄┄┄ Walk-Forward (NOT ROBUST) ┄┄┄
+    OOS Sharpe: 0.000  |  Degradation: 100.0%
+    OOS Trades: 0  |  OOS PF: 0.000
+
+  [TREND_FOLLOWING] — ✗ BLOCKED
+  ┄┄┄ Full-sample ┄┄┄
+    Sharpe: -1.951  |  Sortino: -2.397
+    Max DD: 5.19%  |  PF: 0.837
+    Win Rate: 42.8%  |  Trades: 145
+    Net PnL: $-226.31  |  Expectancy: -0.0002
+    Costs: $135.02 (comm $90.02 + slip $45.01)
+  ┄┄┄ Walk-Forward (NOT ROBUST) ┄┄┄
+    OOS Sharpe: -6.862  |  Degradation: 100.0%
+    OOS Trades: 50  |  OOS PF: 0.430
+
+└──────────────────────────────────────────────────────┘
+
+┌─── AUTORESEARCH SESSION ──────────────────────────────┐
+  Experiments: 9
+  Accepted: 0
+  Rejected: 9
+  Acceptance Rate: 0.0%
+└──────────────────────────────────────────────────────┘
+
+┌─── RECOMMENDATIONS ──────────────────────────────────┐
+  ✗ volatility_breakout: NEEDS WORK — failed: trades_ok, walk_forward_robust
+  ✗ mean_reversion: NEEDS WORK — failed: sharpe_ok, trades_ok, profit_factor_ok, walk_forward_robust
+  ✗ trend_following: NEEDS WORK — failed: sharpe_ok, profit_factor_ok, walk_forward_robust
+└──────────────────────────────────────────────────────┘

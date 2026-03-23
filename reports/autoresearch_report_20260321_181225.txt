@@ -1,0 +1,31 @@
+======================================================================
+AUTORESEARCH SESSION REPORT
+======================================================================
+
+Session: 20260321_181145
+Total experiments: 12
+Accepted: 0
+Rejected: 12
+Acceptance rate: 0.0%
+
+----------------------------------------
+BEST PARAMETERS FOUND
+----------------------------------------
+
+----------------------------------------
+BEST METRICS
+----------------------------------------
+
+----------------------------------------
+EXPERIMENT LOG (last 10)
+----------------------------------------
+  ✗ #3 [trend_following] insufficient_improvement_0.0% (Δ=+0.0%)
+  ✗ #4 [volatility_breakout] insufficient_improvement_0.0% (Δ=+0.0%)
+  ✗ #5 [mean_reversion] insufficient_improvement_0.0% (Δ=+0.0%)
+  ✗ #6 [trend_following] insufficient_improvement_0.0% (Δ=+0.0%)
+  ✗ #7 [volatility_breakout] insufficient_improvement_0.0% (Δ=+0.0%)
+  ✗ #8 [mean_reversion] insufficient_improvement_0.0% (Δ=+0.0%)
+  ✗ #9 [trend_following] insufficient_improvement_0.0% (Δ=+0.0%)
+  ✗ #10 [volatility_breakout] insufficient_improvement_0.0% (Δ=+0.0%)
+  ✗ #11 [mean_reversion] insufficient_improvement_0.0% (Δ=+0.0%)
+  ✗ #12 [trend_following] insufficient_improvement_0.0% (Δ=+0.0%)

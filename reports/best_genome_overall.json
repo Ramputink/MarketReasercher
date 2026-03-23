@@ -1,0 +1,19 @@
+{
+  "strategy": "kama_trend",
+  "params": {
+    "er_period": 15,
+    "fast_sc": 5,
+    "slow_sc": 29,
+    "signal_period": 5,
+    "slope_threshold_pct": 0.0863,
+    "adx_min": 19.3667,
+    "stop_loss_atr_mult": 2.2248,
+    "take_profit_atr_mult": 5.3858
+  },
+  "fitness": 3.5292982373614707,
+  "sharpe": 3.3650781153130467,
+  "wf_sharpe": 4.526559734042806,
+  "trades": 13,
+  "net_pnl": 366.92900386453783,
+  "wf_robust": false
+}

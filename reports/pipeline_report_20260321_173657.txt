@@ -1,0 +1,66 @@
+╔════════════════════════════════════════════════════════════════════╗
+║              CRYPTORESEARCHLAB — FULL PIPELINE REPORT              ║
+║                        2026-03-21 17:36 UTC                        ║
+╚════════════════════════════════════════════════════════════════════╝
+
+┌─── MIROFISH: MARKET CONTEXT ─────────────────────────┐
+  Regime: BREAKOUT (confidence: 50%)
+    • BB_compression: 2th pctile
+    • Weak_trend: ADX=18
+  Scenarios:
+    35% — Upside Breakout (up, ±0.8%)
+    30% — Downside Breakout (down, ±0.8%)
+    35% — False Breakout / Whipsaw (flat, ±0.4%)
+  ⚠ Risk Flags:
+    • LLM_RISK: Potential false breakout or reversal due to ADX indicating a weak trend.
+└──────────────────────────────────────────────────────┘
+
+┌─── STRATEGY BACKTESTS ────────────────────────────────┐
+
+  [VOLATILITY_BREAKOUT] — ✗ BLOCKED
+  ┄┄┄ Full-sample ┄┄┄
+    Sharpe: 2.111  |  Sortino: 0.986
+    Max DD: 0.65%  |  PF: 2.453
+    Win Rate: 60.0%  |  Trades: 20
+    Net PnL: $144.59  |  Expectancy: 0.0007
+    Costs: $22.18 (comm $14.79 + slip $7.39)
+  ┄┄┄ Walk-Forward (NOT ROBUST) ┄┄┄
+    OOS Sharpe: -0.678  |  Degradation: 105.5%
+    OOS Trades: 4  |  OOS PF: 0.903
+
+  [MEAN_REVERSION] — ✗ BLOCKED
+  ┄┄┄ Full-sample ┄┄┄
+    Sharpe: 0.000  |  Sortino: 0.000
+    Max DD: 0.00%  |  PF: 0.000
+    Win Rate: 0.0%  |  Trades: 0
+    Net PnL: $0.00  |  Expectancy: 0.0000
+    Costs: $0.00 (comm $0.00 + slip $0.00)
+  ┄┄┄ Walk-Forward (NOT ROBUST) ┄┄┄
+    OOS Sharpe: 0.000  |  Degradation: 100.0%
+    OOS Trades: 0  |  OOS PF: 0.000
+
+  [TREND_FOLLOWING] — ✗ BLOCKED
+  ┄┄┄ Full-sample ┄┄┄
+    Sharpe: 0.031  |  Sortino: 0.039
+    Max DD: 2.00%  |  PF: 1.065
+    Win Rate: 50.7%  |  Trades: 136
+    Net PnL: $87.56  |  Expectancy: 0.0001
+    Costs: $128.13 (comm $85.42 + slip $42.71)
+  ┄┄┄ Walk-Forward (NOT ROBUST) ┄┄┄
+    OOS Sharpe: -2.866  |  Degradation: 1492.3%
+    OOS Trades: 45  |  OOS PF: 0.847
+
+└──────────────────────────────────────────────────────┘
+
+┌─── AUTORESEARCH SESSION ──────────────────────────────┐
+  Experiments: 9
+  Accepted: 0
+  Rejected: 9
+  Acceptance Rate: 0.0%
+└──────────────────────────────────────────────────────┘
+
+┌─── RECOMMENDATIONS ──────────────────────────────────┐
+  ✗ volatility_breakout: NEEDS WORK — failed: walk_forward_robust
+  ✗ mean_reversion: NEEDS WORK — failed: sharpe_ok, trades_ok, profit_factor_ok, walk_forward_robust
+  ✗ trend_following: NEEDS WORK — failed: sharpe_ok, walk_forward_robust
+└──────────────────────────────────────────────────────┘

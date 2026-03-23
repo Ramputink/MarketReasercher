@@ -1,0 +1,48 @@
+# Secrets -- NEVER commit
+.env
+*.key
+*.pem
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Data cache (large files)
+data/*.parquet
+data/*.csv
+
+# Model artifacts (large binary files)
+models/*.keras
+models/*.h5
+models/*.joblib
+checkpoints/
+
+# Keep model metadata (small JSON/CSV)
+!models/*_meta.json
+!models/*_training_log.csv
+
+# Logs (large, regenerable)
+logs/*.log
+logs/*.jsonl
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Deploy
+.deploy_package/

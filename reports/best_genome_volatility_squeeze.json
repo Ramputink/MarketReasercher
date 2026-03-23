@@ -1,0 +1,17 @@
+{
+  "strategy": "volatility_squeeze",
+  "params": {
+    "keltner_atr_mult": 1.1946,
+    "squeeze_min_bars": 9,
+    "momentum_lookback": 13,
+    "volume_surge_threshold": 1.9133,
+    "stop_loss_atr_mult": 3.7981,
+    "take_profit_atr_mult": 5.2517
+  },
+  "fitness": 3.335267057009524,
+  "sharpe": 3.3127186520459966,
+  "wf_sharpe": 3.9428865791496017,
+  "trades": 49,
+  "net_pnl": 536.4605893967347,
+  "wf_robust": true
+}

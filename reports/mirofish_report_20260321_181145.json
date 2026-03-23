@@ -1,0 +1,96 @@
+{
+  "timestamp": "2026-03-21 18:11:45.740802+00:00",
+  "symbol": "XRP/USDT",
+  "regime": {
+    "regime": "lateral",
+    "confidence": 0.571,
+    "signals": [
+      "BB_compression: 2th pctile",
+      "Weak_trend: ADX=15"
+    ],
+    "timestamp": "2026-03-21 18:11:07.357474+00:00"
+  },
+  "scenarios": [
+    {
+      "name": "Range Continuation",
+      "description": "Price continues oscillating within established range",
+      "probability": 0.5,
+      "regime": "lateral",
+      "direction": "flat",
+      "magnitude_%": 0.4175396439245772,
+      "catalysts": [
+        "Low volume",
+        "No catalyst",
+        "Market indecision"
+      ],
+      "risks": [
+        "Sudden breakout from range"
+      ],
+      "strategy_implications": {
+        "volatility_breakout": "PREPARE \u2014 compression building",
+        "mean_reversion": "POSSIBLE \u2014 range extremes",
+        "trend_following": "AVOID \u2014 no trend"
+      }
+    }
+  ],
+  "agent_consensus": {
+    "agents": {
+      "whale": {
+        "archetype": "whale_accumulator",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "long",
+        "last_action": "hold"
+      },
+      "momentum": {
+        "archetype": "momentum_trader",
+        "bias": "neutral",
+        "confidence": 0.3,
+        "time_horizon": "short",
+        "last_action": "wait"
+      },
+      "mean_reversion": {
+        "archetype": "mean_reversion_trader",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "short",
+        "last_action": "hold"
+      },
+      "retail": {
+        "archetype": "retail_fomo",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "short",
+        "last_action": "hold"
+      },
+      "market_maker": {
+        "archetype": "market_maker",
+        "bias": "neutral",
+        "confidence": 0.6,
+        "time_horizon": "short",
+        "last_action": "provide_liquidity"
+      },
+      "institutional": {
+        "archetype": "institutional",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "medium",
+        "last_action": "hold"
+      }
+    },
+    "consensus": {
+      "bullish": 0,
+      "bearish": 0,
+      "neutral": 6,
+      "net_sentiment": 0.0
+    }
+  },
+  "recommended_strategies": [],
+  "avoid_strategies": [
+    "trend_following"
+  ],
+  "risk_flags": [
+    "LLM_RISK: Breakout or reversal of the current trend"
+  ],
+  "hypotheses": []
+}

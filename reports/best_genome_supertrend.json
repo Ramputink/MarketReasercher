@@ -1,0 +1,18 @@
+{
+  "strategy": "supertrend",
+  "params": {
+    "atr_period": 14,
+    "multiplier": 3.8957,
+    "adx_min": 17.233,
+    "require_volume": true,
+    "volume_threshold": 1.0648,
+    "stop_loss_atr_mult": 3.0251,
+    "take_profit_atr_mult": 5.8416
+  },
+  "fitness": 1.0372612149968885,
+  "sharpe": 1.1966843858392535,
+  "wf_sharpe": 1.1027866336109096,
+  "trades": 69,
+  "net_pnl": 360.6856952396036,
+  "wf_robust": true
+}
