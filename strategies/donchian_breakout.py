@@ -10,15 +10,15 @@ from engine.backtester import Signal
 PARAMS = {
     # Evolved via genetic algorithm (2026-03-22, gen 144, 2739 evals)
     # Walk-forward ROBUST: Sharpe=2.79, WF_Sharpe=2.99, PF=1.89, 132 trades, $1015 PnL
-    "entry_period": 41,                   # Evolved: longer channel = bigger breakouts
-    "exit_period": 10,                    # Evolved: keep exit tight
+    "entry_period": 40,                   # Evolved: longer channel = bigger breakouts
+    "exit_period": 14,                    # Evolved: keep exit tight
     "require_volume_confirmation": True,
-    "volume_surge_threshold": 1.5495,     # Evolved: moderate volume bar
-    "adx_min": 27.6524,                   # Evolved: strong trend required
-    "atr_filter_mult": 0.2,              # Evolved: minimal ATR filter
-    "use_volatility_filter": True,
-    "stop_loss_atr_mult": 2.681,          # Evolved: medium stops
-    "take_profit_atr_mult": 7.8633,       # Evolved: very wide TP = ride big breakouts
+    "volume_surge_threshold": 1.5041,     # Evolved: moderate volume bar
+    "adx_min": 27.6424,                   # Evolved: strong trend required
+    "atr_filter_mult": 0.7079,            # Evolved: minimal ATR filter
+    "use_volatility_filter": False,
+    "stop_loss_atr_mult": 2.6558,         # Evolved: medium stops
+    "take_profit_atr_mult": 7.8454,       # Evolved: very wide TP = ride big breakouts
     "time_stop_hours": 48,
     "require_breakout_regime": True,
     "allowed_regimes": ["breakout", "trend"],

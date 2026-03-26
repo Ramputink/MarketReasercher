@@ -11,16 +11,16 @@ from engine.backtester import Signal
 PARAMS = {
     # Evolved via genetic algorithm (2026-03-22, gen 190, 1104 evals)
     # Walk-forward ROBUST: Sharpe=1.06, WF_Sharpe=2.19, PF=1.67, 34 trades, $152 PnL
-    "period": 14,                         # Evolved: longer period for stability
-    "signal_threshold": 2.1992,           # Evolved: higher threshold = fewer but better signals
+    "period": 18,                         # Evolved: longer period for stability
+    "signal_threshold": 1.982,            # Evolved: higher threshold = fewer but better signals
     "require_divergence": False,          # Evolved: divergence not needed
-    "divergence_lookback": 10,
-    "adx_filter": False,                  # Evolved: no ADX filter
-    "adx_max": 34.6102,
+    "divergence_lookback": 14,
+    "adx_filter": True,                   # Evolved: no ADX filter
+    "adx_max": 35.3155,
     "require_volume": False,
     "volume_threshold": 0.9,
-    "stop_loss_atr_mult": 1.3318,         # Evolved: tight SL for reversal trades
-    "take_profit_atr_mult": 4.0428,       # Evolved: wide TP
+    "stop_loss_atr_mult": 2.1824,         # Evolved: tight SL for reversal trades
+    "take_profit_atr_mult": 3.9579,       # Evolved: wide TP
     "time_stop_hours": 24,
     "require_trend_regime": True,
     "allowed_regimes": ["lateral", "mean_reversion", "trend"],

@@ -60,9 +60,11 @@ logger = logging.getLogger("auto_evolve")
 # ═══════════════════════════════════════════════════════════════
 
 STRATEGY_REGISTRY = {
-    # NOTE: 5 strategies removed after 10h/29K-eval evolution (0% positive fitness):
+    # NOTE: Round 1 pruning (10h/29K-eval evolution, 0% positive fitness):
     #   volatility_breakout, mean_reversion, rsi_divergence, vwap_reversion, obv_divergence
-    # They consumed 16% of compute without producing any viable genomes.
+    # NOTE: Round 2 pruning (14h/36K-eval evolution, <1.5% positive fitness):
+    #   supertrend (0.3%), momentum (0.5%), heikin_ashi_ema (0.4%), connors_rsi2 (1.2%), williams_cci (1.0%)
+    # 10 strategies removed total. 8 active strategies remain.
     "trend_following": {
         "module": "strategies.trend_following",
         "function": "trend_following_strategy",
@@ -77,23 +79,7 @@ STRATEGY_REGISTRY = {
             "rsi_upper_bound": ("int", 55, 75),
         },
     },
-    "momentum": {
-        "module": "strategies.momentum",
-        "function": "momentum_strategy",
-        "params_dict": "PARAMS",
-        "param_space": {
-            "rsi_long_threshold": ("float", 50.0, 65.0),
-            "rsi_short_threshold": ("float", 35.0, 50.0),
-            "rsi_overbought": ("float", 65.0, 85.0),
-            "rsi_oversold": ("float", 15.0, 35.0),
-            "roc_min_magnitude": ("float", 0.1, 1.0),
-            "adx_min": ("float", 10.0, 35.0),
-            "volume_surge_threshold": ("float", 0.8, 2.5),
-            "use_acceleration_filter": ("bool",),
-            "stop_loss_atr_mult": ("float", 1.0, 4.0),
-            "take_profit_atr_mult": ("float", 2.0, 8.0),
-        },
-    },
+    # ── momentum PRUNED (Round 2) ──
     "donchian_breakout": {
         "module": "strategies.donchian_breakout",
         "function": "donchian_breakout_strategy",
@@ -153,52 +139,7 @@ STRATEGY_REGISTRY = {
             "take_profit_atr_mult": ("float", 2.0, 8.0),
         },
     },
-    # ── NEW STRATEGIES (Tier 1) ──────────────────────────────────
-    "supertrend": {
-        "module": "strategies.supertrend",
-        "function": "supertrend_strategy",
-        "params_dict": "PARAMS",
-        "param_space": {
-            "atr_period": ("int", 10, 20),
-            "multiplier": ("float", 2.0, 4.5),
-            "adx_min": ("float", 12.0, 30.0),
-            "require_volume": ("bool",),
-            "volume_threshold": ("float", 0.7, 1.5),
-            "stop_loss_atr_mult": ("float", 1.5, 4.0),
-            "take_profit_atr_mult": ("float", 3.0, 7.0),
-        },
-    },
-    "connors_rsi2": {
-        "module": "strategies.connors_rsi2",
-        "function": "connors_rsi2_strategy",
-        "params_dict": "PARAMS",
-        "param_space": {
-            "rsi_period": ("int", 2, 4),
-            "entry_threshold_long": ("float", 3.0, 15.0),
-            "entry_threshold_short": ("float", 85.0, 97.0),
-            "trend_ema_period": ("int", 100, 200),
-            "require_adx": ("bool",),
-            "adx_min": ("float", 10.0, 25.0),
-            "stop_loss_atr_mult": ("float", 1.0, 3.0),
-            "take_profit_atr_mult": ("float", 1.5, 4.0),
-        },
-    },
-    "heikin_ashi_ema": {
-        "module": "strategies.heikin_ashi_ema",
-        "function": "heikin_ashi_ema_strategy",
-        "params_dict": "PARAMS",
-        "param_space": {
-            "ema_fast": ("int", 9, 21),
-            "ema_slow": ("int", 40, 60),
-            "require_ha_color_flip": ("bool",),
-            "require_consecutive_ha": ("int", 1, 4),
-            "adx_min": ("float", 12.0, 30.0),
-            "require_volume": ("bool",),
-            "volume_threshold": ("float", 0.7, 1.3),
-            "stop_loss_atr_mult": ("float", 1.5, 4.0),
-            "take_profit_atr_mult": ("float", 3.0, 7.0),
-        },
-    },
+    # ── supertrend, connors_rsi2, heikin_ashi_ema PRUNED (Round 2) ──
     "ichimoku_kumo": {
         "module": "strategies.ichimoku_kumo",
         "function": "ichimoku_kumo_strategy",
@@ -215,24 +156,7 @@ STRATEGY_REGISTRY = {
             "take_profit_atr_mult": ("float", 3.0, 7.0),
         },
     },
-    "williams_cci": {
-        "module": "strategies.williams_cci",
-        "function": "williams_cci_strategy",
-        "params_dict": "PARAMS",
-        "param_space": {
-            "wr_period": ("int", 10, 20),
-            "wr_oversold": ("float", -95.0, -75.0),
-            "wr_overbought": ("float", -25.0, -5.0),
-            "cci_period": ("int", 14, 30),
-            "cci_long_threshold": ("float", -150.0, -80.0),
-            "cci_short_threshold": ("float", 80.0, 150.0),
-            "require_bb_squeeze": ("bool",),
-            "require_volume_spike": ("bool",),
-            "volume_spike_threshold": ("float", 0.8, 2.0),
-            "stop_loss_atr_mult": ("float", 1.0, 3.0),
-            "take_profit_atr_mult": ("float", 2.0, 5.0),
-        },
-    },
+    # ── williams_cci PRUNED (Round 2) ──
     "kama_trend": {
         "module": "strategies.kama_trend",
         "function": "kama_trend_strategy",
@@ -761,6 +685,7 @@ class EvolutionEngine:
             return 1.0
         spec = STRATEGY_REGISTRY[g1.strategy]["param_space"]
         diffs = []
+        weights = []
         for pname, pspec in spec.items():
             v1 = g1.params.get(pname)
             v2 = g2.params.get(pname)
@@ -771,16 +696,21 @@ class EvolutionEngine:
                 lo, hi = float(pspec[1]), float(pspec[2])
                 rng = hi - lo if hi > lo else 1.0
                 diffs.append(abs(float(v1) - float(v2)) / rng)
+                weights.append(1.0)
             elif ptype in ("bool", "choice"):
+                # Weight bool/choice 2x so they aren't diluted by many float params
                 diffs.append(0.0 if v1 == v2 else 1.0)
-        return float(np.mean(diffs)) if diffs else 0.0
+                weights.append(2.0)
+        if not diffs:
+            return 0.0
+        return float(np.average(diffs, weights=weights))
 
     def _update_hall_of_fame(self, genome: Genome):
         """Update hall of fame with diversity enforcement.
 
         Rules:
         - Max 4 genomes per strategy in global HoF (ensures strategy diversity)
-        - New genome must have param distance > 0.05 from existing HoF entries
+        - New genome must have param distance > 0.15 from existing HoF entries
           of the same strategy (prevents clones flooding HoF)
         - Also maintain per-strategy top 5 for best-per-strategy tracking
         """
@@ -794,7 +724,7 @@ class EvolutionEngine:
         same_strat_in_hof = [g for g in self.hall_of_fame if g.strategy == genome.strategy]
         for existing in same_strat_in_hof:
             dist = self._genome_param_distance(genome, existing)
-            if dist < 0.10:
+            if dist < 0.15:
                 # Too similar — only replace if strictly better fitness
                 if genome.fitness > existing.fitness:
                     self.hall_of_fame.remove(existing)

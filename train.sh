@@ -318,7 +318,7 @@ fi
 if [[ "$MODE" == "evolve" ]]; then
     header "[STAGE 5] Autonomous Evolution Engine (${EVOLVE_HOURS}h)"
     info "Population: ${EVOLVE_POP}, Cores: ${NCORES}, Duration: ${EVOLVE_HOURS} hours"
-    info "Strategies: 13 (TF, Momentum, Donchian, Dual MA, Keltner, Vol Squeeze, Supertrend, ConnorsRSI2, HA-EMA, Ichimoku, Williams-CCI, KAMA, Fisher)"
+    info "Strategies: 8 (TF, Donchian, Dual MA, Keltner, Vol Squeeze, Ichimoku, KAMA, Fisher)"
     info "This will run autonomously. Check logs/ for progress."
     echo ""
 

@@ -10,17 +10,17 @@ from engine.backtester import Signal
 PARAMS = {
     # Evolved via genetic algorithm (2026-03-22, gen 447, 1330 evals)
     # Walk-forward ROBUST: Sharpe=1.84, WF_Sharpe=3.13, PF=3.21, 41 trades, $35 PnL
-    "fast_period": 17,                    # Evolved: slightly longer fast MA
-    "slow_period": 27,                    # Evolved: tighter gap between fast/slow
-    "signal_type": "sma",                 # Evolved: SMA outperformed EMA
-    "require_adx": False,                 # Evolved: no ADX filter
-    "adx_min": 28.9929,
+    "fast_period": 20,                    # Evolved: slightly longer fast MA
+    "slow_period": 46,                    # Evolved: tighter gap between fast/slow
+    "signal_type": "ema",                 # Evolved: SMA outperformed EMA
+    "require_adx": True,                  # Evolved: no ADX filter
+    "adx_min": 26.5476,
     "require_volume": True,               # Evolved: volume required
-    "volume_threshold": 1.7066,           # Evolved: high volume bar
+    "volume_threshold": 1.0685,           # Evolved: high volume bar
     "require_price_above_slow": True,
     "pullback_tolerance_pct": 0.3,
-    "stop_loss_atr_mult": 3.5518,         # Evolved: wide stops
-    "take_profit_atr_mult": 6.7914,       # Evolved: wide TP
+    "stop_loss_atr_mult": 3.4827,         # Evolved: wide stops
+    "take_profit_atr_mult": 5.6371,       # Evolved: wide TP
     "time_stop_hours": 36,
     "require_trend_regime": True,
     "allowed_regimes": ["trend", "breakout"],

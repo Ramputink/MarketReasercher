@@ -12,16 +12,16 @@ PARAMS = {
     # Evolved via genetic algorithm (2026-03-22, gen 296, 4211 evals)
     # WF ROBUST variant: Sharpe=3.32, WF_Sharpe=4.25, PF=8.83, 18 trades, $402 PnL
     # NOTE: low trade count (18) — use with caution, may be overfit
-    "er_period": 15,                      # Evolved: longer efficiency ratio window
-    "fast_sc": 5,                         # Evolved: slower fast constant
-    "slow_sc": 29,                        # Evolved: near default
-    "signal_period": 5,                   # Evolved: same
-    "slope_threshold_pct": 0.0701,        # Evolved: moderate slope requirement
-    "adx_min": 10.4446,                   # Evolved: low ADX floor = more entries
+    "er_period": 14,                      # Evolved: longer efficiency ratio window
+    "fast_sc": 4,                         # Evolved: slower fast constant
+    "slow_sc": 26,                        # Evolved: near default
+    "signal_period": 7,                   # Evolved: same
+    "slope_threshold_pct": 0.1325,        # Evolved: moderate slope requirement
+    "adx_min": 16.7343,                   # Evolved: low ADX floor = more entries
     "require_volume": False,
     "volume_threshold": 0.8,
-    "stop_loss_atr_mult": 2.2972,         # Evolved: tighter SL
-    "take_profit_atr_mult": 5.3074,       # Evolved: wide TP
+    "stop_loss_atr_mult": 2.2785,         # Evolved: tighter SL
+    "take_profit_atr_mult": 3.1825,       # Evolved: wide TP
     "time_stop_hours": 48,
     "require_trend_regime": True,
     "allowed_regimes": ["trend", "breakout", "lateral"],

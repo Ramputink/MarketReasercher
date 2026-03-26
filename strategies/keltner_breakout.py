@@ -10,18 +10,18 @@ from engine.backtester import Signal
 PARAMS = {
     # Evolved via genetic algorithm (2026-03-22, gen ~400, 1759 evals)
     # Walk-forward ROBUST: Sharpe=1.08, WF_Sharpe=2.30, 142 trades, $361 PnL
-    "ema_period": 15,                     # Evolved: shorter EMA
-    "atr_mult": 2.0758,                   # Evolved: standard ATR multiplier
+    "ema_period": 19,                     # Evolved: shorter EMA
+    "atr_mult": 3.404,                    # Evolved: standard ATR multiplier
     "require_momentum": True,
-    "rsi_long_min": 55.7786,              # Evolved: above 55 for longs
-    "rsi_short_max": 52.2507,             # Evolved: below 52 for shorts
-    "adx_min": 21.679,                    # Evolved: moderate ADX
+    "rsi_long_min": 50.9851,              # Evolved: above 55 for longs
+    "rsi_short_max": 45.4013,             # Evolved: below 52 for shorts
+    "adx_min": 14.7614,                   # Evolved: moderate ADX
     "require_close_outside": True,
     "consecutive_bars_outside": 1,
     "volume_confirmation": True,
-    "volume_threshold": 1.7688,           # Evolved: high volume bar
-    "stop_loss_atr_mult": 2.7369,         # Evolved: moderate SL
-    "take_profit_atr_mult": 5.177,        # Evolved: wide TP
+    "volume_threshold": 1.98,             # Evolved: high volume bar
+    "stop_loss_atr_mult": 2.6146,         # Evolved: moderate SL
+    "take_profit_atr_mult": 6.2393,       # Evolved: wide TP
     "time_stop_hours": 36,
     "require_regime": True,
     "allowed_regimes": ["breakout", "trend"],

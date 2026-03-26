@@ -13,14 +13,14 @@ PARAMS = {
     "bb_period": 20,
     "bb_std": 2.0,
     "keltner_period": 20,
-    "keltner_atr_mult": 1.1946,          # Evolved: tighter Keltner = more squeeze detection
-    "squeeze_min_bars": 9,                # Evolved: require longer compression period
+    "keltner_atr_mult": 1.1686,          # Evolved: tighter Keltner = more squeeze detection
+    "squeeze_min_bars": 3,                # Evolved: require longer compression period
     "momentum_lookback": 13,              # Evolved: slightly longer momentum window
     "require_volume_surge": True,
-    "volume_surge_threshold": 1.9133,     # Evolved: high bar for volume confirmation
+    "volume_surge_threshold": 1.9008,     # Evolved: high bar for volume confirmation
     "adx_min": 0.0,
-    "stop_loss_atr_mult": 3.7981,         # Evolved: wide stops for breakout moves
-    "take_profit_atr_mult": 5.2517,       # Evolved: let winners run
+    "stop_loss_atr_mult": 3.7943,         # Evolved: wide stops for breakout moves
+    "take_profit_atr_mult": 4.5961,       # Evolved: let winners run
     "time_stop_hours": 36,
     "require_regime": True,
     "allowed_regimes": ["breakout", "lateral"],

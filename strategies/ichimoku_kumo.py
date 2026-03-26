@@ -11,17 +11,17 @@ from engine.backtester import Signal
 PARAMS = {
     # Evolved via genetic algorithm (2026-03-22, gen 183, 1074 evals)
     # Walk-forward ROBUST: Sharpe=1.02, WF_Sharpe=2.28, PF=1.30, 106 trades, $418 PnL
-    "tenkan_period": 8,                   # Evolved: faster Tenkan
-    "kijun_period": 32,                   # Evolved: slightly longer Kijun
-    "senkou_b_period": 64,                # Evolved: wider cloud
-    "displacement": 26,                   # Evolved: standard displacement
-    "require_chikou_confirm": True,       # Evolved: keep Chikou confirmation
-    "require_tk_cross": False,            # Evolved: no TK cross needed
-    "adx_min": 22.3377,                   # Evolved: moderate ADX
+    "tenkan_period": 10,                  # Evolved: faster Tenkan
+    "kijun_period": 34,                   # Evolved: slightly longer Kijun
+    "senkou_b_period": 59,                # Evolved: wider cloud
+    "displacement": 30,                   # Evolved: standard displacement
+    "require_chikou_confirm": False,      # Evolved: keep Chikou confirmation
+    "require_tk_cross": True,             # Evolved: no TK cross needed
+    "adx_min": 12.1182,                   # Evolved: moderate ADX
     "require_volume": False,
     "volume_threshold": 0.8,
-    "stop_loss_atr_mult": 2.9635,         # Evolved: moderate SL
-    "take_profit_atr_mult": 6.2346,       # Evolved: wide TP
+    "stop_loss_atr_mult": 2.9834,         # Evolved: moderate SL
+    "take_profit_atr_mult": 6.8181,       # Evolved: wide TP
     "time_stop_hours": 72,
     "require_trend_regime": True,
     "allowed_regimes": ["trend", "breakout"],

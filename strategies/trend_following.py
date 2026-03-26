@@ -22,24 +22,24 @@ PARAMS = {
     "require_bmsb_bullish": True,
     # Trend confirmation — evolved (2026-03-22, gen ~400, 1112 evals)
     # Walk-forward: Sharpe=1.62, WF_Sharpe=1.96, 181 trades, $735 PnL
-    "adx_threshold": 28.0896,             # Evolved: strict ADX
+    "adx_threshold": 30.168,              # Evolved: strict ADX
     "trend_ema_period": 50,
     # Fibonacci pullback entry — evolved
     "fib_levels": [0.382, 0.5, 0.618],
-    "fib_zone_tolerance_pct": 1.9019,     # Evolved: moderate tolerance
+    "fib_zone_tolerance_pct": 2.0956,     # Evolved: moderate tolerance
     "fib_lookback": 50,
     # Volume filter
-    "min_volume_ratio": 0.8259,           # Evolved: lower volume floor
+    "min_volume_ratio": 0.9814,           # Evolved: lower volume floor
     "volume_ma_period": 20,
     # Momentum filter — evolved
-    "rsi_lower_bound": 30,                # Evolved: standard oversold
-    "rsi_upper_bound": 72,                # Evolved: wider upper band
+    "rsi_lower_bound": 34,                # Evolved: standard oversold
+    "rsi_upper_bound": 70,                # Evolved: wider upper band
     # Structure confirmation
     "require_higher_lows": False,
     "structure_lookback": 5,
     # Risk — evolved
-    "stop_loss_atr_mult": 4.2874,         # Evolved: wide SL
-    "take_profit_atr_mult": 7.383,        # Evolved: very wide TP
+    "stop_loss_atr_mult": 4.5456,         # Evolved: wide SL
+    "take_profit_atr_mult": 5.5786,       # Evolved: very wide TP
     "time_stop_hours": 48,
     # Regime filter
     "require_trend_regime": True,
