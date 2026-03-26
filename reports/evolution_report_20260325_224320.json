@@ -1,5 +1,6 @@
 {
-  "generation": 454,
+  "run_timestamp": "2026-03-26T07:43:23.952683+00:00",
+  "generations": 454,
   "total_evaluated": 36400,
   "total_robust": 12147,
   "hall_of_fame": [
@@ -505,5 +506,85 @@
     "dual_ma",
     "donchian_breakout",
     "keltner_breakout"
-  ]
+  ],
+  "strategy_scores": {
+    "keltner_breakout": {
+      "count": 2815,
+      "mean": -4.521812209081902,
+      "max": 1.9073461009693924,
+      "positive_pct": 28.880994671403197
+    },
+    "trend_following": {
+      "count": 1120,
+      "mean": -5.842434733637174,
+      "max": 1.9972968793381751,
+      "positive_pct": 4.375
+    },
+    "momentum": {
+      "count": 1112,
+      "mean": -5.54038302875421,
+      "max": 0.9683826681061527,
+      "positive_pct": 0.539568345323741
+    },
+    "dual_ma": {
+      "count": 4620,
+      "mean": -3.0761978826374237,
+      "max": 3.0054684238619744,
+      "positive_pct": 37.77056277056277
+    },
+    "ichimoku_kumo": {
+      "count": 1126,
+      "mean": -6.553032384050503,
+      "max": 1.6712110903484245,
+      "positive_pct": 3.374777975133215
+    },
+    "williams_cci": {
+      "count": 1177,
+      "mean": -7.146645768680723,
+      "max": 1.1724923846891038,
+      "positive_pct": 1.0195412064570943
+    },
+    "supertrend": {
+      "count": 1046,
+      "mean": -8.543255537372453,
+      "max": 0.34656748743508903,
+      "positive_pct": 0.28680688336520077
+    },
+    "connors_rsi2": {
+      "count": 1022,
+      "mean": -10.122808396200035,
+      "max": 0.67872056558637,
+      "positive_pct": 1.1741682974559686
+    },
+    "kama_trend": {
+      "count": 6713,
+      "mean": -0.6939548001506501,
+      "max": 3.454084319983713,
+      "positive_pct": 65.48488008342022
+    },
+    "volatility_squeeze": {
+      "count": 8192,
+      "mean": 0.7944786928900225,
+      "max": 3.5330292618320804,
+      "positive_pct": 77.294921875
+    },
+    "heikin_ashi_ema": {
+      "count": 1099,
+      "mean": -8.328520694373262,
+      "max": 0.960769293653386,
+      "positive_pct": 0.3639672429481347
+    },
+    "donchian_breakout": {
+      "count": 5298,
+      "mean": -0.42635373617818995,
+      "max": 2.731046015067597,
+      "positive_pct": 60.721026802567
+    },
+    "fisher_transform": {
+      "count": 1060,
+      "mean": -6.037444709989,
+      "max": 0.8748683686089562,
+      "positive_pct": 1.6981132075471699
+    }
+  }
 }

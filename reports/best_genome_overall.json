@@ -1,19 +1,17 @@
 {
-  "strategy": "kama_trend",
+  "strategy": "volatility_squeeze",
   "params": {
-    "er_period": 15,
-    "fast_sc": 5,
-    "slow_sc": 29,
-    "signal_period": 5,
-    "slope_threshold_pct": 0.0863,
-    "adx_min": 19.3667,
-    "stop_loss_atr_mult": 2.2248,
-    "take_profit_atr_mult": 5.3858
+    "keltner_atr_mult": 1.1686,
+    "squeeze_min_bars": 3,
+    "momentum_lookback": 13,
+    "volume_surge_threshold": 1.9008,
+    "stop_loss_atr_mult": 3.7943,
+    "take_profit_atr_mult": 4.5961
   },
-  "fitness": 3.5292982373614707,
-  "sharpe": 3.3650781153130467,
-  "wf_sharpe": 4.526559734042806,
-  "trades": 13,
-  "net_pnl": 366.92900386453783,
-  "wf_robust": false
+  "fitness": 3.5330292618320804,
+  "sharpe": 2.6044092711227407,
+  "wf_sharpe": 4.67478601571221,
+  "trades": 63,
+  "net_pnl": 458.87238698017865,
+  "wf_robust": true
 }

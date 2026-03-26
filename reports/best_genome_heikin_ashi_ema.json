@@ -2,19 +2,19 @@
   "strategy": "heikin_ashi_ema",
   "params": {
     "ema_fast": 21,
-    "ema_slow": 45,
+    "ema_slow": 47,
     "require_ha_color_flip": false,
-    "require_consecutive_ha": 2,
-    "adx_min": 24.9722,
+    "require_consecutive_ha": 4,
+    "adx_min": 25.6451,
     "require_volume": true,
-    "volume_threshold": 1.0717,
-    "stop_loss_atr_mult": 3.5641,
-    "take_profit_atr_mult": 5.6392
+    "volume_threshold": 1.1577,
+    "stop_loss_atr_mult": 3.0179,
+    "take_profit_atr_mult": 6.3758
   },
-  "fitness": 1.1860143497334064,
-  "sharpe": 1.3572091938713633,
-  "wf_sharpe": 1.0744543856683397,
-  "trades": 53,
-  "net_pnl": 345.64422143477805,
+  "fitness": 0.960769293653386,
+  "sharpe": 1.096186476296924,
+  "wf_sharpe": 0.993261158201441,
+  "trades": 43,
+  "net_pnl": 257.22373728192935,
   "wf_robust": true
 }

@@ -2,18 +2,18 @@
   "strategy": "connors_rsi2",
   "params": {
     "rsi_period": 4,
-    "entry_threshold_long": 13.463,
-    "entry_threshold_short": 94.6621,
-    "trend_ema_period": 193,
+    "entry_threshold_long": 7.5459,
+    "entry_threshold_short": 85.4106,
+    "trend_ema_period": 178,
     "require_adx": true,
-    "adx_min": 23.0727,
-    "stop_loss_atr_mult": 1.9491,
-    "take_profit_atr_mult": 3.0611
+    "adx_min": 23.6971,
+    "stop_loss_atr_mult": 2.7776,
+    "take_profit_atr_mult": 3.7359
   },
-  "fitness": 0.5322479756894238,
-  "sharpe": -0.7502337212729103,
-  "wf_sharpe": 0.8500341883149121,
-  "trades": 205,
-  "net_pnl": -54.581938395722176,
+  "fitness": 0.67872056558637,
+  "sharpe": -0.2270312994411336,
+  "wf_sharpe": 0.8329989292256048,
+  "trades": 201,
+  "net_pnl": 77.27849967596018,
   "wf_robust": true
 }

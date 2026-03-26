@@ -1,0 +1,219 @@
+[
+  {
+    "combo_id": 80,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 30.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 5.0,
+      "fib_zone_tolerance_pct": 2.0
+    },
+    "trades": 225,
+    "sharpe": 0.7204321487151626,
+    "sortino": 0.8670189884941629,
+    "pf": 1.198208131817694,
+    "win_rate": 0.5022222222222222,
+    "max_dd": 2.7189678146776126,
+    "net_pnl": 407.5754217393404,
+    "expectancy": 0.00018114463188415115,
+    "avg_holding_h": 2.8351111111111113e-05
+  },
+  {
+    "combo_id": 129,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 20.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 4.0,
+      "fib_zone_tolerance_pct": 2.0,
+      "use_lstm_filter": true,
+      "lstm_horizon": "12h",
+      "lstm_min_confidence": 0.4
+    },
+    "trades": 280,
+    "sharpe": 0.6101286841689492,
+    "sortino": 0.760807521788898,
+    "pf": 1.1724619763157136,
+    "win_rate": 0.5321428571428571,
+    "max_dd": 2.8016886887114323,
+    "net_pnl": 455.3069275163711,
+    "expectancy": 0.00016260961697013254,
+    "avg_holding_h": 2.427142857142857e-05
+  },
+  {
+    "combo_id": 177,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 25.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 5.0,
+      "fib_zone_tolerance_pct": 2.0,
+      "use_lstm_filter": true,
+      "lstm_horizon": "24h",
+      "lstm_min_confidence": 0.4
+    },
+    "trades": 192,
+    "sharpe": 0.6350241256318738,
+    "sortino": 0.7298084235620643,
+    "pf": 1.1981461295238198,
+    "win_rate": 0.4791666666666667,
+    "max_dd": 3.4862496144161135,
+    "net_pnl": 402.45809025666836,
+    "expectancy": 0.00020961358867534853,
+    "avg_holding_h": 2.9265624999999998e-05
+  },
+  {
+    "combo_id": 134,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 20.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 4.0,
+      "fib_zone_tolerance_pct": 2.0,
+      "use_lstm_filter": true,
+      "lstm_horizon": "24h",
+      "lstm_min_confidence": 0.6
+    },
+    "trades": 292,
+    "sharpe": 0.5176737834680151,
+    "sortino": 0.6528867015191832,
+    "pf": 1.1536711138494447,
+    "win_rate": 0.5171232876712328,
+    "max_dd": 2.5377447081063638,
+    "net_pnl": 432.0638434943443,
+    "expectancy": 0.00014796706968984365,
+    "avg_holding_h": 2.3952054794520548e-05
+  },
+  {
+    "combo_id": 179,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 25.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 5.0,
+      "fib_zone_tolerance_pct": 2.0,
+      "use_lstm_filter": true,
+      "lstm_horizon": "24h",
+      "lstm_min_confidence": 0.6
+    },
+    "trades": 247,
+    "sharpe": 0.47373894195164834,
+    "sortino": 0.5857560639897741,
+    "pf": 1.1471190290325908,
+    "win_rate": 0.4898785425101215,
+    "max_dd": 4.060005446573354,
+    "net_pnl": 382.9709375696835,
+    "expectancy": 0.00015504896257881917,
+    "avg_holding_h": 2.7437246963562754e-05
+  },
+  {
+    "combo_id": 130,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 20.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 4.0,
+      "fib_zone_tolerance_pct": 2.0,
+      "use_lstm_filter": true,
+      "lstm_horizon": "12h",
+      "lstm_min_confidence": 0.5
+    },
+    "trades": 292,
+    "sharpe": 0.43427374032578375,
+    "sortino": 0.5466501441803308,
+    "pf": 1.1396109335083116,
+    "win_rate": 0.5171232876712328,
+    "max_dd": 2.4796296324217435,
+    "net_pnl": 384.2468029467553,
+    "expectancy": 0.00013159137087217642,
+    "avg_holding_h": 2.3952054794520548e-05
+  },
+  {
+    "combo_id": 131,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 20.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 4.0,
+      "fib_zone_tolerance_pct": 2.0,
+      "use_lstm_filter": true,
+      "lstm_horizon": "12h",
+      "lstm_min_confidence": 0.6
+    },
+    "trades": 292,
+    "sharpe": 0.43427374032578375,
+    "sortino": 0.5466501441803308,
+    "pf": 1.1396109335083116,
+    "win_rate": 0.5171232876712328,
+    "max_dd": 2.4796296324217435,
+    "net_pnl": 384.2468029467553,
+    "expectancy": 0.00013159137087217642,
+    "avg_holding_h": 2.3952054794520548e-05
+  },
+  {
+    "combo_id": 141,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 20.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 5.0,
+      "fib_zone_tolerance_pct": 2.0,
+      "use_lstm_filter": true,
+      "lstm_horizon": "24h",
+      "lstm_min_confidence": 0.4
+    },
+    "trades": 215,
+    "sharpe": 0.4666152505179515,
+    "sortino": 0.5461448159650403,
+    "pf": 1.1552381812435044,
+    "win_rate": 0.4697674418604651,
+    "max_dd": 3.3377896230350803,
+    "net_pnl": 346.6356599688156,
+    "expectancy": 0.0001612258883575887,
+    "avg_holding_h": 2.7251162790697674e-05
+  },
+  {
+    "combo_id": 176,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 25.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 5.0,
+      "fib_zone_tolerance_pct": 2.0,
+      "use_lstm_filter": true,
+      "lstm_horizon": "12h",
+      "lstm_min_confidence": 0.6
+    },
+    "trades": 247,
+    "sharpe": 0.3643991778743015,
+    "sortino": 0.4503391590251746,
+    "pf": 1.1275002035178001,
+    "win_rate": 0.4898785425101215,
+    "max_dd": 4.222156160787123,
+    "net_pnl": 324.4048344875913,
+    "expectancy": 0.00013133798967108934,
+    "avg_holding_h": 2.7437246963562754e-05
+  },
+  {
+    "combo_id": 175,
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 25.0,
+      "stop_loss_atr_mult": 3.0,
+      "take_profit_atr_mult": 5.0,
+      "fib_zone_tolerance_pct": 2.0,
+      "use_lstm_filter": true,
+      "lstm_horizon": "12h",
+      "lstm_min_confidence": 0.5
+    },
+    "trades": 247,
+    "sharpe": 0.3643991778743015,
+    "sortino": 0.4503391590251746,
+    "pf": 1.1275002035178001,
+    "win_rate": 0.4898785425101215,
+    "max_dd": 4.222156160787123,
+    "net_pnl": 324.4048344875913,
+    "expectancy": 0.00013133798967108934,
+    "avg_holding_h": 2.7437246963562754e-05
+  }
+]
