@@ -1,18 +1,18 @@
 {
   "strategy": "trend_following",
   "params": {
-    "adx_threshold": 30.168,
-    "fib_zone_tolerance_pct": 2.0956,
-    "stop_loss_atr_mult": 4.5456,
-    "take_profit_atr_mult": 5.5786,
-    "min_volume_ratio": 0.9814,
-    "rsi_lower_bound": 34,
-    "rsi_upper_bound": 70
+    "adx_threshold": 31.8395,
+    "fib_zone_tolerance_pct": 1.9383,
+    "stop_loss_atr_mult": 4.9974,
+    "take_profit_atr_mult": 8.0,
+    "min_volume_ratio": 0.9544,
+    "rsi_lower_bound": 33,
+    "rsi_upper_bound": 55
   },
-  "fitness": 1.9972968793381751,
-  "sharpe": 1.0651513263306396,
-  "wf_sharpe": 2.3125158113561697,
-  "trades": 184,
-  "net_pnl": 513.537865627618,
+  "fitness": 2.053188403519982,
+  "sharpe": 1.4055191410591925,
+  "wf_sharpe": 2.557825286485463,
+  "trades": 159,
+  "net_pnl": 635.3615742529555,
   "wf_robust": true
 }

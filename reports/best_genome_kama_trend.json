@@ -5,15 +5,15 @@
     "fast_sc": 4,
     "slow_sc": 26,
     "signal_period": 7,
-    "slope_threshold_pct": 0.1325,
-    "adx_min": 16.7343,
-    "stop_loss_atr_mult": 2.2785,
-    "take_profit_atr_mult": 3.1825
+    "slope_threshold_pct": 0.1334,
+    "adx_min": 18.5118,
+    "stop_loss_atr_mult": 2.2801,
+    "take_profit_atr_mult": 3.183
   },
-  "fitness": 3.454084319983713,
-  "sharpe": 2.9197516981638105,
-  "wf_sharpe": 4.451045516145906,
+  "fitness": 3.4512941426789037,
+  "sharpe": 2.910499388117784,
+  "wf_sharpe": 4.4510165475639045,
   "trades": 34,
-  "net_pnl": 533.4228662099404,
+  "net_pnl": 531.153900345294,
   "wf_robust": true
 }

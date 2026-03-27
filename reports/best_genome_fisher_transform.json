@@ -1,19 +1,19 @@
 {
   "strategy": "fisher_transform",
   "params": {
-    "period": 18,
-    "signal_threshold": 1.982,
+    "period": 19,
+    "signal_threshold": 2.1048,
     "require_divergence": false,
-    "divergence_lookback": 14,
+    "divergence_lookback": 10,
     "adx_filter": true,
-    "adx_max": 35.3155,
-    "stop_loss_atr_mult": 2.1824,
-    "take_profit_atr_mult": 3.9579
+    "adx_max": 37.1445,
+    "stop_loss_atr_mult": 2.6332,
+    "take_profit_atr_mult": 3.216
   },
-  "fitness": 0.8748683686089562,
-  "sharpe": 1.3699365626504918,
-  "wf_sharpe": 2.2913266141102477,
-  "trades": 24,
-  "net_pnl": 144.51540966807266,
-  "wf_robust": false
+  "fitness": 1.4410644686601222,
+  "sharpe": 2.1082275398340604,
+  "wf_sharpe": 2.795297820530047,
+  "trades": 16,
+  "net_pnl": 164.0818892540409,
+  "wf_robust": true
 }
