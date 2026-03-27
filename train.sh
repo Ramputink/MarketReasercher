@@ -31,6 +31,7 @@ VERBOSE=1
 OPT_STRATEGY="all"
 EVOLVE_HOURS=14
 EVOLVE_POP=40
+EVOLVE_CORES=0
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -41,6 +42,7 @@ while [[ $# -gt 0 ]]; do
         --evolve)          MODE="evolve"; shift ;;
         --evolve-hours)    EVOLVE_HOURS="$2"; shift 2 ;;
         --evolve-pop)      EVOLVE_POP="$2"; shift 2 ;;
+        --cores)           EVOLVE_CORES="$2"; shift 2 ;;
         --opt-strategy)    OPT_STRATEGY="$2"; shift 2 ;;
         --experiments)     EXPERIMENTS="$2"; shift 2 ;;
         --no-llm)          SKIP_LLM=true; shift ;;
@@ -56,6 +58,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --evolve           Run autonomous evolution (default: 14h)"
             echo "  --evolve-hours N   Hours for evolution (default: 14)"
             echo "  --evolve-pop N     Population size (default: 40)"
+            echo "  --cores N          CPU cores for evolution (0=auto, default: 0)"
             echo "  --opt-strategy S   Strategy to optimize: vb, mr, tf, all (default: all)"
             echo "  --experiments N    Number of autoresearch experiments (default: 12)"
             echo "  --no-llm           Skip Ollama LLM augmentation"
@@ -316,16 +319,23 @@ fi
 # STAGE 5: Autonomous Evolution (genetic algorithm)
 # ---------------------------------------------------------------
 if [[ "$MODE" == "evolve" ]]; then
+    # Use user-specified cores or auto-detect
+    if [[ "${EVOLVE_CORES}" -gt 0 ]]; then
+        ECORES="${EVOLVE_CORES}"
+    else
+        ECORES="${NCORES}"
+    fi
+
     header "[STAGE 5] Autonomous Evolution Engine (${EVOLVE_HOURS}h)"
-    info "Population: ${EVOLVE_POP}, Cores: ${NCORES}, Duration: ${EVOLVE_HOURS} hours"
-    info "Strategies: 8 (TF, Donchian, Dual MA, Keltner, Vol Squeeze, Ichimoku, KAMA, Fisher)"
+    info "Population: ${EVOLVE_POP}, Cores: ${ECORES}/${NCORES}, Duration: ${EVOLVE_HOURS} hours"
+    info "Strategies: 10 (TF, Donchian, DualMA, Keltner, VolSqueeze, Ichimoku, KAMA, Fisher, ChaosTrend, VolRegimeArb)"
     info "This will run autonomously. Check logs/ for progress."
     echo ""
 
     python3 auto_evolve.py \
         --hours "${EVOLVE_HOURS}" \
         --pop-size "${EVOLVE_POP}" \
-        --cores "${NCORES}" \
+        --cores "${ECORES}" \
         --days 365 \
         2>&1 | tee "logs/evolve_$(date +%Y%m%d_%H%M%S).log"
 

@@ -64,7 +64,9 @@ STRATEGY_REGISTRY = {
     #   volatility_breakout, mean_reversion, rsi_divergence, vwap_reversion, obv_divergence
     # NOTE: Round 2 pruning (14h/36K-eval evolution, <1.5% positive fitness):
     #   supertrend (0.3%), momentum (0.5%), heikin_ashi_ema (0.4%), connors_rsi2 (1.2%), williams_cci (1.0%)
-    # 10 strategies removed total. 8 active strategies remain.
+    # 10 strategies removed total.
+    # NOTE: Round 3 additions: chaos_trend (Hurst/fractal), vol_regime_arb (GK vol z-score)
+    # 10 active strategies.
     "trend_following": {
         "module": "strategies.trend_following",
         "function": "trend_following_strategy",
@@ -185,6 +187,47 @@ STRATEGY_REGISTRY = {
             "adx_max": ("float", 30.0, 50.0),
             "stop_loss_atr_mult": ("float", 1.0, 3.0),
             "take_profit_atr_mult": ("float", 2.0, 5.0),
+        },
+    },
+    # ── NEW strategies (Round 3 additions) ──
+    "chaos_trend": {
+        "module": "strategies.chaos_trend",
+        "function": "chaos_trend_strategy",
+        "params_dict": "PARAMS",
+        "param_space": {
+            "hurst_window": ("int", 50, 150),
+            "hurst_min": ("float", 0.52, 0.70),
+            "hurst_max": ("float", 0.75, 0.95),
+            "ema_fast": ("int", 8, 20),
+            "ema_slow": ("int", 20, 50),
+            "adx_min": ("float", 12.0, 30.0),
+            "momentum_period": ("int", 8, 24),
+            "volume_threshold": ("float", 0.8, 2.0),
+            "use_fractal_filter": ("bool",),
+            "fractal_max": ("float", 1.35, 1.55),
+            "stop_loss_atr_mult": ("float", 1.5, 5.0),
+            "take_profit_atr_mult": ("float", 3.0, 8.0),
+        },
+    },
+    "vol_regime_arb": {
+        "module": "strategies.vol_regime_arb",
+        "function": "vol_regime_arb_strategy",
+        "params_dict": "PARAMS",
+        "param_space": {
+            "gk_fast_period": ("int", 5, 20),
+            "gk_slow_period": ("int", 30, 80),
+            "gk_baseline_period": ("int", 60, 150),
+            "expansion_zscore_threshold": ("float", -2.5, -0.8),
+            "expansion_min_bars_compressed": ("int", 3, 10),
+            "expansion_momentum_period": ("int", 6, 20),
+            "expansion_adx_min": ("float", 10.0, 28.0),
+            "contraction_zscore_threshold": ("float", 1.5, 3.0),
+            "contraction_rsi_oversold": ("float", 20.0, 40.0),
+            "contraction_rsi_overbought": ("float", 60.0, 80.0),
+            "enable_contraction_mode": ("bool",),
+            "volume_threshold": ("float", 0.8, 2.0),
+            "stop_loss_atr_mult": ("float", 1.5, 4.5),
+            "take_profit_atr_mult": ("float", 2.5, 7.0),
         },
     },
 }
