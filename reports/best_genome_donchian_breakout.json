@@ -1,19 +1,19 @@
 {
   "strategy": "donchian_breakout",
   "params": {
-    "entry_period": 42,
-    "exit_period": 9,
-    "volume_surge_threshold": 1.5128,
-    "adx_min": 23.2414,
-    "atr_filter_mult": 0.4708,
-    "use_volatility_filter": true,
-    "stop_loss_atr_mult": 2.4487,
-    "take_profit_atr_mult": 7.9028
+    "entry_period": 49,
+    "exit_period": 15,
+    "volume_surge_threshold": 0.9499,
+    "adx_min": 26.6461,
+    "atr_filter_mult": 1.4,
+    "use_volatility_filter": false,
+    "stop_loss_atr_mult": 1.3951,
+    "take_profit_atr_mult": 7.2635
   },
-  "fitness": 2.77181204050552,
-  "sharpe": 2.4035629759609187,
-  "wf_sharpe": 3.1103208839142367,
-  "trades": 142,
-  "net_pnl": 842.9961582652866,
-  "wf_robust": true
+  "fitness": 0.30690676582866505,
+  "sharpe": 0.5948902612000366,
+  "wf_sharpe": 0.9551091646845361,
+  "trades": 170,
+  "net_pnl": 220.9130322405494,
+  "wf_robust": false
 }
