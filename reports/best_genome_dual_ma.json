@@ -1,20 +1,20 @@
 {
   "strategy": "dual_ma",
   "params": {
-    "fast_period": 22,
-    "slow_period": 37,
+    "fast_period": 14,
+    "slow_period": 30,
     "signal_type": "sma",
     "require_adx": true,
-    "adx_min": 23.6563,
+    "adx_min": 25.2902,
     "require_volume": true,
-    "volume_threshold": 1.6531,
-    "stop_loss_atr_mult": 3.1883,
-    "take_profit_atr_mult": 4.1883
+    "volume_threshold": 1.711,
+    "stop_loss_atr_mult": 2.3462,
+    "take_profit_atr_mult": 2.5453
   },
-  "fitness": 1.3492070243550058,
-  "sharpe": 1.10049885405629,
-  "wf_sharpe": 1.9505180205543122,
-  "trades": 30,
-  "net_pnl": 16.809152439895968,
-  "wf_robust": true
+  "fitness": 1.3286463289639392,
+  "sharpe": 1.4081457266266781,
+  "wf_sharpe": 2.3192580413919264,
+  "trades": 32,
+  "net_pnl": 27.790148990096583,
+  "wf_robust": false
 }
