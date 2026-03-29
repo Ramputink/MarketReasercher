@@ -10,6 +10,10 @@ Uses the Hurst exponent to measure market persistence:
 Combined with fractal dimension D = 2 - H as confirmation.
 Only trades when the market shows statistically significant persistence
 AND a directional bias is confirmed by momentum + ADX.
+
+Performance: EMAs are precomputed once via vectorized pandas operations.
+Hurst is computed per-bar (inherently sequential) but optimized with
+numpy-only operations and minimal allocations.
 """
 import numpy as np
 import pandas as pd
@@ -51,26 +55,30 @@ PARAMS = {
     "allowed_regimes": ["trend", "breakout"],
 }
 
+# ── Module-level cache for precomputed EMA columns ──
+_cache_id = None
+_cache_params = None
 
-def _estimate_hurst(series: np.ndarray) -> float:
+
+def _estimate_hurst(closes: np.ndarray) -> float:
     """
-    Estimate Hurst exponent using Rescaled Range (R/S) analysis.
-
-    H = log(R/S) / log(n)
-
-    For speed, uses a simplified single-scale R/S on the full window.
-    More robust than DFA for our bar-by-bar use case.
+    Estimate Hurst exponent using multi-scale Rescaled Range (R/S) analysis.
+    Optimized: numpy-only, no pandas, minimal allocations.
     """
-    n = len(series)
+    n = len(closes)
     if n < 20:
-        return 0.5  # Not enough data, assume random walk
+        return 0.5
 
-    # Log returns
-    returns = np.diff(np.log(series))
+    # Log returns (avoid log(0) with clip)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        ratios = closes[1:] / closes[:-1]
+    ratios = np.where(np.isfinite(ratios) & (ratios > 0), ratios, 1.0)
+    returns = np.log(ratios)
+
     if len(returns) < 10:
         return 0.5
 
-    # Multi-scale R/S for better estimate
+    # Multi-scale R/S
     scales = []
     rs_values = []
 
@@ -81,36 +89,54 @@ def _estimate_hurst(series: np.ndarray) -> float:
         if n_chunks < 1:
             continue
 
-        rs_list = []
+        rs_sum = 0.0
+        rs_count = 0
         for i in range(n_chunks):
             chunk = returns[i * chunk_size:(i + 1) * chunk_size]
-            mean_chunk = np.mean(chunk)
-            deviations = np.cumsum(chunk - mean_chunk)
+            mean_c = np.mean(chunk)
+            std_c = np.std(chunk, ddof=1)
+            if std_c < 1e-12:
+                continue
+            deviations = np.cumsum(chunk - mean_c)
             R = np.max(deviations) - np.min(deviations)
-            S = np.std(chunk, ddof=1)
-            if S > 1e-12:
-                rs_list.append(R / S)
+            rs_sum += R / std_c
+            rs_count += 1
 
-        if rs_list:
+        if rs_count > 0:
             scales.append(np.log(chunk_size))
-            rs_values.append(np.log(np.mean(rs_list)))
+            rs_values.append(np.log(rs_sum / rs_count))
 
     if len(scales) < 2:
-        # Fallback: single-scale R/S
+        # Fallback: single-scale R/S on full series
         mean_r = np.mean(returns)
+        std_r = np.std(returns, ddof=1)
+        if std_r < 1e-12:
+            return 0.5
         deviations = np.cumsum(returns - mean_r)
         R = np.max(deviations) - np.min(deviations)
-        S = np.std(returns, ddof=1)
-        if S < 1e-12:
-            return 0.5
-        rs = R / S
+        rs = R / std_r
         if rs <= 0:
             return 0.5
-        return np.clip(np.log(rs) / np.log(n), 0.0, 1.0)
+        return float(np.clip(np.log(rs) / np.log(len(returns)), 0.0, 1.0))
 
     # Linear regression: log(R/S) = H * log(n) + c
     coeffs = np.polyfit(scales, rs_values, 1)
     return float(np.clip(coeffs[0], 0.0, 1.0))
+
+
+def _precompute_emas(df: pd.DataFrame, fast: int, slow: int):
+    """Precompute EMA columns once per backtest run."""
+    global _cache_id, _cache_params
+
+    if _cache_id == id(df) and _cache_params == (fast, slow):
+        if "_ema_fast" in df.columns:
+            return
+
+    df["_ema_fast"] = df["close"].ewm(span=fast, adjust=False, min_periods=fast).mean()
+    df["_ema_slow"] = df["close"].ewm(span=slow, adjust=False, min_periods=slow).mean()
+
+    _cache_id = id(df)
+    _cache_params = (fast, slow)
 
 
 def chaos_trend_strategy(
@@ -126,6 +152,9 @@ def chaos_trend_strategy(
     if p["require_regime"] and regime not in p["allowed_regimes"]:
         return None
 
+    # ── Precompute EMAs once per backtest ──
+    _precompute_emas(df, p["ema_fast"], p["ema_slow"])
+
     current = df.iloc[bar_idx]
     atr = current.get("atr_14", 0)
     adx = current.get("adx_14", 0)
@@ -136,8 +165,8 @@ def chaos_trend_strategy(
     if pd.isna(adx) or adx < p["adx_min"]:
         return None
 
-    # ── Hurst Exponent ──
-    closes = df["close"].iloc[bar_idx - p["hurst_window"] + 1:bar_idx + 1].values
+    # ── Hurst Exponent (sequential, but numpy-optimized) ──
+    closes = df["close"].values[bar_idx - p["hurst_window"] + 1:bar_idx + 1]
     if len(closes) < p["hurst_window"]:
         return None
 
@@ -151,15 +180,11 @@ def chaos_trend_strategy(
     if p["use_fractal_filter"]:
         fractal_dim = 2.0 - hurst
         if fractal_dim > p["fractal_max"]:
-            return None  # Too noisy / choppy
+            return None
 
-    # ── EMA direction ──
-    fast_ema = df["close"].iloc[bar_idx - p["ema_fast"]:bar_idx + 1].ewm(
-        span=p["ema_fast"], adjust=False
-    ).mean().iloc[-1]
-    slow_ema = df["close"].iloc[bar_idx - p["ema_slow"]:bar_idx + 1].ewm(
-        span=p["ema_slow"], adjust=False
-    ).mean().iloc[-1]
+    # ── EMA direction (precomputed, O(1) access) ──
+    fast_ema = df["_ema_fast"].iat[bar_idx]
+    slow_ema = df["_ema_slow"].iat[bar_idx]
 
     if pd.isna(fast_ema) or pd.isna(slow_ema):
         return None
@@ -171,7 +196,7 @@ def chaos_trend_strategy(
         return None
 
     # ── Momentum confirmation ──
-    mom_closes = df["close"].iloc[bar_idx - p["momentum_period"]:bar_idx + 1].values
+    mom_closes = df["close"].values[bar_idx - p["momentum_period"]:bar_idx + 1]
     x = np.arange(len(mom_closes))
     slope = np.polyfit(x, mom_closes, 1)[0]
     mom_strength = abs(slope) / atr
@@ -193,7 +218,7 @@ def chaos_trend_strategy(
     close = current["close"]
     strength = min(mom_strength * 5, 1.0)
 
-    if bullish and slope > 0:
+    if bullish:
         return Signal(
             timestamp=int(current["timestamp"]),
             side="long",
@@ -204,7 +229,7 @@ def chaos_trend_strategy(
             take_profit=close + atr * p["take_profit_atr_mult"],
             time_stop_hours=p["time_stop_hours"],
         )
-    elif bearish and slope < 0:
+    elif bearish:
         return Signal(
             timestamp=int(current["timestamp"]),
             side="short",

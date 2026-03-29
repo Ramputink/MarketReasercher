@@ -14,6 +14,9 @@ across multiple timeframes to detect regime extremes.
 Two modes:
   1. VOL_EXPANSION: Low vol → expect breakout → trade with momentum direction
   2. VOL_CONTRACTION: Extreme high vol → expect reversion → fade with RSI extremes
+
+Performance: GK vol and z-scores are precomputed once via vectorized rolling
+operations, avoiding O(n²) per-bar recalculation.
 """
 import numpy as np
 import pandas as pd
@@ -57,37 +60,57 @@ PARAMS = {
     "allowed_regimes": ["lateral", "breakout", "mean_reversion"],
 }
 
+# ── Module-level cache for precomputed GK columns ──
+_cache_id = None       # id(df) to detect new DataFrames
+_cache_params = None   # (fast, slow, baseline) to detect param changes
 
-def _garman_klass_vol(df: pd.DataFrame, end_idx: int, period: int) -> float:
+
+def _precompute_gk_columns(df: pd.DataFrame, fast: int, slow: int, baseline: int):
     """
-    Garman-Klass volatility estimator over a rolling window.
-    GK = sqrt( mean(0.5 * ln(H/L)^2 - (2ln2 - 1) * ln(C/O)^2) * annualization )
-    Returns annualized vol (assuming hourly bars, 24*365).
+    Vectorized Garman-Klass volatility at multiple scales + rolling z-score.
+    Computed ONCE per backtest run, then accessed O(1) per bar.
     """
-    start = max(0, end_idx - period + 1)
-    if end_idx - start + 1 < max(5, period // 2):
-        return np.nan
+    global _cache_id, _cache_params
 
-    h = df["high"].iloc[start:end_idx + 1].values
-    l = df["low"].iloc[start:end_idx + 1].values
-    o = df["open"].iloc[start:end_idx + 1].values
-    c = df["close"].iloc[start:end_idx + 1].values
+    cache_key = (id(df), fast, slow, baseline)
+    if _cache_id == id(df) and _cache_params == (fast, slow, baseline):
+        # Already computed for this exact df + params
+        if "_gk_fast" in df.columns:
+            return
 
-    # Avoid log(0) or negative values
+    # Garman-Klass per-bar variance component
     with np.errstate(divide='ignore', invalid='ignore'):
-        log_hl = np.log(h / l) ** 2
-        log_co = np.log(c / o) ** 2
+        log_hl = np.log(df["high"] / df["low"]) ** 2
+        log_co = np.log(df["close"] / df["open"]) ** 2
 
-    valid = np.isfinite(log_hl) & np.isfinite(log_co)
-    if valid.sum() < 5:
-        return np.nan
+    gk_bar = 0.5 * log_hl - (2 * np.log(2) - 1) * log_co
+    # Replace inf/nan with NaN for clean rolling
+    gk_bar = gk_bar.where(np.isfinite(gk_bar), np.nan)
 
-    gk_var = np.mean(0.5 * log_hl[valid] - (2 * np.log(2) - 1) * log_co[valid])
-    if gk_var < 0:
-        gk_var = 0.0
+    # Annualized GK vol = sqrt(rolling_mean(gk_bar) * 24 * 365)
+    ann = 24 * 365
 
-    # Annualize for hourly data
-    return float(np.sqrt(gk_var * 24 * 365))
+    gk_fast_var = gk_bar.rolling(fast, min_periods=max(5, fast // 2)).mean()
+    gk_slow_var = gk_bar.rolling(slow, min_periods=max(5, slow // 2)).mean()
+
+    # Clip negative variance to 0 before sqrt
+    df["_gk_fast"] = np.sqrt(gk_fast_var.clip(lower=0) * ann)
+    df["_gk_slow"] = np.sqrt(gk_slow_var.clip(lower=0) * ann)
+
+    # Rolling z-score of fast GK vol over baseline window
+    gk_f = df["_gk_fast"]
+    rolling_mean = gk_f.rolling(baseline, min_periods=20).mean()
+    rolling_std = gk_f.rolling(baseline, min_periods=20).std()
+    # Guard against division by near-zero std
+    safe_std = rolling_std.where(rolling_std > 1e-10, np.nan)
+    df["_gk_zscore"] = (gk_f - rolling_mean) / safe_std
+
+    # Fast/slow ratio
+    safe_slow = df["_gk_slow"].where(df["_gk_slow"] > 1e-10, np.nan)
+    df["_gk_ratio"] = df["_gk_fast"] / safe_slow
+
+    _cache_id = id(df)
+    _cache_params = (fast, slow, baseline)
 
 
 def vol_regime_arb_strategy(
@@ -103,55 +126,35 @@ def vol_regime_arb_strategy(
     if p["require_regime"] and regime not in p["allowed_regimes"]:
         return None
 
+    # ── Precompute vectorized GK columns (once per backtest) ──
+    _precompute_gk_columns(df, p["gk_fast_period"], p["gk_slow_period"], p["gk_baseline_period"])
+
     current = df.iloc[bar_idx]
     atr = current.get("atr_14", 0)
     adx = current.get("adx_14", 0)
     rsi = current.get("rsi_14", 50)
-    vol_ratio = current.get("volume_ratio", 1.0)
+    vol_ratio_feat = current.get("volume_ratio", 1.0)
 
     if pd.isna(atr) or atr <= 0:
         return None
 
-    # ── Compute Garman-Klass volatility at multiple scales ──
-    gk_fast = _garman_klass_vol(df, bar_idx, p["gk_fast_period"])
-    gk_slow = _garman_klass_vol(df, bar_idx, p["gk_slow_period"])
-    gk_baseline = _garman_klass_vol(df, bar_idx, p["gk_baseline_period"])
+    # ── Read precomputed values O(1) ──
+    gk_fast = current.get("_gk_fast", np.nan)
+    gk_slow = current.get("_gk_slow", np.nan)
+    vol_zscore = current.get("_gk_zscore", np.nan)
+    fast_slow_ratio = current.get("_gk_ratio", np.nan)
 
-    if np.isnan(gk_fast) or np.isnan(gk_slow) or np.isnan(gk_baseline):
+    if pd.isna(gk_fast) or pd.isna(vol_zscore):
         return None
-
-    # ── Vol z-score: how unusual is current vol vs baseline? ──
-    # Compute rolling vol series for z-score
-    vol_series = []
-    for i in range(max(0, bar_idx - p["gk_baseline_period"]), bar_idx + 1):
-        v = _garman_klass_vol(df, i, p["gk_fast_period"])
-        if not np.isnan(v):
-            vol_series.append(v)
-
-    if len(vol_series) < 20:
-        return None
-
-    vol_arr = np.array(vol_series)
-    vol_mean = np.mean(vol_arr)
-    vol_std = np.std(vol_arr)
-
-    if vol_std < 1e-10:
-        return None
-
-    vol_zscore = (gk_fast - vol_mean) / vol_std
 
     # ── Vol ratio filter ──
-    if gk_slow > 1e-10:
-        fast_slow_ratio = gk_fast / gk_slow
-    else:
-        fast_slow_ratio = 1.0
-
-    if fast_slow_ratio < p["vol_ratio_min"] or fast_slow_ratio > p["vol_ratio_max"]:
-        return None
+    if not pd.isna(fast_slow_ratio):
+        if fast_slow_ratio < p["vol_ratio_min"] or fast_slow_ratio > p["vol_ratio_max"]:
+            return None
 
     # ── Volume filter ──
-    if p["require_volume"] and not pd.isna(vol_ratio):
-        if vol_ratio < p["volume_threshold"]:
+    if p["require_volume"] and not pd.isna(vol_ratio_feat):
+        if vol_ratio_feat < p["volume_threshold"]:
             return None
 
     close = current["close"]
@@ -160,16 +163,16 @@ def vol_regime_arb_strategy(
     # MODE 1: VOL EXPANSION (low vol → breakout expected)
     # ════════════════════════════════════════════════════
     if vol_zscore < p["expansion_zscore_threshold"]:
-        # Check vol has been compressed for N bars
+        # Check vol has been compressed for N bars using precomputed z-scores
         compressed_count = 0
+        zscores = df["_gk_zscore"]
         for j in range(1, p["expansion_min_bars_compressed"] + 1):
-            if bar_idx - j < p["gk_fast_period"]:
+            idx = bar_idx - j
+            if idx < 0:
                 break
-            past_gk = _garman_klass_vol(df, bar_idx - j, p["gk_fast_period"])
-            if not np.isnan(past_gk):
-                past_z = (past_gk - vol_mean) / vol_std
-                if past_z < p["expansion_zscore_threshold"]:
-                    compressed_count += 1
+            past_z = zscores.iat[idx]
+            if not pd.isna(past_z) and past_z < p["expansion_zscore_threshold"]:
+                compressed_count += 1
 
         if compressed_count < p["expansion_min_bars_compressed"] - 1:
             return None
@@ -193,7 +196,7 @@ def vol_regime_arb_strategy(
                 side="long",
                 strength=strength,
                 strategy="vol_regime_arb",
-                reason=f"VOL_EXPANSION: z={vol_zscore:.2f}, GK_fast={gk_fast:.4f}, slope>0",
+                reason=f"VOL_EXPANSION: z={vol_zscore:.2f}, GK={gk_fast:.4f}, slope>0",
                 stop_loss=close - atr * p["stop_loss_atr_mult"],
                 take_profit=close + atr * p["take_profit_atr_mult"],
                 time_stop_hours=p["time_stop_hours"],
@@ -204,7 +207,7 @@ def vol_regime_arb_strategy(
                 side="short",
                 strength=strength,
                 strategy="vol_regime_arb",
-                reason=f"VOL_EXPANSION: z={vol_zscore:.2f}, GK_fast={gk_fast:.4f}, slope<0",
+                reason=f"VOL_EXPANSION: z={vol_zscore:.2f}, GK={gk_fast:.4f}, slope<0",
                 stop_loss=close + atr * p["stop_loss_atr_mult"],
                 take_profit=close - atr * p["take_profit_atr_mult"],
                 time_stop_hours=p["time_stop_hours"],

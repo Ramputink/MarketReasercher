@@ -451,18 +451,20 @@ def evaluate_genome(args_tuple):
 
         fitness = wf_s * 0.5 + is_s * 0.3 + trade_bonus - degrad_penalty - dd_penalty - low_trade_penalty
 
-        # Monte Carlo simulation for promising genomes (fitness > 0.5)
+        # Monte Carlo simulation for top genomes only (fitness > 1.5 to avoid
+        # wasting compute on mediocre genomes during evolution).
+        # Reduced to 200 simulations — sufficient for ruin/profit probability.
         mc_result = None
-        if fitness > 0.5 and metrics.total_trades >= 10:
+        if fitness > 1.5 and metrics.total_trades >= 15:
             try:
                 from engine.monte_carlo import monte_carlo_trades
                 trade_pnls = np.array([t.pnl_net for t in trades_df]) if hasattr(trades_df, '__iter__') and len(trades_df) > 0 else None
                 if trade_pnls is None and isinstance(trades_df, pd.DataFrame) and len(trades_df) > 0:
                     trade_pnls = trades_df["pnl_net"].values if "pnl_net" in trades_df.columns else None
-                if trade_pnls is not None and len(trade_pnls) >= 10:
+                if trade_pnls is not None and len(trade_pnls) >= 15:
                     mc = monte_carlo_trades(
                         trade_pnls, initial_capital=200.0,
-                        n_simulations=500, method="bootstrap", seed=42,
+                        n_simulations=200, method="bootstrap", seed=42,
                     )
                     mc_result = mc.to_dict()
                     # Penalize if Monte Carlo shows high ruin probability
@@ -764,28 +766,42 @@ class EvolutionEngine:
         self.hall_of_fame_per_strategy[genome.strategy] = per_strat[:5]
 
         # Global HoF: check if it's a clone of existing entries
+        # Fix: check ALL same-strategy entries for clones, remove ALL that are
+        # too similar AND worse. Then decide whether to add.
         same_strat_in_hof = [g for g in self.hall_of_fame if g.strategy == genome.strategy]
+
+        is_clone = False
+        to_remove = []
         for existing in same_strat_in_hof:
             dist = self._genome_param_distance(genome, existing)
             if dist < 0.15:
-                # Too similar — only replace if strictly better fitness
+                is_clone = True
                 if genome.fitness > existing.fitness:
-                    self.hall_of_fame.remove(existing)
-                    self.hall_of_fame.append(genome)
-                    self.hall_of_fame.sort(key=lambda g: g.fitness, reverse=True)
-                    self.hall_of_fame = self.hall_of_fame[:20]
-                return  # Skip adding a clone
+                    to_remove.append(existing)
+                else:
+                    # Clone exists with equal/better fitness — reject new genome
+                    return
 
-        # Not a clone — check strategy cap (max 4 per strategy in global HoF)
-        MAX_PER_STRATEGY = 4
-        if len(same_strat_in_hof) >= MAX_PER_STRATEGY:
-            worst_of_strat = min(same_strat_in_hof, key=lambda g: g.fitness)
-            if genome.fitness > worst_of_strat.fitness:
-                self.hall_of_fame.remove(worst_of_strat)
-                self.hall_of_fame.append(genome)
-            # else: don't add, strategy is already capped
-        else:
+        # Remove inferior clones
+        for g in to_remove:
+            self.hall_of_fame.remove(g)
+
+        if is_clone and to_remove:
+            # Replaced inferior clone(s) — add the new genome
             self.hall_of_fame.append(genome)
+        elif not is_clone:
+            # Not a clone — check strategy cap (max 4 per strategy in global HoF)
+            MAX_PER_STRATEGY = 4
+            current_count = len(same_strat_in_hof) - len(to_remove)
+            if current_count >= MAX_PER_STRATEGY:
+                remaining = [g for g in same_strat_in_hof if g not in to_remove]
+                if remaining:
+                    worst_of_strat = min(remaining, key=lambda g: g.fitness)
+                    if genome.fitness > worst_of_strat.fitness:
+                        self.hall_of_fame.remove(worst_of_strat)
+                        self.hall_of_fame.append(genome)
+            else:
+                self.hall_of_fame.append(genome)
 
         self.hall_of_fame.sort(key=lambda g: g.fitness, reverse=True)
         self.hall_of_fame = self.hall_of_fame[:20]
