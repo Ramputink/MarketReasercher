@@ -93,9 +93,12 @@ class Backtester:
     Event-driven backtester with realistic cost modeling.
 
     Strategy interface:
-        strategy_fn(df_up_to_now, current_bar_idx, open_position) -> Optional[Signal]
+        strategy_fn(df, bar_idx, open_position) -> Optional[Signal]
 
-    The strategy function receives ONLY data up to and including the current bar.
+    The strategy receives the FULL DataFrame + current bar index.
+    Strategies MUST only access df.iloc[:bar_idx+1] — no future leakage
+    is enforced by convention (strategies use bar_idx as upper bound).
+    This avoids creating O(n) DataFrame slices per bar.
     """
 
     def __init__(
@@ -212,9 +215,8 @@ class Backtester:
 
                 # Strategy exit signal
                 if not exit_signal:
-                    # Pass data up to current bar (no future leakage)
-                    df_slice = df.iloc[:i + 1]
-                    signal = strategy_fn(df_slice, i, position)
+                    # Pass full df + bar_idx (strategies enforce no-leakage via bar_idx)
+                    signal = strategy_fn(df, i, position)
                     if signal is not None and signal.side != position.side:
                         exit_signal = True
                         exit_reason = "signal_exit"
@@ -252,8 +254,7 @@ class Backtester:
 
             # ─── Check for new entry ───
             if position is None:
-                df_slice = df.iloc[:i + 1]
-                signal = strategy_fn(df_slice, i, None)
+                signal = strategy_fn(df, i, None)
 
                 if signal is not None:
                     atr_val = float(current_bar.get("atr_14", price * 0.02)) if has_atr else price * 0.02
