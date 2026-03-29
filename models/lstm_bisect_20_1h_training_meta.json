@@ -1,0 +1,22 @@
+{
+  "variant_id": "bisect_20",
+  "timeframe": "1h",
+  "algo": "bisect",
+  "n_clusters": 20,
+  "window_size": 10,
+  "forward_bars": 5,
+  "seq_length": 20,
+  "direction_threshold": 0.005,
+  "train_candles": 51194,
+  "lstm_sequences": 51159,
+  "val_metrics": {
+    "accuracy": 0.43424996741821975,
+    "n_train": 43486,
+    "n_val": 7673,
+    "best_epoch": 11
+  },
+  "test_accuracy": 0.3909705511630572,
+  "lstm_name": "lstm_bisect_20_1h",
+  "status": "ok",
+  "trained_at": "2026-03-29T21:02:25.539941"
+}

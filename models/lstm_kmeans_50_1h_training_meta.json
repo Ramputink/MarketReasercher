@@ -1,0 +1,22 @@
+{
+  "variant_id": "kmeans_50",
+  "timeframe": "1h",
+  "algo": "kmeans",
+  "n_clusters": 50,
+  "window_size": 10,
+  "forward_bars": 5,
+  "seq_length": 20,
+  "direction_threshold": 0.005,
+  "train_candles": 51194,
+  "lstm_sequences": 51159,
+  "val_metrics": {
+    "accuracy": 0.4343802945392936,
+    "n_train": 43486,
+    "n_val": 7673,
+    "best_epoch": 4
+  },
+  "test_accuracy": 0.38730376990947635,
+  "lstm_name": "lstm_kmeans_50_1h",
+  "status": "ok",
+  "trained_at": "2026-03-29T20:49:05.690668"
+}

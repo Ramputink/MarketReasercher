@@ -66,7 +66,10 @@ STRATEGY_REGISTRY = {
     #   supertrend (0.3%), momentum (0.5%), heikin_ashi_ema (0.4%), connors_rsi2 (1.2%), williams_cci (1.0%)
     # 10 strategies removed total.
     # NOTE: Round 3 additions: chaos_trend (Hurst/fractal), vol_regime_arb (GK vol z-score)
-    # 10 active strategies.
+    # NOTE: Round 4 addition: lstm_pattern (K-Means clustering + LSTM sequence prediction)
+    # NOTE: Round 5 upgrade: multi-variant clustering (7 variants: kmeans, hierarchical, bisecting)
+    #   with evolvable cluster_variant param. Evolution selects best algo + granularity.
+    # 11 active strategies.
     "trend_following": {
         "module": "strategies.trend_following",
         "function": "trend_following_strategy",
@@ -226,6 +229,34 @@ STRATEGY_REGISTRY = {
             "contraction_rsi_overbought": ("float", 60.0, 80.0),
             "enable_contraction_mode": ("bool",),
             "volume_threshold": ("float", 0.8, 2.0),
+            "stop_loss_atr_mult": ("float", 1.5, 4.5),
+            "take_profit_atr_mult": ("float", 2.5, 7.0),
+        },
+    },
+    # ── LSTM + K-Means pattern recognition (requires pre-trained models) ──
+    # NOTE: Round 5 — Multi-variant clustering with evolvable variant selection.
+    # Evolution discovers which clustering algorithm + granularity works best.
+    # Variants: kmeans_8/20/50, hier_20/50 (hierarchical tree), bisect_20/50 (divisive tree).
+    "lstm_pattern": {
+        "module": "strategies.lstm_pattern",
+        "function": "lstm_pattern_strategy",
+        "params_dict": "PARAMS",
+        "param_space": {
+            "cluster_variant": ("choice", [
+                "kmeans_8", "kmeans_20", "kmeans_50",
+                "hier_20", "hier_50",
+                "bisect_20", "bisect_50",
+            ]),
+            "min_cluster_prob": ("float", 0.45, 0.75),
+            "min_lstm_confidence": ("float", 0.35, 0.65),
+            "min_combined_confidence": ("float", 0.45, 0.70),
+            "cluster_weight": ("float", 0.2, 0.6),
+            "lstm_weight": ("float", 0.4, 0.8),
+            "adx_min": ("float", 10.0, 28.0),
+            "require_volume": ("bool",),
+            "volume_threshold": ("float", 0.8, 2.0),
+            "rsi_oversold": ("float", 15.0, 35.0),
+            "rsi_overbought": ("float", 65.0, 85.0),
             "stop_loss_atr_mult": ("float", 1.5, 4.5),
             "take_profit_atr_mult": ("float", 2.5, 7.0),
         },
