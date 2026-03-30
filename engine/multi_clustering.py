@@ -56,11 +56,22 @@ CLUSTER_VARIANTS = {
     "kmeans_8":   {"algo": "kmeans",   "n_clusters": 8},
     "kmeans_20":  {"algo": "kmeans",   "n_clusters": 20},
     "kmeans_50":  {"algo": "kmeans",   "n_clusters": 50},
+    # hier: n_clusters is a *request*; effective = n_macro * max(2, n_clusters // n_macro)
+    # hier_20 → 3 * max(2, 20//3) = 3*6 = 18 effective clusters
+    # hier_50 → 3 * max(2, 50//3) = 3*16 = 48 effective clusters
     "hier_20":    {"algo": "hier",     "n_clusters": 20, "n_macro": 3},
     "hier_50":    {"algo": "hier",     "n_clusters": 50, "n_macro": 3},
     "bisect_20":  {"algo": "bisect",   "n_clusters": 20},
     "bisect_50":  {"algo": "bisect",   "n_clusters": 50},
 }
+
+def effective_n_clusters(variant_id: str) -> int:
+    """Return the actual number of clusters a variant produces (not the requested amount)."""
+    cfg = CLUSTER_VARIANTS[variant_id]
+    if cfg["algo"] == "hier":
+        n_macro = cfg.get("n_macro", 3)
+        return n_macro * max(2, cfg["n_clusters"] // n_macro)
+    return cfg["n_clusters"]
 
 ALL_VARIANT_IDS = list(CLUSTER_VARIANTS.keys())
 

@@ -338,6 +338,17 @@ def predict_pattern_direction(
             tech_cols.append(col)
 
     n_features = n_clusters + len(tech_cols)
+
+    # Validate input shape against model expectations
+    expected_input = model.input_shape  # (None, seq_length, n_features)
+    if expected_input[-1] is not None and expected_input[-1] != n_features:
+        logger.error(
+            f"LSTM shape mismatch: model expects {expected_input[-1]} features "
+            f"but variant has {n_clusters} clusters + {len(tech_cols)} tech = {n_features}. "
+            f"Skipping prediction to avoid crash."
+        )
+        return None
+
     seq = np.zeros((1, seq_length, n_features), dtype=np.float32)
 
     for t in range(seq_length):

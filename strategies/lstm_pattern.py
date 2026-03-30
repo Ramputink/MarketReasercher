@@ -8,21 +8,9 @@ The evolution system can select between 7 clustering variants:
   - hier_20/50: 2-level hierarchical (3 macro direction × N micro shape)
   - bisect_20/50: BisectingKMeans (divisive tree, top-down splits)
 
-This creates a "genealogical tree" where:
-  - Different granularity levels compete (8 vs 20 vs 50 clusters)
-  - Different algorithms compete (flat vs hierarchical vs divisive)
-  - Evolution discovers which variant produces the best trading signals
-  - The hierarchical variants explicitly model pattern sub-categories:
-    e.g., "slow bullish channel" vs "sharp bullish breakout"
-
-Flow per bar:
-  1. Load variant model (selected by evolvable `cluster_variant` param)
-  2. Classify current N-candle window into a cluster
-  3. Look up cluster profile (historical forward return distribution)
-  4. Feed cluster sequence to LSTM for transition prediction
-  5. Combine cluster probability + LSTM confidence → generate signal
-
-Evolvable: cluster_variant, confidence thresholds, filters, risk params.
+Performance-critical: ALL cluster labels AND LSTM predictions are precomputed
+in a single batch pass per backtest. The per-bar strategy function only does
+dict lookups — no model inference, no O(n) operations.
 """
 import os
 import logging
@@ -71,7 +59,8 @@ _scaler = None
 _cluster_profiles = None
 _lstm_model = None
 _n_clusters = 0
-_bar_cluster = None
+_bar_cluster = None       # np.ndarray of cluster IDs per bar
+_bar_lstm_preds = None    # np.ndarray of shape (n_bars, 3) — prob_down/neutral/up per bar
 _cache_df_id = None
 
 
@@ -97,6 +86,10 @@ def _load_models(variant_id: str, timeframe: str):
     key = (variant_id, timeframe)
     if _models_loaded and _loaded_key == key:
         return True
+
+    # Log variant switch (important for debugging 10h+ evolution runs)
+    if _loaded_key is not None and _loaded_key != key:
+        logger.debug(f"Switching variant: {_loaded_key} → {key}")
 
     # Reset cache on model change
     _reset_cache()
@@ -150,37 +143,49 @@ def _load_models(variant_id: str, timeframe: str):
 
 
 def _reset_cache():
-    """Reset precomputed cluster cache when switching models/datasets."""
-    global _bar_cluster, _cache_df_id
+    """Reset precomputed caches when switching models/datasets."""
+    global _bar_cluster, _bar_lstm_preds, _cache_df_id
     _bar_cluster = None
+    _bar_lstm_preds = None
     _cache_df_id = None
 
 
-def _precompute_clusters(df: pd.DataFrame, window_size: int):
-    """Precompute cluster labels for all bars (once per backtest+variant combo)."""
-    global _bar_cluster, _cache_df_id
+def _precompute_all(df: pd.DataFrame, window_size: int, seq_length: int):
+    """
+    Precompute BOTH cluster labels AND LSTM predictions for ALL bars in one pass.
 
-    # Cache key includes both df identity AND loaded model key
-    # so switching variants on the same df triggers recomputation
+    This is the key performance optimization: instead of calling model.predict()
+    per bar during the backtest (~10ms × 8,760 bars = 87s), we do ONE batch
+    prediction for all bars at once (~0.5s total).
+
+    After this, the per-bar strategy function does only dict lookups — O(1).
+    """
+    global _bar_cluster, _bar_lstm_preds, _cache_df_id
+
     cache_key = (id(df), _loaded_key)
     if _cache_df_id == cache_key:
         return
-    _cache_df_id = cache_key  # Will be set again at end, but set early to avoid recursion
+    _cache_df_id = cache_key
 
     from engine.pattern_clustering import extract_candle_windows
 
     n_bars = len(df)
+
+    # ── Step 1: Cluster all windows ──
     _bar_cluster = np.full(n_bars, -1, dtype=int)
 
     features, indices = extract_candle_windows(df, window_size=window_size, step=1)
-    if len(features) > 0:
-        features_scaled = _scaler.transform(features)
-        labels = _cluster_model.predict(features_scaled)
-        for label, idx in zip(labels, indices):
-            if 0 <= idx < n_bars:
-                _bar_cluster[idx] = label
+    if len(features) == 0:
+        _bar_lstm_preds = np.full((n_bars, 3), 1.0 / 3, dtype=np.float32)
+        return
 
-    # Forward-fill gaps
+    features_scaled = _scaler.transform(features)
+    labels = _cluster_model.predict(features_scaled)
+    for label, idx in zip(labels, indices):
+        if 0 <= idx < n_bars:
+            _bar_cluster[idx] = label
+
+    # Forward-fill cluster gaps
     last_valid = -1
     for i in range(n_bars):
         if _bar_cluster[i] >= 0:
@@ -188,7 +193,73 @@ def _precompute_clusters(df: pd.DataFrame, window_size: int):
         elif last_valid >= 0:
             _bar_cluster[i] = last_valid
 
+    # ── Step 2: Build ALL LSTM sequences at once ──
+    tech_cols = []
+    available = df.columns.tolist()
+    for col in ["rsi_14", "adx_14", "volume_ratio", "ret_zscore_20",
+                 "bb_pct_b", "pressure_imbalance", "gk_vol", "vol_ratio"]:
+        if col in available:
+            tech_cols.append(col)
+
+    n_features = _n_clusters + len(tech_cols)
+
+    # Validate shape against model
+    expected_input = _lstm_model.input_shape  # (None, seq_length, n_features)
+    if expected_input[-1] is not None and expected_input[-1] != n_features:
+        logger.error(
+            f"LSTM shape mismatch: model expects {expected_input[-1]} features "
+            f"but variant has {_n_clusters} clusters + {len(tech_cols)} tech = {n_features}. "
+            f"Using uniform predictions."
+        )
+        _bar_lstm_preds = np.full((n_bars, 3), 1.0 / 3, dtype=np.float32)
+        return
+
+    # Determine which bars have valid sequences (bar_idx >= seq_length + window_size)
+    min_bar = seq_length + window_size
+    valid_bars = list(range(min_bar, n_bars))
+
+    if not valid_bars:
+        _bar_lstm_preds = np.full((n_bars, 3), 1.0 / 3, dtype=np.float32)
+        return
+
+    # Build batch: one sequence per valid bar
+    # Pre-extract tech feature arrays for speed
+    tech_arrays = []
+    for col in tech_cols:
+        arr = df[col].values.astype(np.float32)
+        # Replace NaN/Inf with 0
+        arr = np.where(np.isfinite(arr), arr, 0.0)
+        tech_arrays.append(arr)
+
+    batch_size = len(valid_bars)
+    batch = np.zeros((batch_size, seq_length, n_features), dtype=np.float32)
+
+    for batch_idx, bar_idx in enumerate(valid_bars):
+        for t in range(seq_length):
+            bi = bar_idx - seq_length + t
+            cid = int(_bar_cluster[bi]) if 0 <= bi < n_bars and _bar_cluster[bi] >= 0 else -1
+            if 0 <= cid < _n_clusters:
+                batch[batch_idx, t, cid] = 1.0
+            for j, arr in enumerate(tech_arrays):
+                if 0 <= bi < n_bars:
+                    batch[batch_idx, t, _n_clusters + j] = arr[bi]
+
+    # ── Step 3: Single batch LSTM prediction ──
+    # This replaces ~8,000 individual model.predict() calls with ONE call
+    try:
+        preds = _lstm_model.predict(batch, batch_size=256, verbose=0)
+        dir_probs = preds[0]  # shape (batch_size, 3) — prob_down/neutral/up
+    except Exception as e:
+        logger.error(f"LSTM batch prediction failed: {e}. Using uniform probs.")
+        dir_probs = np.full((batch_size, 3), 1.0 / 3, dtype=np.float32)
+
+    # Store predictions indexed by bar
+    _bar_lstm_preds = np.full((n_bars, 3), 1.0 / 3, dtype=np.float32)
+    for batch_idx, bar_idx in enumerate(valid_bars):
+        _bar_lstm_preds[bar_idx] = dir_probs[batch_idx]
+
     _cache_df_id = (id(df), _loaded_key)
+    logger.debug(f"Precomputed {batch_size} LSTM predictions in batch")
 
 
 def lstm_pattern_strategy(
@@ -210,8 +281,8 @@ def lstm_pattern_strategy(
     if not _load_models(variant_id, detected_tf):
         return None
 
-    # ── Precompute clusters (once per backtest) ──
-    _precompute_clusters(df, p["window_size"])
+    # ── Precompute clusters + LSTM predictions (once per backtest+variant) ──
+    _precompute_all(df, p["window_size"], p["seq_length"])
 
     current = df.iloc[bar_idx]
     atr = current.get("atr_14", 0)
@@ -244,18 +315,11 @@ def lstm_pattern_strategy(
     cluster_prob_up = profile.prob_up
     cluster_prob_down = profile.prob_down
 
-    # ── LSTM prediction ──
-    from engine.lstm_pattern_model import predict_pattern_direction
-    lstm_pred = predict_pattern_direction(
-        _lstm_model, df, bar_idx, _bar_cluster, _n_clusters,
-        seq_length=p["seq_length"],
-    )
-    if lstm_pred is None:
-        return None
-
-    lstm_prob_up = lstm_pred["prob_up"]
-    lstm_prob_down = lstm_pred["prob_down"]
-    lstm_confidence = lstm_pred["confidence"]
+    # ── LSTM prediction (precomputed — just a lookup!) ──
+    lstm_probs = _bar_lstm_preds[bar_idx]
+    lstm_prob_down = float(lstm_probs[0])
+    lstm_prob_up = float(lstm_probs[2])
+    lstm_confidence = max(lstm_prob_up, lstm_prob_down)
 
     # ── Confidence check ──
     if lstm_confidence < p["min_lstm_confidence"]:

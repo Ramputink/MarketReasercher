@@ -48,9 +48,9 @@
   ],
   "threshold_pct": 0.8,
   "test_metrics": {
-    "test_loss": 6.470643043518066,
-    "training_time_seconds": 271.991005897522,
-    "epochs_trained": 17,
+    "test_loss": 7.254508972167969,
+    "training_time_seconds": 166.22926902770996,
+    "epochs_trained": 25,
     "n_params": 62924,
     "device": "/GPU:0",
     "features_used": [
@@ -91,14 +91,14 @@
       "body_wick_ratio"
     ],
     "n_features": 35,
-    "test_accuracy_1h": 0.8094488382339478,
-    "test_mag_loss_1h": 0.206533282995224,
-    "test_accuracy_6h": 0.4708661437034607,
-    "test_mag_loss_6h": 0.9039293527603149,
-    "test_accuracy_12h": 0.3511810898780823,
-    "test_mag_loss_12h": 1.4019091129302979,
-    "test_accuracy_24h": 0.4614173173904419,
-    "test_mag_loss_24h": 1.9716688394546509
+    "test_accuracy_1h": 0.6283464431762695,
+    "test_mag_loss_1h": 0.22283661365509033,
+    "test_accuracy_6h": 0.30078738927841187,
+    "test_mag_loss_6h": 0.8481597900390625,
+    "test_accuracy_12h": 0.32283464074134827,
+    "test_mag_loss_12h": 1.4507105350494385,
+    "test_accuracy_24h": 0.33070865273475647,
+    "test_mag_loss_24h": 2.2959847450256348
   },
   "training_config": {
     "epochs": 100,

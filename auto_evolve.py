@@ -418,6 +418,14 @@ def _worker_init():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     os.environ["CUDA_VISIBLE_DEVICES"] = ""
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+    # Disable Metal GPU on Apple Silicon — prevents GPU contention across spawn workers
+    os.environ["TF_METAL_DEVICE_PLACEMENT"] = "false"
+    os.environ["METAL_DEVICE_WRITABLE"] = "0"
+    try:
+        import tensorflow as tf
+        tf.config.set_visible_devices([], 'GPU')
+    except Exception:
+        pass
 
 
 def evaluate_genome(args_tuple):

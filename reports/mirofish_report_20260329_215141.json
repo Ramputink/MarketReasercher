@@ -1,0 +1,206 @@
+{
+  "timestamp": "2026-03-29 21:51:41.617670+00:00",
+  "symbol": "XRP/USDT",
+  "regime": {
+    "regime": "breakout",
+    "confidence": 0.5,
+    "signals": [],
+    "timestamp": "2026-03-29 21:51:06.127595+00:00"
+  },
+  "scenarios": [
+    {
+      "name": "Upside Breakout",
+      "description": "Volatility compression resolves to the upside with volume confirmation",
+      "probability": 0.35,
+      "regime": "breakout",
+      "direction": "up",
+      "magnitude_%": 1.0034128957936324,
+      "catalysts": [
+        "Volume surge",
+        "Order flow imbalance",
+        "Compression exhaustion"
+      ],
+      "risks": [
+        "False breakout / head fake",
+        "Lack of follow-through volume"
+      ],
+      "strategy_implications": {
+        "volatility_breakout": "ACTIVE \u2014 primary setup",
+        "mean_reversion": "AVOID \u2014 breakout environment",
+        "trend_following": "STANDBY \u2014 wait for trend confirmation"
+      }
+    },
+    {
+      "name": "Downside Breakout",
+      "description": "Compression resolves to the downside",
+      "probability": 0.3,
+      "regime": "breakout",
+      "direction": "down",
+      "magnitude_%": 1.0034128957936324,
+      "catalysts": [
+        "Liquidation cascade",
+        "Support breach"
+      ],
+      "risks": [
+        "False breakdown",
+        "Immediate buy-back"
+      ],
+      "strategy_implications": {
+        "volatility_breakout": "ACTIVE \u2014 short setup",
+        "mean_reversion": "AVOID",
+        "trend_following": "STANDBY"
+      }
+    },
+    {
+      "name": "False Breakout / Whipsaw",
+      "description": "Price tests extremes but fails to sustain",
+      "probability": 0.35,
+      "regime": "lateral",
+      "direction": "flat",
+      "magnitude_%": 0.5017064478968162,
+      "catalysts": [
+        "Low conviction",
+        "Thin orderbook"
+      ],
+      "risks": [
+        "Stopped out on both sides"
+      ],
+      "strategy_implications": {
+        "volatility_breakout": "CAUTION \u2014 false signal risk",
+        "mean_reversion": "POSSIBLE \u2014 after false breakout",
+        "trend_following": "AVOID"
+      }
+    }
+  ],
+  "agent_consensus": {
+    "agents": {
+      "whale": {
+        "archetype": "whale_accumulator",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "long",
+        "last_action": "hold"
+      },
+      "momentum": {
+        "archetype": "momentum_trader",
+        "bias": "neutral",
+        "confidence": 0.3,
+        "time_horizon": "short",
+        "last_action": "wait"
+      },
+      "mean_reversion": {
+        "archetype": "mean_reversion_trader",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "short",
+        "last_action": "hold"
+      },
+      "retail": {
+        "archetype": "retail_fomo",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "short",
+        "last_action": "hold"
+      },
+      "market_maker": {
+        "archetype": "market_maker",
+        "bias": "neutral",
+        "confidence": 0.6,
+        "time_horizon": "short",
+        "last_action": "provide_liquidity"
+      },
+      "institutional": {
+        "archetype": "institutional",
+        "bias": "neutral",
+        "confidence": 0.5,
+        "time_horizon": "medium",
+        "last_action": "hold"
+      }
+    },
+    "consensus": {
+      "bullish": 0,
+      "bearish": 0,
+      "neutral": 6,
+      "net_sentiment": 0.0
+    }
+  },
+  "recommended_strategies": [
+    "volatility_breakout"
+  ],
+  "avoid_strategies": [
+    "mean_reversion",
+    "trend_following"
+  ],
+  "risk_flags": [
+    "LLM_RISK: Reversal risk due to overbought RSI and ADX levels"
+  ],
+  "hypotheses": [
+    {
+      "id": "H_BREAKOUT_VOL",
+      "statement": "Volatility breakout signals with volume > 2x average produce higher Sharpe than baseline",
+      "test": "Compare Sharpe of vol_breakout with volume_surge_threshold=2.0 vs 1.5",
+      "priority": "high",
+      "strategy": "volatility_breakout",
+      "param_changes": {
+        "volume_surge_threshold": [
+          1.5,
+          2.0,
+          2.5
+        ]
+      }
+    },
+    {
+      "id": "H_BREAKOUT_CONFIRM",
+      "statement": "Requiring 2 confirmation candles reduces false breakouts without excessive lag",
+      "test": "Compare win_rate and expectancy with confirmation_candles=1 vs 2 vs 3",
+      "priority": "medium",
+      "strategy": "volatility_breakout",
+      "param_changes": {
+        "breakout_confirmation_candles": [
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "id": "H_LLM_1",
+      "statement": "In a breakout regime with an upside bias (p=35%), increasing the volatility threshold in the volatility_breakout strategy from 20% to 25% will improve returns by at least 10%.",
+      "test": "Backtest volatility_breakout strategy with modified volatility threshold on all trades during the breakout regime, comparing returns against baseline.",
+      "priority": "high",
+      "strategy": "volatility_breakout",
+      "param_changes": {
+        "volatility_threshold": [
+          0.2,
+          0.25
+        ]
+      }
+    },
+    {
+      "id": "H_LLM_2",
+      "statement": "In a breakout regime with an upside bias (p=35%), reducing the mean reversion threshold in the mean_reversion strategy from 5% to 3% will increase win rate by at least 15%.",
+      "test": "Backtest mean_reversion strategy with modified mean reversion threshold on all trades during the breakout regime, comparing win rate against baseline.",
+      "priority": "medium",
+      "strategy": "mean_reversion",
+      "param_changes": {
+        "mean_reversion_threshold": [
+          0.05,
+          0.03
+        ]
+      }
+    },
+    {
+      "id": "H_LLM_3",
+      "statement": "In a breakout regime with an upside bias (p=35%), increasing the trend following window in the trend_following strategy from 20 to 30 periods will improve Sharpe ratio by at least 25%.",
+      "test": "Backtest trend_following strategy with modified trend following window on all trades during the breakout regime, comparing Sharpe ratio against baseline.",
+      "priority": "low",
+      "strategy": "trend_following",
+      "param_changes": {
+        "trend_following_window": [
+          20,
+          30
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+╔════════════════════════════════════════════════════════════════════╗
+║              CRYPTORESEARCHLAB — FULL PIPELINE REPORT              ║
+║                        2026-03-29 21:51 UTC                        ║
+╚════════════════════════════════════════════════════════════════════╝
+
+┌─── MIROFISH: MARKET CONTEXT ─────────────────────────┐
+  Regime: BREAKOUT (confidence: 50%)
+  Scenarios:
+    35% — Upside Breakout (up, ±1.0%)
+    30% — Downside Breakout (down, ±1.0%)
+    35% — False Breakout / Whipsaw (flat, ±0.5%)
+  ⚠ Risk Flags:
+    • LLM_RISK: Reversal risk due to overbought RSI and ADX levels
+└──────────────────────────────────────────────────────┘
+
+┌─── STRATEGY BACKTESTS ────────────────────────────────┐
+
+  [VOLATILITY_BREAKOUT] — ✗ BLOCKED
+  ┄┄┄ Full-sample ┄┄┄
+    Sharpe: 0.233  |  Sortino: 0.079
+    Max DD: 0.94%  |  PF: 1.220
+    Win Rate: 46.4%  |  Trades: 28
+    Net PnL: $43.12  |  Expectancy: 0.0002
+    Costs: $31.41 (comm $20.94 + slip $10.47)
+  ┄┄┄ Walk-Forward (NOT ROBUST) ┄┄┄
+    OOS Sharpe: -1.669  |  Degradation: 304.4%
+    OOS Trades: 21  |  OOS PF: 12.999
+
+  [MEAN_REVERSION] — ✗ BLOCKED
+  ┄┄┄ Full-sample ┄┄┄
+    Sharpe: 0.000  |  Sortino: 0.000
+    Max DD: 0.00%  |  PF: 0.000
+    Win Rate: 0.0%  |  Trades: 0
+    Net PnL: $0.00  |  Expectancy: 0.0000
+    Costs: $0.00 (comm $0.00 + slip $0.00)
+  ┄┄┄ Walk-Forward (NOT ROBUST) ┄┄┄
+    OOS Sharpe: 0.000  |  Degradation: 100.0%
+    OOS Trades: 0  |  OOS PF: 0.000
+
+  [TREND_FOLLOWING] — ✓ APPROVED
+  ┄┄┄ Full-sample ┄┄┄
+    Sharpe: 1.097  |  Sortino: 1.321
+    Max DD: 2.17%  |  PF: 1.314
+    Win Rate: 58.4%  |  Trades: 185
+    Net PnL: $521.27  |  Expectancy: 0.0003
+    Costs: $181.91 (comm $121.28 + slip $60.64)
+  ┄┄┄ Walk-Forward (ROBUST) ┄┄┄
+    OOS Sharpe: 2.386  |  Degradation: 27.9%
+    OOS Trades: 111  |  OOS PF: 1.941
+
+└──────────────────────────────────────────────────────┘
+
+┌─── AUTORESEARCH SESSION ──────────────────────────────┐
+  Experiments: 0
+  Accepted: 0
+  Rejected: 0
+  Acceptance Rate: 0%
+└──────────────────────────────────────────────────────┘
+
+┌─── RECOMMENDATIONS ──────────────────────────────────┐
+  ✗ volatility_breakout: NEEDS WORK — failed: sharpe_ok, walk_forward_robust
+  ✗ mean_reversion: NEEDS WORK — failed: sharpe_ok, trades_ok, profit_factor_ok, walk_forward_robust
+  ✓ trend_following: READY for paper trading / controlled execution
+└──────────────────────────────────────────────────────┘
