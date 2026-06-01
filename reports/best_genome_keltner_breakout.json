@@ -1,19 +1,19 @@
 {
   "strategy": "keltner_breakout",
   "params": {
-    "ema_period": 28,
-    "atr_mult": 3.426,
-    "rsi_long_min": 43.0839,
-    "rsi_short_max": 58.747,
-    "adx_min": 22.1001,
-    "volume_threshold": 2.0,
-    "stop_loss_atr_mult": 3.7666,
-    "take_profit_atr_mult": 4.7807
+    "ema_period": 14,
+    "atr_mult": 2.7818,
+    "rsi_long_min": 47.0394,
+    "rsi_short_max": 50.2267,
+    "adx_min": 22.5619,
+    "volume_threshold": 1.853,
+    "stop_loss_atr_mult": 1.8372,
+    "take_profit_atr_mult": 4.8639
   },
-  "fitness": 2.019360759116468,
-  "sharpe": 0.3277415545821112,
-  "wf_sharpe": 3.010765203013188,
-  "trades": 64,
-  "net_pnl": 85.17903798879746,
+  "fitness": 2.2057216183472397,
+  "sharpe": 0.6756241775817635,
+  "wf_sharpe": 3.2360392098034096,
+  "trades": 47,
+  "net_pnl": 117.1442358709948,
   "wf_robust": true
 }

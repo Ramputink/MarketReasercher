@@ -1,0 +1,516 @@
+// This Pine Script™ is subject to the terms of the Mozilla Public License 2.0
+// © CryptoResearchLab — XRP/USDT Multi-Strategy System v2
+// Major improvements: regime detection, weighted signals, trailing stops, MTF confirmation
+
+//@version=6
+strategy("CRL Multi-Strategy v2", overlay=true,
+     default_qty_type=strategy.percent_of_equity, default_qty_value=10,
+     commission_type=strategy.commission.percent, commission_value=0.1,
+     slippage=5, initial_capital=200, currency=currency.USD,
+     max_bars_back=500, pyramiding=0, calc_on_every_tick=false)
+
+// ══════════════════════════════════════════════════════════════════
+// MASTER INPUTS
+// ══════════════════════════════════════════════════════════════════
+grp_m = "🎛️ Master"
+i_min_score    = input.float(2.0,   "Min signal score to enter", step=0.1, minval=0.5, maxval=8.0, group=grp_m)
+i_require_htf  = input.bool(true,   "Require HTF trend alignment", group=grp_m)
+i_htf          = input.timeframe("240", "HTF timeframe", group=grp_m)
+
+grp_r = "🛡️ Risk"
+i_sl_atr       = input.float(2.5,   "Initial SL (ATR mult)",    step=0.1, group=grp_r)
+i_tp_atr       = input.float(4.5,   "Take Profit (ATR mult)",   step=0.1, group=grp_r)
+i_trail_atr    = input.float(1.8,   "Trailing Stop (ATR mult)", step=0.1, group=grp_r)
+i_trail_start  = input.float(1.5,   "Trail activates after (ATR profit)", step=0.1, group=grp_r)
+i_time_stop    = input.int(48,      "Time stop (bars)",          minval=4, group=grp_r)
+i_max_dd       = input.float(15.0,  "Circuit breaker DD %",     step=1.0, group=grp_r)
+
+grp_s = "📊 Strategy Weights"
+i_w1  = input.float(1.0, "Trend Following",    step=0.1, group=grp_s)
+i_w2  = input.float(1.2, "Donchian Breakout",  step=0.1, group=grp_s)
+i_w3  = input.float(0.8, "Dual MA",            step=0.1, group=grp_s)
+i_w4  = input.float(1.0, "Keltner Breakout",   step=0.1, group=grp_s)
+i_w5  = input.float(1.3, "Vol Squeeze",        step=0.1, group=grp_s)
+i_w6  = input.float(0.9, "Ichimoku Kumo",      step=0.1, group=grp_s)
+i_w7  = input.float(0.7, "KAMA Trend",         step=0.1, group=grp_s)
+i_w8  = input.float(1.1, "Fisher Transform",   step=0.1, group=grp_s)
+i_w9  = input.float(1.0, "Vol Regime Arb",     step=0.1, group=grp_s)
+
+// ══════════════════════════════════════════════════════════════════
+// STRATEGY PARAMS (evolved defaults)
+// ══════════════════════════════════════════════════════════════════
+// Trend Following
+grp_1 = "1️⃣ Trend Following"
+i_tf_fib_look = input.int(50,    "Fib lookback",       group=grp_1)
+i_tf_fib_tol  = input.float(2.5, "Fib tolerance %",    group=grp_1)
+i_tf_rsi_lo   = input.float(34,  "RSI lower",          group=grp_1)
+i_tf_rsi_hi   = input.float(70,  "RSI upper",          group=grp_1)
+
+// Donchian
+grp_2 = "2️⃣ Donchian"
+i_dc_period   = input.int(40,    "Entry period",        group=grp_2)
+i_dc_vol      = input.float(1.3, "Volume surge",       group=grp_2)
+
+// Dual MA
+grp_3 = "3️⃣ Dual MA"
+i_dm_fast     = input.int(20,    "Fast EMA",            group=grp_3)
+i_dm_slow     = input.int(46,    "Slow EMA",            group=grp_3)
+
+// Keltner
+grp_4 = "4️⃣ Keltner"
+i_kb_ema      = input.int(19,    "EMA period",          group=grp_4)
+i_kb_mult     = input.float(3.0, "ATR mult",           group=grp_4)
+i_kb_rsi_l    = input.float(51,  "RSI long min",       group=grp_4)
+i_kb_rsi_s    = input.float(45,  "RSI short max",      group=grp_4)
+
+// Vol Squeeze
+grp_5 = "5️⃣ Squeeze"
+i_vs_bb_len   = input.int(20,    "BB period",           group=grp_5)
+i_vs_bb_std   = input.float(2.0, "BB std",             group=grp_5)
+i_vs_kc_mult  = input.float(1.2, "KC ATR mult",        group=grp_5)
+i_vs_sq_bars  = input.int(3,     "Min squeeze bars",   group=grp_5)
+i_vs_mom      = input.int(13,    "Momentum lookback",  group=grp_5)
+
+// Ichimoku
+grp_6 = "6️⃣ Ichimoku"
+i_ic_tenkan   = input.int(10,    "Tenkan",              group=grp_6)
+i_ic_kijun    = input.int(34,    "Kijun",               group=grp_6)
+i_ic_senkou_b = input.int(59,    "Senkou B",            group=grp_6)
+i_ic_disp     = input.int(30,    "Displacement",        group=grp_6)
+
+// KAMA
+grp_7 = "7️⃣ KAMA"
+i_km_er       = input.int(14,    "ER period",            group=grp_7)
+i_km_fast_sc  = input.int(4,     "Fast SC",              group=grp_7)
+i_km_slow_sc  = input.int(26,    "Slow SC",              group=grp_7)
+i_km_slope    = input.float(0.13,"Slope threshold %",   group=grp_7)
+
+// Fisher
+grp_8 = "8️⃣ Fisher"
+i_ft_period   = input.int(18,    "Period",               group=grp_8)
+i_ft_thresh   = input.float(1.98,"Signal threshold",    group=grp_8)
+
+// Vol Regime Arb
+grp_9 = "9️⃣ Vol Regime"
+i_vr_gk_fast  = input.int(10,    "GK fast period",      group=grp_9)
+i_vr_gk_base  = input.int(100,   "GK baseline",         group=grp_9)
+i_vr_exp_z    = input.float(-1.2, "Expansion z",        group=grp_9)
+i_vr_exp_bars = input.int(5,      "Min compressed bars", group=grp_9)
+i_vr_con_z    = input.float(2.0,  "Contraction z",      group=grp_9)
+i_vr_rsi_os   = input.float(30,   "RSI oversold",       group=grp_9)
+i_vr_rsi_ob   = input.float(70,   "RSI overbought",     group=grp_9)
+
+// ══════════════════════════════════════════════════════════════════
+// COMMON INDICATORS
+// ══════════════════════════════════════════════════════════════════
+atr14  = ta.atr(14)
+rsi14  = ta.rsi(close, 14)
+[diP, diM, adx14] = ta.dmi(14, 14)
+
+vol_sma   = ta.sma(volume, 20)
+vol_ratio = vol_sma > 0 ? volume / vol_sma : 1.0
+
+ema50  = ta.ema(close, 50)
+ema200 = ta.ema(close, 200)
+sma20  = ta.sma(close, 20)
+ema21  = ta.ema(close, 21)
+
+// ══════════════════════════════════════════════════════════════════
+// REGIME DETECTION (missing in v1 — critical filter)
+// ══════════════════════════════════════════════════════════════════
+// 3 regimes: TREND (adx>25 + directional), BREAKOUT (expanding vol), RANGE (low adx)
+is_trending  = adx14 > 25
+is_strong_trend = adx14 > 35
+trend_bull   = is_trending and diP > diM
+trend_bear   = is_trending and diM > diP
+
+// Volatility regime via BB width percentile
+bb_basis = ta.sma(close, 20)
+bb_dev   = 2.0 * ta.stdev(close, 20)
+bb_width = close != 0 ? bb_dev / close * 100 : 0
+bb_w_pct = ta.percentrank(bb_width, 100)
+
+is_squeeze   = bb_w_pct < 20   // compressed vol
+is_expanding = bb_w_pct > 70   // expanding vol
+
+regime_trend    = is_trending and not is_squeeze
+regime_breakout = is_expanding or (is_squeeze[1] and not is_squeeze)  // squeeze release
+regime_range    = not is_trending and not is_expanding
+
+// ══════════════════════════════════════════════════════════════════
+// HIGHER TIMEFRAME TREND (MTF confirmation — missing in v1)
+// ══════════════════════════════════════════════════════════════════
+htf_ema50  = request.security(syminfo.tickerid, i_htf, ta.ema(close, 50), lookahead=barmerge.lookahead_off)
+htf_ema200 = request.security(syminfo.tickerid, i_htf, ta.ema(close, 200), lookahead=barmerge.lookahead_off)
+htf_rsi    = request.security(syminfo.tickerid, i_htf, ta.rsi(close, 14), lookahead=barmerge.lookahead_off)
+// Extract only ADX (3rd element) from ta.dmi before passing to request.security
+_htf_adx_val() =>
+    [_p, _m, _a] = ta.dmi(14, 14)
+    _a
+htf_adx    = request.security(syminfo.tickerid, i_htf, _htf_adx_val(), lookahead=barmerge.lookahead_off)
+
+htf_bull = htf_ema50 > htf_ema200 and htf_rsi > 45
+htf_bear = htf_ema50 < htf_ema200 and htf_rsi < 55
+
+htf_long_ok  = not i_require_htf or htf_bull
+htf_short_ok = not i_require_htf or htf_bear
+
+// ══════════════════════════════════════════════════════════════════
+// HELPER: Linear Regression Slope
+// ══════════════════════════════════════════════════════════════════
+linreg_slope(src, len) =>
+    s_x  = 0.0, s_y  = 0.0, s_xy = 0.0, s_x2 = 0.0
+    for i = 0 to len - 1
+        x = float(i)
+        y = src[len - 1 - i]
+        s_x += x, s_y += y, s_xy += x * y, s_x2 += x * x
+    n = float(len)
+    (n * s_xy - s_x * s_y) / (n * s_x2 - s_x * s_x)
+
+// ══════════════════════════════════════════════════════════════════
+// STRATEGY 1: TREND FOLLOWING (BMSB + Fib pullback)
+// Regime: TREND only
+// ══════════════════════════════════════════════════════════════════
+bmsb_bull = close > sma20 and close > ema21 and sma20 > ema21
+bmsb_bear = close < sma20 and close < ema21 and sma20 < ema21
+
+tf_hh = ta.highest(high, i_tf_fib_look)
+tf_ll = ta.lowest(low, i_tf_fib_look)
+tf_rng = tf_hh - tf_ll
+tol = i_tf_fib_tol / 100
+
+// Long: pullback to 0.382-0.618 of upswing
+fib_382_l = tf_hh - 0.382 * tf_rng
+fib_618_l = tf_hh - 0.618 * tf_rng
+in_fib_long = close >= fib_618_l * (1 - tol) and close <= fib_382_l * (1 + tol)
+
+// Short: pullback to 0.382-0.618 of downswing
+fib_382_s = tf_ll + 0.382 * tf_rng
+fib_618_s = tf_ll + 0.618 * tf_rng
+in_fib_short = close >= fib_382_s * (1 - tol) and close <= fib_618_s * (1 + tol)
+
+s1_long  = bmsb_bull and in_fib_long  and trend_bull and rsi14 > i_tf_rsi_lo and rsi14 < i_tf_rsi_hi and vol_ratio > 0.9
+s1_short = bmsb_bear and in_fib_short and trend_bear and rsi14 > i_tf_rsi_lo and rsi14 < i_tf_rsi_hi and vol_ratio > 0.9
+
+// ══════════════════════════════════════════════════════════════════
+// STRATEGY 2: DONCHIAN BREAKOUT
+// Regime: BREAKOUT / TREND
+// ══════════════════════════════════════════════════════════════════
+dc_up = ta.highest(high, i_dc_period)
+dc_lo = ta.lowest(low, i_dc_period)
+
+s2_long  = close > dc_up[1] and (regime_breakout or regime_trend) and adx14 > 20 and vol_ratio > i_dc_vol
+s2_short = close < dc_lo[1] and (regime_breakout or regime_trend) and adx14 > 20 and vol_ratio > i_dc_vol
+
+// ══════════════════════════════════════════════════════════════════
+// STRATEGY 3: DUAL MA CROSSOVER
+// Regime: TREND
+// ══════════════════════════════════════════════════════════════════
+dm_f = ta.ema(close, i_dm_fast)
+dm_s = ta.ema(close, i_dm_slow)
+dm_cross_up   = ta.crossover(dm_f, dm_s)
+dm_cross_down = ta.crossunder(dm_f, dm_s)
+
+s3_long  = dm_cross_up   and regime_trend and vol_ratio > 1.0
+s3_short = dm_cross_down and regime_trend and vol_ratio > 1.0
+
+// ══════════════════════════════════════════════════════════════════
+// STRATEGY 4: KELTNER BREAKOUT
+// Regime: BREAKOUT / TREND
+// ══════════════════════════════════════════════════════════════════
+kb_c = ta.ema(close, i_kb_ema)
+kb_u = kb_c + i_kb_mult * atr14
+kb_l = kb_c - i_kb_mult * atr14
+
+s4_long  = close > kb_u and rsi14 > i_kb_rsi_l and (regime_breakout or regime_trend) and vol_ratio > 1.5
+s4_short = close < kb_l and rsi14 < i_kb_rsi_s and (regime_breakout or regime_trend) and vol_ratio > 1.5
+
+// ══════════════════════════════════════════════════════════════════
+// STRATEGY 5: VOLATILITY SQUEEZE (TTM)
+// Regime: BREAKOUT (squeeze release)
+// ══════════════════════════════════════════════════════════════════
+[bb_mid, bb_up, bb_lo] = ta.bb(close, i_vs_bb_len, i_vs_bb_std)
+vs_kc_c = ta.ema(close, i_vs_bb_len)
+vs_kc_u = vs_kc_c + i_vs_kc_mult * atr14
+vs_kc_l = vs_kc_c - i_vs_kc_mult * atr14
+
+sq_on = bb_lo > vs_kc_l and bb_up < vs_kc_u
+var int sq_cnt = 0
+sq_cnt := sq_on ? sq_cnt + 1 : 0
+
+sq_fired = sq_cnt[1] >= i_vs_sq_bars and not sq_on
+mom_slope = linreg_slope(close, i_vs_mom)
+
+s5_long  = sq_fired and mom_slope > 0 and vol_ratio > 1.2
+s5_short = sq_fired and mom_slope < 0 and vol_ratio > 1.2
+
+// ══════════════════════════════════════════════════════════════════
+// STRATEGY 6: ICHIMOKU KUMO
+// Regime: TREND
+// ══════════════════════════════════════════════════════════════════
+tk_hh = ta.highest(high, i_ic_tenkan)
+tk_ll = ta.lowest(low, i_ic_tenkan)
+tenkan = (tk_hh + tk_ll) / 2
+
+kj_hh = ta.highest(high, i_ic_kijun)
+kj_ll = ta.lowest(low, i_ic_kijun)
+kijun  = (kj_hh + kj_ll) / 2
+
+sa = (tenkan[i_ic_disp] + kijun[i_ic_disp]) / 2
+sb_hh = ta.highest(high, i_ic_senkou_b)
+sb_ll = ta.lowest(low, i_ic_senkou_b)
+sb = (sb_hh[i_ic_disp] + sb_ll[i_ic_disp]) / 2
+
+cloud_top = math.max(sa, sb)
+cloud_bot = math.min(sa, sb)
+
+s6_long  = close > cloud_top and close[1] <= cloud_top[1] and tenkan > kijun and regime_trend
+s6_short = close < cloud_bot and close[1] >= cloud_bot[1] and tenkan < kijun and regime_trend
+
+// ══════════════════════════════════════════════════════════════════
+// STRATEGY 7: KAMA TREND
+// Regime: TREND / BREAKOUT
+// ══════════════════════════════════════════════════════════════════
+er_dir = math.abs(close - close[i_km_er])
+er_vol = 0.0
+for i = 0 to i_km_er - 1
+    er_vol += math.abs(close[i] - close[i + 1])
+er = er_vol != 0 ? er_dir / er_vol : 0.0
+
+f_alpha = 2.0 / (i_km_fast_sc + 1)
+s_alpha = 2.0 / (i_km_slow_sc + 1)
+sc = math.pow(er * (f_alpha - s_alpha) + s_alpha, 2)
+
+var float kama = na
+kama := na(kama[1]) ? close : kama[1] + sc * (close - kama[1])
+kama_pct = kama[1] != 0 ? (kama - kama[1]) / kama[1] * 100 : 0
+
+kama_up   = kama > kama[1] and kama[1] <= kama[2]
+kama_down = kama < kama[1] and kama[1] >= kama[2]
+kama_cross_up   = ta.crossover(close, kama)
+kama_cross_down = ta.crossunder(close, kama)
+
+s7_long  = close > kama and kama_pct > i_km_slope and (kama_up or kama_cross_up) and (regime_trend or regime_breakout)
+s7_short = close < kama and kama_pct < -i_km_slope and (kama_down or kama_cross_down) and (regime_trend or regime_breakout)
+
+// ══════════════════════════════════════════════════════════════════
+// STRATEGY 8: FISHER TRANSFORM (mean-reversion)
+// Regime: RANGE — opposite to trend strategies
+// ══════════════════════════════════════════════════════════════════
+ft_hh = ta.highest(hl2, i_ft_period)
+ft_ll = ta.lowest(hl2, i_ft_period)
+ft_raw = ft_hh != ft_ll ? 2.0 * ((hl2 - ft_ll) / (ft_hh - ft_ll) - 0.5) : 0.0
+ft_raw_c = math.max(-0.999, math.min(0.999, ft_raw))
+
+var float ft_v = 0.0
+var float ft_f = 0.0
+var float ft_p = 0.0
+
+ft_v := math.max(-0.999, math.min(0.999, 0.5 * ft_raw_c + 0.5 * nz(ft_v[1])))
+ft_p := nz(ft_f[1])
+ft_f := 0.5 * math.log((1 + ft_v) / (1 - ft_v)) + 0.5 * ft_p
+
+// Fisher reversal at extremes — works in range regimes
+s8_long  = ft_p < -i_ft_thresh and ft_f > ft_p and (regime_range or not is_strong_trend) and adx14 < 35
+s8_short = ft_p > i_ft_thresh  and ft_f < ft_p and (regime_range or not is_strong_trend) and adx14 < 35
+
+// ══════════════════════════════════════════════════════════════════
+// STRATEGY 9: VOL REGIME ARB (Garman-Klass)
+// Regime: BREAKOUT (expansion) / RANGE (contraction fade)
+// ══════════════════════════════════════════════════════════════════
+gk_bar = 0.5 * math.pow(math.log(high / math.max(low, 0.0001)), 2) - (2 * math.log(2) - 1) * math.pow(math.log(close / math.max(open, 0.0001)), 2)
+gk_fast = ta.sma(gk_bar, i_vr_gk_fast)
+gk_mean = ta.sma(gk_fast, i_vr_gk_base)
+gk_std  = ta.stdev(gk_fast, i_vr_gk_base)
+gk_z    = gk_std > 0 ? (gk_fast - gk_mean) / gk_std : 0
+
+var int vr_comp = 0
+vr_comp := gk_z < i_vr_exp_z ? vr_comp + 1 : 0
+vr_slope = linreg_slope(close, 10)
+
+// Expansion: compressed vol breaking out
+s9e_long  = vr_comp >= i_vr_exp_bars and vr_slope > 0 and adx14 > 15
+s9e_short = vr_comp >= i_vr_exp_bars and vr_slope < 0 and adx14 > 15
+
+// Contraction: extreme vol fading
+s9c_long  = gk_z > i_vr_con_z and rsi14 < i_vr_rsi_os
+s9c_short = gk_z > i_vr_con_z and rsi14 > i_vr_rsi_ob
+
+s9_long  = s9e_long  or s9c_long
+s9_short = s9e_short or s9c_short
+
+// ══════════════════════════════════════════════════════════════════
+// WEIGHTED SIGNAL AGGREGATION (key v2 improvement)
+// ══════════════════════════════════════════════════════════════════
+// Each strategy contributes its weight only when it fires
+// Confidence boost: ADX strength and volume confirmation add fractional bonus
+adx_boost = adx14 > 30 ? 0.3 : adx14 > 20 ? 0.15 : 0.0
+vol_boost = vol_ratio > 2.0 ? 0.3 : vol_ratio > 1.5 ? 0.15 : 0.0
+
+long_score  = (s1_long  ? i_w1 : 0) + (s2_long  ? i_w2 : 0) + (s3_long  ? i_w3 : 0) +
+              (s4_long  ? i_w4 : 0) + (s5_long  ? i_w5 : 0) + (s6_long  ? i_w6 : 0) +
+              (s7_long  ? i_w7 : 0) + (s8_long  ? i_w8 : 0) + (s9_long  ? i_w9 : 0) +
+              adx_boost + vol_boost
+
+short_score = (s1_short ? i_w1 : 0) + (s2_short ? i_w2 : 0) + (s3_short ? i_w3 : 0) +
+              (s4_short ? i_w4 : 0) + (s5_short ? i_w5 : 0) + (s6_short ? i_w6 : 0) +
+              (s7_short ? i_w7 : 0) + (s8_short ? i_w8 : 0) + (s9_short ? i_w9 : 0) +
+              adx_boost + vol_boost
+
+// Direction must be dominant and pass threshold
+go_long  = long_score >= i_min_score and long_score > short_score and htf_long_ok
+go_short = short_score >= i_min_score and short_score > long_score and htf_short_ok
+
+// ══════════════════════════════════════════════════════════════════
+// RISK — Circuit Breaker + Cooldown
+// ══════════════════════════════════════════════════════════════════
+peak_eq = ta.highest(strategy.equity, 500)
+dd_pct  = (peak_eq - strategy.equity) / math.max(peak_eq, 1) * 100
+circuit_ok = dd_pct < i_max_dd
+
+// Cooldown: no entry within 3 bars of a loss
+var int last_exit_bar = 0
+var bool last_was_loss = false
+cooldown_ok = not last_was_loss or (bar_index - last_exit_bar > 3)
+
+// ══════════════════════════════════════════════════════════════════
+// POSITION TRACKING — Time Stop + Trailing
+// ══════════════════════════════════════════════════════════════════
+var int bars_in = 0
+var float entry_price = na
+var float trail_stop  = na
+
+bars_in := strategy.position_size != 0 ? bars_in + 1 : 0
+
+if strategy.position_size == 0
+    entry_price := na
+    trail_stop  := na
+
+// Update trailing stop
+if strategy.position_size > 0  // long position
+    profit_atr = (close - entry_price) / atr14
+    if profit_atr >= i_trail_start
+        new_trail = close - i_trail_atr * atr14
+        trail_stop := na(trail_stop) ? new_trail : math.max(trail_stop, new_trail)
+
+if strategy.position_size < 0  // short position
+    profit_atr = (entry_price - close) / atr14
+    if profit_atr >= i_trail_start
+        new_trail = close + i_trail_atr * atr14
+        trail_stop := na(trail_stop) ? new_trail : math.min(trail_stop, new_trail)
+
+time_stop_hit = bars_in >= i_time_stop
+
+// ══════════════════════════════════════════════════════════════════
+// ENTRIES
+// ══════════════════════════════════════════════════════════════════
+sl_dist = i_sl_atr * atr14
+tp_dist = i_tp_atr * atr14
+
+if go_long and strategy.position_size == 0 and circuit_ok and cooldown_ok
+    entry_price := close
+    trail_stop  := na
+    strategy.entry("Long", strategy.long)
+    strategy.exit("L_SL_TP", "Long", stop=close - sl_dist, limit=close + tp_dist)
+
+if go_short and strategy.position_size == 0 and circuit_ok and cooldown_ok
+    entry_price := close
+    trail_stop  := na
+    strategy.entry("Short", strategy.short)
+    strategy.exit("S_SL_TP", "Short", stop=close + sl_dist, limit=close - tp_dist)
+
+// ══════════════════════════════════════════════════════════════════
+// EXITS — Trailing + Time + Reversal
+// ══════════════════════════════════════════════════════════════════
+// Trailing stop exit (tighter than initial SL)
+if strategy.position_size > 0 and not na(trail_stop) and low <= trail_stop
+    last_exit_bar := bar_index
+    last_was_loss := close < entry_price
+    strategy.close("Long", comment="Trail")
+
+if strategy.position_size < 0 and not na(trail_stop) and high >= trail_stop
+    last_exit_bar := bar_index
+    last_was_loss := close > entry_price
+    strategy.close("Short", comment="Trail")
+
+// Time stop
+if time_stop_hit and strategy.position_size != 0
+    last_exit_bar := bar_index
+    last_was_loss := strategy.position_size > 0 ? close < entry_price : close > entry_price
+    strategy.close_all("TimeStop")
+
+// Reversal exit
+if strategy.position_size > 0 and go_short
+    last_exit_bar := bar_index
+    last_was_loss := close < entry_price
+    strategy.close("Long", comment="Rev")
+if strategy.position_size < 0 and go_long
+    last_exit_bar := bar_index
+    last_was_loss := close > entry_price
+    strategy.close("Short", comment="Rev")
+
+// ══════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════════════════
+var table dash = table.new(position.top_right, 4, 13,
+     bgcolor=color.new(color.black, 80), frame_color=color.gray, frame_width=1)
+
+if barstate.islast
+    table.cell(dash, 0, 0, "Strategy",  text_color=color.white, text_size=size.tiny)
+    table.cell(dash, 1, 0, "W",         text_color=color.yellow, text_size=size.tiny)
+    table.cell(dash, 2, 0, "L",         text_color=color.green, text_size=size.tiny)
+    table.cell(dash, 3, 0, "S",         text_color=color.red, text_size=size.tiny)
+
+    names = array.from("TrendFollow", "Donchian", "DualMA", "Keltner", "Squeeze",
+                        "Ichimoku", "KAMA", "Fisher", "VolRegime")
+    wts   = array.from(i_w1, i_w2, i_w3, i_w4, i_w5, i_w6, i_w7, i_w8, i_w9)
+    ls    = array.from(s1_long, s2_long, s3_long, s4_long, s5_long, s6_long, s7_long, s8_long, s9_long)
+    ss    = array.from(s1_short, s2_short, s3_short, s4_short, s5_short, s6_short, s7_short, s8_short, s9_short)
+
+    for i = 0 to 8
+        table.cell(dash, 0, i+1, array.get(names, i), text_color=color.white, text_size=size.tiny)
+        table.cell(dash, 1, i+1, str.tostring(array.get(wts, i), "#.#"), text_color=color.yellow, text_size=size.tiny)
+        l = array.get(ls, i)
+        s = array.get(ss, i)
+        table.cell(dash, 2, i+1, l ? "✓":"·", text_color=l ? color.lime:color.gray, text_size=size.tiny)
+        table.cell(dash, 3, i+1, s ? "✓":"·", text_color=s ? color.red:color.gray, text_size=size.tiny)
+
+    // Summary
+    regime_str = regime_trend ? "TREND" : regime_breakout ? "BRKOUT" : "RANGE"
+    r_col = regime_trend ? color.lime : regime_breakout ? color.orange : color.aqua
+    table.cell(dash, 0, 10, regime_str, text_color=r_col, text_size=size.tiny)
+    table.cell(dash, 1, 10, "L:" + str.tostring(long_score, "#.#"), text_color=color.lime, text_size=size.tiny)
+    table.cell(dash, 2, 10, "S:" + str.tostring(short_score, "#.#"), text_color=color.red, text_size=size.tiny)
+    htf_str = htf_bull ? "HTF▲" : htf_bear ? "HTF▼" : "HTF—"
+    table.cell(dash, 3, 10, htf_str, text_color=htf_bull?color.lime:htf_bear?color.red:color.gray, text_size=size.tiny)
+
+    dd_col = dd_pct > 10 ? color.red : dd_pct > 5 ? color.orange : color.green
+    table.cell(dash, 0, 11, "DD:" + str.tostring(dd_pct, "#.#") + "%", text_color=dd_col, text_size=size.tiny)
+    table.cell(dash, 1, 11, "ADX:" + str.tostring(adx14, "#"), text_color=color.aqua, text_size=size.tiny)
+    table.cell(dash, 2, 11, "GKz:" + str.tostring(gk_z, "#.#"), text_color=color.aqua, text_size=size.tiny)
+    table.cell(dash, 3, 11, "Vol:" + str.tostring(vol_ratio, "#.#"), text_color=color.aqua, text_size=size.tiny)
+
+// ══════════════════════════════════════════════════════════════════
+// PLOTS
+// ══════════════════════════════════════════════════════════════════
+plot(kama, "KAMA", color=color.new(color.orange, 50), linewidth=2)
+plot(kb_u, "KC Upper", color=color.new(color.aqua, 75))
+plot(kb_l, "KC Lower", color=color.new(color.aqua, 75))
+
+p_ct = plot(cloud_top, "Kumo Top", display=display.none)
+p_cb = plot(cloud_bot, "Kumo Bottom", display=display.none)
+fill(p_ct, p_cb, color=sa > sb ? color.new(color.green, 92) : color.new(color.red, 92))
+
+plot(not na(trail_stop) ? trail_stop : na, "Trail Stop", color=color.fuchsia, style=plot.style_cross, linewidth=2)
+
+plotshape(go_long  and strategy.position_size == 0 and circuit_ok, "Buy",
+     shape.triangleup,   location.belowbar, color.lime, size=size.small)
+plotshape(go_short and strategy.position_size == 0 and circuit_ok, "Sell",
+     shape.triangledown, location.abovebar, color.red,  size=size.small)
+
+bgcolor(sq_on ? color.new(color.yellow, 94) : na, title="Squeeze")
+bgcolor(regime_breakout ? color.new(color.orange, 96) : na, title="Breakout Regime")
+
+// Color bars by signal strength
+barcolor(long_score >= 3.0 ? color.lime : short_score >= 3.0 ? color.red :
+         long_score >= 2.0 ? color.new(color.green, 50) : short_score >= 2.0 ? color.new(color.maroon, 50) : na)

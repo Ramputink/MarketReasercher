@@ -134,7 +134,6 @@ i_vr_adx       = input.float(18.0,  "ADX min (expansion)",   group=grp_vr)
 // COMMON INDICATORS
 // ══════════════════════════════════════════════════════════════════
 atr14     = ta.atr(14)
-adx14     = ta.dmi(14, 14)[2]  // [+DI, -DI, ADX]
 rsi14     = ta.rsi(close, 14)
 vol_sma   = ta.sma(volume, 20)
 vol_ratio = volume / math.max(vol_sma, 1)
@@ -142,7 +141,7 @@ ema50     = ta.ema(close, 50)
 sma20     = ta.sma(close, 20)
 ema21     = ta.ema(close, 21)
 
-// ADX proper calculation (ta.dmi returns [plus, minus, adx])
+// ADX (ta.dmi returns [+DI, -DI, ADX])
 [diPlus, diMinus, adxValue] = ta.dmi(14, 14)
 
 // ══════════════════════════════════════════════════════════════════

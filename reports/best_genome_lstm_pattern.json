@@ -1,0 +1,24 @@
+{
+  "strategy": "lstm_pattern",
+  "params": {
+    "cluster_variant": "hier_50",
+    "min_cluster_prob": 0.4941,
+    "min_lstm_confidence": 0.4409,
+    "min_combined_confidence": 0.6321,
+    "cluster_weight": 0.3653,
+    "lstm_weight": 0.4138,
+    "adx_min": 24.7343,
+    "require_volume": false,
+    "volume_threshold": 1.9308,
+    "rsi_oversold": 17.6698,
+    "rsi_overbought": 75.6621,
+    "stop_loss_atr_mult": 3.8473,
+    "take_profit_atr_mult": 6.2043
+  },
+  "fitness": 0.8537720417836547,
+  "sharpe": 1.4699597423547142,
+  "wf_sharpe": 1.6818049657188603,
+  "trades": 18,
+  "net_pnl": 252.624252892994,
+  "wf_robust": true
+}

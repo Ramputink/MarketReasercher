@@ -1,5 +1,6 @@
 {
-  "generation": 778,
+  "run_timestamp": "2026-03-31T06:41:41.354915+00:00",
+  "generations": 778,
   "total_evaluated": 31160,
   "total_robust": 10358,
   "hall_of_fame": [
@@ -524,5 +525,73 @@
     "trend_following",
     "donchian_breakout",
     "kama_trend"
-  ]
+  ],
+  "strategy_scores": {
+    "donchian_breakout": {
+      "count": 2062,
+      "mean": -4.20836417803058,
+      "max": 2.3762612565439363,
+      "positive_pct": 18.18622696411251
+    },
+    "vol_regime_arb": {
+      "count": 4226,
+      "mean": -3.8138305610292065,
+      "max": 3.7286359673400775,
+      "positive_pct": 44.39185991481306
+    },
+    "trend_following": {
+      "count": 3814,
+      "mean": -1.5776879419547911,
+      "max": 2.9782249435391046,
+      "positive_pct": 51.59937073938122
+    },
+    "chaos_trend": {
+      "count": 1883,
+      "mean": -3.7782615766744647,
+      "max": 2.443964647556393,
+      "positive_pct": 17.31279872543813
+    },
+    "volatility_squeeze": {
+      "count": 9331,
+      "mean": 1.4405773352946853,
+      "max": 4.1167527846201,
+      "positive_pct": 84.86764548279928
+    },
+    "lstm_pattern": {
+      "count": 1248,
+      "mean": -6.694437385653517,
+      "max": 0.8537720417836547,
+      "positive_pct": 0.4006410256410256
+    },
+    "keltner_breakout": {
+      "count": 2250,
+      "mean": -1.916592995711186,
+      "max": 2.2057216183472397,
+      "positive_pct": 35.333333333333336
+    },
+    "ichimoku_kumo": {
+      "count": 1456,
+      "mean": -9.10359974593479,
+      "max": 1.937966932705252,
+      "positive_pct": 6.318681318681318
+    },
+    "dual_ma": {
+      "count": 1326,
+      "mean": -7.356827739289127,
+      "max": 2.6624725461040395,
+      "positive_pct": 5.806938159879336
+    },
+    "fisher_transform": {
+      "count": 1301,
+      "mean": -5.31210599281771,
+      "max": 1.4270556341382237,
+      "positive_pct": 1.8447348193697155
+    },
+    "kama_trend": {
+      "count": 2263,
+      "mean": -5.746316291315618,
+      "max": 2.4742779214723267,
+      "positive_pct": 13.300927971718956
+    }
+  }
 }
