@@ -1,0 +1,278 @@
+{
+  "chaos_trend": {
+    "strategy": "chaos_trend",
+    "params": {
+      "hurst_window": 113,
+      "hurst_min": 0.6914,
+      "hurst_max": 0.9428,
+      "ema_fast": 20,
+      "ema_slow": 27,
+      "adx_min": 19.9381,
+      "momentum_period": 18,
+      "volume_threshold": 1.6318,
+      "use_fractal_filter": true,
+      "fractal_max": 1.4119,
+      "stop_loss_atr_mult": 4.7832,
+      "take_profit_atr_mult": 5.0543
+    },
+    "metrics": {
+      "sharpe": 0.8838505959033635,
+      "sortino": 0.6080169464324419,
+      "pf": 1.3624450649095015,
+      "trades": 79,
+      "win_rate": 0.5822784810126582,
+      "net_pnl": 265.5441449421644,
+      "max_dd": 3.072635313864245
+    }
+  },
+  "donchian_breakout": {
+    "strategy": "donchian_breakout",
+    "params": {
+      "entry_period": 42,
+      "exit_period": 20,
+      "volume_surge_threshold": 1.4939,
+      "adx_min": 15.2689,
+      "atr_filter_mult": 1.0682,
+      "use_volatility_filter": false,
+      "stop_loss_atr_mult": 2.7534,
+      "take_profit_atr_mult": 7.8945
+    },
+    "metrics": {
+      "sharpe": 2.13522440118574,
+      "sortino": 1.977723308509157,
+      "pf": 1.6471636534087453,
+      "trades": 139,
+      "win_rate": 0.4244604316546763,
+      "net_pnl": 785.0924357018469,
+      "max_dd": 1.3815227774600651
+    }
+  },
+  "dual_ma": {
+    "strategy": "dual_ma",
+    "params": {
+      "fast_period": 19,
+      "slow_period": 18,
+      "signal_type": "ema",
+      "require_adx": false,
+      "adx_min": 17.4025,
+      "require_volume": false,
+      "volume_threshold": 1.8017,
+      "stop_loss_atr_mult": 3.3727,
+      "take_profit_atr_mult": 5.6404
+    },
+    "metrics": {
+      "sharpe": 2.4671487024731475,
+      "sortino": 1.9294786987436883,
+      "pf": 2.2105746928934513,
+      "trades": 122,
+      "win_rate": 0.5737704918032787,
+      "net_pnl": 5.07136303392814,
+      "max_dd": 0.009196975918941502
+    }
+  },
+  "fisher_transform": {
+    "strategy": "fisher_transform",
+    "params": {
+      "period": 19,
+      "signal_threshold": 2.1738,
+      "require_divergence": false,
+      "divergence_lookback": 9,
+      "adx_filter": true,
+      "adx_max": 35.0187,
+      "stop_loss_atr_mult": 2.785,
+      "take_profit_atr_mult": 3.5986
+    },
+    "metrics": {
+      "sharpe": 3.162907186389479,
+      "sortino": 0.6461818056761796,
+      "pf": Infinity,
+      "trades": 9,
+      "win_rate": 1.0,
+      "net_pnl": 175.7622151356444,
+      "max_dd": 0.1579564038142557
+    }
+  },
+  "ichimoku_kumo": {
+    "strategy": "ichimoku_kumo",
+    "params": {
+      "tenkan_period": 9,
+      "kijun_period": 35,
+      "senkou_b_period": 51,
+      "displacement": 34,
+      "require_chikou_confirm": false,
+      "require_tk_cross": false,
+      "adx_min": 23.8524,
+      "stop_loss_atr_mult": 2.1114,
+      "take_profit_atr_mult": 5.1844
+    },
+    "metrics": {
+      "sharpe": 1.4986744437545985,
+      "sortino": 1.3324082064402023,
+      "pf": 1.4713198918255217,
+      "trades": 110,
+      "win_rate": 0.4636363636363636,
+      "net_pnl": 526.2925025819676,
+      "max_dd": 1.1308496541957456
+    }
+  },
+  "kama_trend": {
+    "strategy": "kama_trend",
+    "params": {
+      "er_period": 15,
+      "fast_sc": 5,
+      "slow_sc": 29,
+      "signal_period": 5,
+      "slope_threshold_pct": 0.0635,
+      "adx_min": 17.4426,
+      "stop_loss_atr_mult": 3.5405,
+      "take_profit_atr_mult": 4.2116
+    },
+    "metrics": {
+      "sharpe": 2.3948365250024706,
+      "sortino": 1.1266384535660394,
+      "pf": 4.799647071852566,
+      "trades": 21,
+      "win_rate": 0.7619047619047619,
+      "net_pnl": 302.2429173833612,
+      "max_dd": 0.5572233238834491
+    }
+  },
+  "keltner_breakout": {
+    "strategy": "keltner_breakout",
+    "params": {
+      "ema_period": 14,
+      "atr_mult": 2.7818,
+      "rsi_long_min": 47.0394,
+      "rsi_short_max": 50.2267,
+      "adx_min": 22.5619,
+      "volume_threshold": 1.853,
+      "stop_loss_atr_mult": 1.8372,
+      "take_profit_atr_mult": 4.8639
+    },
+    "metrics": {
+      "sharpe": 0.6756241775817635,
+      "sortino": 0.3029222607888562,
+      "pf": 1.444036005532879,
+      "trades": 47,
+      "win_rate": 0.5319148936170213,
+      "net_pnl": 117.1442358709948,
+      "max_dd": 1.465336141080994
+    }
+  },
+  "lstm_pattern": {
+    "strategy": "lstm_pattern",
+    "params": {
+      "cluster_variant": "hier_50",
+      "min_cluster_prob": 0.4941,
+      "min_lstm_confidence": 0.4409,
+      "min_combined_confidence": 0.6321,
+      "cluster_weight": 0.3653,
+      "lstm_weight": 0.4138,
+      "adx_min": 24.7343,
+      "require_volume": false,
+      "volume_threshold": 1.9308,
+      "rsi_oversold": 17.6698,
+      "rsi_overbought": 75.6621,
+      "stop_loss_atr_mult": 3.8473,
+      "take_profit_atr_mult": 6.2043
+    },
+    "metrics": {
+      "sharpe": -2.8442404959007983,
+      "sortino": -3.497750877910218,
+      "pf": 0.6990982618342597,
+      "trades": 301,
+      "win_rate": 0.4219269102990033,
+      "net_pnl": -1210.8300512419555,
+      "max_dd": 15.777957086372432
+    }
+  },
+  "overall": {
+    "strategy": "volatility_squeeze",
+    "params": {
+      "keltner_atr_mult": 1.1729,
+      "squeeze_min_bars": 9,
+      "momentum_lookback": 13,
+      "volume_surge_threshold": 1.9037,
+      "stop_loss_atr_mult": 3.7991,
+      "take_profit_atr_mult": 4.8131
+    },
+    "metrics": {
+      "sharpe": 3.424652935864051,
+      "sortino": 1.774838009879434,
+      "pf": 3.7165498763877745,
+      "trades": 49,
+      "win_rate": 0.7142857142857143,
+      "net_pnl": 526.6613709176204,
+      "max_dd": 0.6201589781434051
+    }
+  },
+  "trend_following": {
+    "strategy": "trend_following",
+    "params": {
+      "adx_threshold": 39.7718,
+      "fib_zone_tolerance_pct": 1.4975,
+      "stop_loss_atr_mult": 4.0628,
+      "take_profit_atr_mult": 6.8615,
+      "min_volume_ratio": 0.9068,
+      "rsi_lower_bound": 25,
+      "rsi_upper_bound": 75
+    },
+    "metrics": {
+      "sharpe": 2.002719155690893,
+      "sortino": 2.069045051846703,
+      "pf": 1.6789816891908684,
+      "trades": 121,
+      "win_rate": 0.5950413223140496,
+      "net_pnl": 736.2864586702043,
+      "max_dd": 1.7565452215425281
+    }
+  },
+  "vol_regime_arb": {
+    "strategy": "vol_regime_arb",
+    "params": {
+      "gk_fast_period": 8,
+      "gk_slow_period": 62,
+      "gk_baseline_period": 75,
+      "expansion_zscore_threshold": -1.0117,
+      "expansion_min_bars_compressed": 9,
+      "expansion_momentum_period": 17,
+      "expansion_adx_min": 16.4359,
+      "contraction_zscore_threshold": 1.5847,
+      "contraction_rsi_oversold": 35.1707,
+      "contraction_rsi_overbought": 70.1509,
+      "enable_contraction_mode": false,
+      "volume_threshold": 1.4107,
+      "stop_loss_atr_mult": 1.9028,
+      "take_profit_atr_mult": 6.7249
+    },
+    "metrics": {
+      "sharpe": 3.9923893523921024,
+      "sortino": 2.186296877106714,
+      "pf": 4.767282364873205,
+      "trades": 36,
+      "win_rate": 0.6388888888888888,
+      "net_pnl": 307.2843961336508,
+      "max_dd": 0.2556801980537514
+    }
+  },
+  "volatility_squeeze": {
+    "strategy": "volatility_squeeze",
+    "params": {
+      "keltner_atr_mult": 1.1729,
+      "squeeze_min_bars": 9,
+      "momentum_lookback": 13,
+      "volume_surge_threshold": 1.9037,
+      "stop_loss_atr_mult": 3.7991,
+      "take_profit_atr_mult": 4.8131
+    },
+    "metrics": {
+      "sharpe": 3.424652935864051,
+      "sortino": 1.774838009879434,
+      "pf": 3.7165498763877745,
+      "trades": 49,
+      "win_rate": 0.7142857142857143,
+      "net_pnl": 526.6613709176204,
+      "max_dd": 0.6201589781434051
+    }
+  }
+}

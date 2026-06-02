@@ -170,13 +170,23 @@ class Backtester:
         # Need ATR for position sizing
         has_atr = "atr_14" in df.columns
 
+        # Vectorized column access: extract the OHLC/timestamp/ATR columns to
+        # numpy arrays ONCE instead of materializing a pandas Series per bar via
+        # df.iloc[i] (fast_xs), which dominated profiling (~70% of backtest time).
+        # Values are bit-identical to df.iloc[i][col]; strategy_fn still receives
+        # the full df, so strategy semantics are unchanged.
+        ts_arr = df["timestamp"].to_numpy()
+        close_arr = df["close"].to_numpy()
+        high_arr = df["high"].to_numpy()
+        low_arr = df["low"].to_numpy()
+        atr_arr = df["atr_14"].to_numpy() if has_atr else None
+
         # Warm-up period: skip first 50 bars
         warmup = 50
 
         for i in range(warmup, len(df)):
-            current_bar = df.iloc[i]
-            timestamp = int(current_bar["timestamp"])
-            price = float(current_bar["close"])
+            timestamp = int(ts_arr[i])
+            price = float(close_arr[i])
 
             # ─── Check exits for open position ───
             if position is not None:
@@ -186,22 +196,22 @@ class Backtester:
 
                 # Stop loss
                 if position.stop_loss is not None:
-                    if position.side == "long" and float(current_bar["low"]) <= position.stop_loss:
+                    if position.side == "long" and float(low_arr[i]) <= position.stop_loss:
                         exit_price = position.stop_loss
                         exit_signal = True
                         exit_reason = "stop_loss"
-                    elif position.side == "short" and float(current_bar["high"]) >= position.stop_loss:
+                    elif position.side == "short" and float(high_arr[i]) >= position.stop_loss:
                         exit_price = position.stop_loss
                         exit_signal = True
                         exit_reason = "stop_loss"
 
                 # Take profit
                 if not exit_signal and position.take_profit is not None:
-                    if position.side == "long" and float(current_bar["high"]) >= position.take_profit:
+                    if position.side == "long" and float(high_arr[i]) >= position.take_profit:
                         exit_price = position.take_profit
                         exit_signal = True
                         exit_reason = "take_profit"
-                    elif position.side == "short" and float(current_bar["low"]) <= position.take_profit:
+                    elif position.side == "short" and float(low_arr[i]) <= position.take_profit:
                         exit_price = position.take_profit
                         exit_signal = True
                         exit_reason = "take_profit"
@@ -257,7 +267,7 @@ class Backtester:
                 signal = strategy_fn(df, i, None)
 
                 if signal is not None:
-                    atr_val = float(current_bar.get("atr_14", price * 0.02)) if has_atr else price * 0.02
+                    atr_val = float(atr_arr[i]) if has_atr else price * 0.02
                     size = self._compute_position_size(equity, price, atr_val, signal.strength)
 
                     entry_price = self._apply_slippage(price, signal.side, True)
@@ -424,7 +434,7 @@ class WalkForwardValidator:
         oos_degradations = []
 
         for i, (train, val, test) in enumerate(folds):
-            logger.info(f"Walk-forward fold {i + 1}/{len(folds)}")
+            logger.debug(f"Walk-forward fold {i + 1}/{len(folds)}")
 
             # Run on train (in-sample)
             _, _, train_metrics = self.backtester.run(train, strategy_fn, f"{strategy_name}_train_f{i}")

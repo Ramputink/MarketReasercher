@@ -428,6 +428,12 @@ def _worker_init():
         pass
 
 
+# Per-worker DataFrame cache. Populated lazily on the first genome and reused
+# across the whole evolution run thanks to the persistent process pool. Turns
+# ~31k disk reads (one per genome) into one read_pickle per worker.
+_WORKER_DF_CACHE: dict = {}
+
+
 def evaluate_genome(args_tuple):
     """Evaluate a genome via walk-forward validation. Runs in spawn process."""
     genome_dict, df_path, bt_cfg, risk_cfg, train_days, val_days, test_days = args_tuple
@@ -438,9 +444,16 @@ def evaluate_genome(args_tuple):
     import pandas as pd
     import numpy as np
     from config import BacktestConfig, RiskConfig
+
+    # Cache the DataFrame per worker process: with the persistent pool this
+    # read_pickle happens once per worker instead of once per genome.
+    df = _WORKER_DF_CACHE.get(df_path)
+    if df is None:
+        df = pd.read_pickle(df_path)
+        _WORKER_DF_CACHE[df_path] = df
+
     from engine.backtester import Backtester, WalkForwardValidator
 
-    df = pd.read_pickle(df_path)
     bt_config = BacktestConfig(**bt_cfg)
     risk_config = RiskConfig(**risk_cfg)
 
@@ -456,8 +469,21 @@ def evaluate_genome(args_tuple):
         params_dict_ref.update(params)
         setattr(mod, reg["params_dict"], params_dict_ref)
 
+        # Cache the regime column as a numpy array PER DataFrame. The old per-bar
+        # d.iloc[i].get("_regime") built a full pandas Series each call (~23% of
+        # backtest time in profiling). We key by the actual df passed in (the
+        # walk-forward validator passes sliced folds, not the full df), guarding
+        # with a length check so a slice never reads the full df's regimes.
+        _regime_cache: dict = {}
+
         def _bar_regime(d, i):
-            return d.iloc[i].get("_regime", "unknown") if i < len(d) else "unknown"
+            arr = _regime_cache.get(id(d))
+            if arr is None or (arr is not False and len(arr) != len(d)):
+                arr = d["_regime"].to_numpy() if "_regime" in d.columns else False
+                _regime_cache[id(d)] = arr
+            if arr is not False and 0 <= i < len(arr):
+                return arr[i]
+            return "unknown"
 
         def strategy_fn(d, i, p):
             return strategy_fn_ref(d, i, p, regime=_bar_regime(d, i))
@@ -660,6 +686,7 @@ class EvolutionEngine:
         self.bt_config = asdict(self.config.backtest)
         self.risk_config = asdict(self.config.risk)
 
+        self._executor = None  # persistent process pool (created on first use)
         self.learning = LearningEngine()
         self.hall_of_fame = []  # Top 20 all-time best genomes (diverse)
         self.hall_of_fame_per_strategy = defaultdict(list)  # per-strategy top 5
@@ -708,8 +735,30 @@ class EvolutionEngine:
         random.shuffle(pop)
         return pop[:self.pop_size]
 
+    def _get_executor(self) -> ProcessPoolExecutor:
+        """Return the persistent process pool, creating it on first use.
+
+        Reusing a single pool across all generations avoids re-spawning workers
+        (and re-importing numpy/pandas/TF) every generation, and keeps each
+        worker's DataFrame cache warm for the whole run.
+        """
+        if getattr(self, "_executor", None) is None:
+            self._executor = ProcessPoolExecutor(
+                max_workers=self.max_workers,
+                mp_context=MP_CTX,
+                initializer=_worker_init,
+            )
+        return self._executor
+
+    def shutdown(self):
+        """Tear down the persistent process pool."""
+        executor = getattr(self, "_executor", None)
+        if executor is not None:
+            executor.shutdown(wait=True)
+            self._executor = None
+
     def evaluate_population(self, population: list[Genome]) -> list[Genome]:
-        """Evaluate all genomes in parallel."""
+        """Evaluate all genomes in parallel using the persistent pool."""
         work_items = [
             (g.to_dict(), self.df_path, self.bt_config, self.risk_config,
              self.train_days, self.val_days, self.test_days)
@@ -717,48 +766,44 @@ class EvolutionEngine:
         ]
 
         results = []
-        with ProcessPoolExecutor(
-            max_workers=self.max_workers,
-            mp_context=MP_CTX,
-            initializer=_worker_init,
-        ) as executor:
-            futures = {executor.submit(evaluate_genome, item): i
-                       for i, item in enumerate(work_items)}
+        executor = self._get_executor()
+        futures = {executor.submit(evaluate_genome, item): i
+                   for i, item in enumerate(work_items)}
 
-            for future in as_completed(futures):
-                idx = futures[future]
-                try:
-                    result = future.result(timeout=300)
-                    genome = population[idx]
+        for future in as_completed(futures):
+            idx = futures[future]
+            try:
+                result = future.result(timeout=300)
+                genome = population[idx]
 
-                    if "error" not in result:
-                        genome.fitness = result["fitness"]
-                        genome.sharpe = result.get("sharpe", 0)
-                        genome.pf = result.get("pf", 0)
-                        genome.trades = result.get("trades", 0)
-                        genome.win_rate = result.get("win_rate", 0)
-                        genome.net_pnl = result.get("net_pnl", 0)
-                        genome.max_dd = result.get("max_dd", 0)
-                        genome.wf_sharpe = result.get("wf_sharpe", 0)
-                        genome.wf_degradation = result.get("wf_degradation", 100)
-                        genome.wf_robust = result.get("wf_robust", False)
+                if "error" not in result:
+                    genome.fitness = result["fitness"]
+                    genome.sharpe = result.get("sharpe", 0)
+                    genome.pf = result.get("pf", 0)
+                    genome.trades = result.get("trades", 0)
+                    genome.win_rate = result.get("win_rate", 0)
+                    genome.net_pnl = result.get("net_pnl", 0)
+                    genome.max_dd = result.get("max_dd", 0)
+                    genome.wf_sharpe = result.get("wf_sharpe", 0)
+                    genome.wf_degradation = result.get("wf_degradation", 100)
+                    genome.wf_robust = result.get("wf_robust", False)
 
-                        self.learning.record(genome)
-                        self.total_evaluated += 1
-                        if genome.wf_robust:
-                            self.total_robust += 1
+                    self.learning.record(genome)
+                    self.total_evaluated += 1
+                    if genome.wf_robust:
+                        self.total_robust += 1
 
-                        # Update hall of fame with diversity enforcement
-                        self._update_hall_of_fame(genome)
+                    # Update hall of fame with diversity enforcement
+                    self._update_hall_of_fame(genome)
 
-                        results.append(genome)
-                    else:
-                        genome.fitness = -999.0
-                        results.append(genome)
+                    results.append(genome)
+                else:
+                    genome.fitness = -999.0
+                    results.append(genome)
 
-                except Exception as e:
-                    population[idx].fitness = -999.0
-                    results.append(population[idx])
+            except Exception as e:
+                population[idx].fitness = -999.0
+                results.append(population[idx])
 
         return results
 
@@ -995,43 +1040,46 @@ class EvolutionEngine:
         logger.info(f"  Walk-forward: {self.train_days}d train / {self.val_days}d val / {self.test_days}d test")
         logger.info(f"{'═'*80}\n")
 
-        # Phase 1: Initial population
-        logger.info("Phase 1: Generating initial population...")
-        population = self.generate_initial_population()
-        logger.info(f"  {len(population)} genomes across {len(set(g.strategy for g in population))} strategies")
+        try:
+            # Phase 1: Initial population
+            logger.info("Phase 1: Generating initial population...")
+            population = self.generate_initial_population()
+            logger.info(f"  {len(population)} genomes across {len(set(g.strategy for g in population))} strategies")
 
-        # Evaluate
-        logger.info("Phase 1: Evaluating initial population...")
-        population = self.evaluate_population(population)
-        self.print_generation_report(population)
-
-        # Phase 2: Evolution loop
-        while time.time() < deadline:
-            elapsed_h = (time.time() - start_time) / 3600
-            remaining_h = self.max_hours - elapsed_h
-
-            logger.info(f"\n  [{elapsed_h:.1f}h elapsed, {remaining_h:.1f}h remaining, "
-                         f"{self.total_evaluated} total evaluated, {self.total_robust} robust]")
-
-            # Create and evaluate next generation
-            population = self.create_next_generation(population)
+            # Evaluate
+            logger.info("Phase 1: Evaluating initial population...")
             population = self.evaluate_population(population)
             self.print_generation_report(population)
 
-            # Periodic summary
-            if self.generation % 5 == 0:
-                self._print_hall_of_fame()
-                self._save_checkpoint()
+            # Phase 2: Evolution loop
+            while time.time() < deadline:
+                elapsed_h = (time.time() - start_time) / 3600
+                remaining_h = self.max_hours - elapsed_h
 
-        # Final report
-        elapsed_h = (time.time() - start_time) / 3600
-        logger.info(f"\n{'═'*80}")
-        logger.info(f"  EVOLUTION COMPLETE — {elapsed_h:.1f} hours, "
-                     f"{self.generation} generations, {self.total_evaluated} evaluations")
-        logger.info(f"{'═'*80}")
-        self._print_hall_of_fame()
-        self._save_final_report()
-        self._save_checkpoint()
+                logger.info(f"\n  [{elapsed_h:.1f}h elapsed, {remaining_h:.1f}h remaining, "
+                             f"{self.total_evaluated} total evaluated, {self.total_robust} robust]")
+
+                # Create and evaluate next generation
+                population = self.create_next_generation(population)
+                population = self.evaluate_population(population)
+                self.print_generation_report(population)
+
+                # Periodic summary
+                if self.generation % 5 == 0:
+                    self._print_hall_of_fame()
+                    self._save_checkpoint()
+
+            # Final report
+            elapsed_h = (time.time() - start_time) / 3600
+            logger.info(f"\n{'═'*80}")
+            logger.info(f"  EVOLUTION COMPLETE — {elapsed_h:.1f} hours, "
+                         f"{self.generation} generations, {self.total_evaluated} evaluations")
+            logger.info(f"{'═'*80}")
+            self._print_hall_of_fame()
+            self._save_final_report()
+            self._save_checkpoint()
+        finally:
+            self.shutdown()
 
     def _print_hall_of_fame(self):
         """Print the all-time best genomes (diverse)."""
