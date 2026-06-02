@@ -46,3 +46,6 @@ logs/*.jsonl
 
 # Deploy
 .deploy_package/
+
+# ECC operator skillset (reference copy, install plugin separately)
+.ecc/
