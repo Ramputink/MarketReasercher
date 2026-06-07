@@ -803,6 +803,11 @@ class EvolutionEngine:
         self.generation = 0
         self.total_evaluated = 0
         self.total_robust = 0
+        # Cumulative trials from PRIOR warm-started runs. The Deflated Sharpe must
+        # deflate against the size of the WHOLE compounding search (across loop
+        # cycles), not just this run — otherwise the bar gets dishonestly easier
+        # every cycle as warm-start carries survivors forward.
+        self.prior_trials = self._load_prior_trials()
         self.strategies_available = _available_strategies()
         # Minimum exploration: at least 15% of pop goes to underexplored strategies
         self.min_explore_pct = 0.15
@@ -880,6 +885,21 @@ class EvolutionEngine:
         with open(self.log_path, "a") as f:
             f.write(json.dumps(event, default=str) + "\n")
 
+    def _load_prior_trials(self) -> int:
+        """Cumulative trial count carried from prior warm-started runs (0 if cold)."""
+        if not getattr(self.evo_config, "warm_start", False):
+            return 0
+        path = "reports/evolution_checkpoint.json"
+        if not os.path.exists(path):
+            return 0
+        try:
+            with open(path) as f:
+                ckpt = json.load(f)
+            # Prefer an explicit cumulative count; fall back to last run's total.
+            return int(ckpt.get("cumulative_trials", ckpt.get("total_evaluated", 0)) or 0)
+        except Exception:
+            return 0
+
     def _load_seed_genomes(self) -> list[Genome]:
         """
         Warm-start: reconstruct genomes from the previous run's Hall of Fame
@@ -953,7 +973,8 @@ class EvolutionEngine:
         # Snapshot it at the start of the batch so every genome in this batch is
         # deflated by the same (monotonically growing) trial count. +1 so the
         # very first batch uses >= 1.
-        n_trials_now = max(self.total_evaluated + 1, 1)
+        # Cumulative across warm-started cycles: prior runs' trials + this run so far.
+        n_trials_now = max(self.prior_trials + self.total_evaluated + 1, 1)
         evo_knobs = {
             "cross_asset_generalisation": bool(self.evo_config.cross_asset_generalisation),
             "cross_asset_sample_n": int(self.evo_config.cross_asset_sample_n),
@@ -1356,6 +1377,8 @@ class EvolutionEngine:
         checkpoint = {
             "generation": self.generation,
             "total_evaluated": self.total_evaluated,
+            # Cumulative trials across all warm-started cycles (for honest DSR).
+            "cumulative_trials": self.prior_trials + self.total_evaluated,
             "total_robust": self.total_robust,
             "dsr_rejected": self.dsr_rejected,
             "hall_of_fame": [g.to_dict() for g in self.hall_of_fame],
