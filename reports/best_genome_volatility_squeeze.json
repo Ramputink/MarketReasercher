@@ -1,17 +1,22 @@
 {
   "strategy": "volatility_squeeze",
   "params": {
-    "keltner_atr_mult": 1.1729,
+    "keltner_atr_mult": 1.298,
     "squeeze_min_bars": 9,
-    "momentum_lookback": 13,
-    "volume_surge_threshold": 1.9037,
-    "stop_loss_atr_mult": 3.7991,
-    "take_profit_atr_mult": 4.8131
+    "momentum_lookback": 8,
+    "volume_surge_threshold": 2.2802,
+    "stop_loss_atr_mult": 3.4419,
+    "take_profit_atr_mult": 4.8968
   },
-  "fitness": 4.1167527846201,
-  "sharpe": 3.424652935864051,
-  "wf_sharpe": 5.400349748099645,
-  "trades": 49,
-  "net_pnl": 526.6613709176204,
-  "wf_robust": true
+  "fitness": 1.9143795931722625,
+  "sharpe": 1.3141057071868822,
+  "wf_sharpe": 2.550506078299067,
+  "is_train_sharpe": 2.962891793213187,
+  "is_val_sharpe": 2.962891793213187,
+  "cross_asset_median_sharpe": -0.6949568977323273,
+  "dsr": 0.01835764273348489,
+  "dsr_pass": false,
+  "trades": 24,
+  "net_pnl": 198.16924205507124,
+  "wf_robust": false
 }

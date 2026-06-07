@@ -1,20 +1,25 @@
 {
   "strategy": "ichimoku_kumo",
   "params": {
-    "tenkan_period": 9,
-    "kijun_period": 35,
-    "senkou_b_period": 51,
-    "displacement": 34,
+    "tenkan_period": 10,
+    "kijun_period": 27,
+    "senkou_b_period": 65,
+    "displacement": 30,
     "require_chikou_confirm": false,
     "require_tk_cross": false,
-    "adx_min": 23.8524,
-    "stop_loss_atr_mult": 2.1114,
-    "take_profit_atr_mult": 5.1844
+    "adx_min": 18.3608,
+    "stop_loss_atr_mult": 3.9786,
+    "take_profit_atr_mult": 4.9786
   },
-  "fitness": 1.937966932705252,
-  "sharpe": 1.4986744437545985,
-  "wf_sharpe": 2.036633125999262,
-  "trades": 110,
-  "net_pnl": 526.2925025819676,
-  "wf_robust": true
+  "fitness": 0.6501346777672337,
+  "sharpe": 1.5751645727070906,
+  "wf_sharpe": 0.4503041517513974,
+  "is_train_sharpe": 0.5081246600090451,
+  "is_val_sharpe": 2.181174201550939,
+  "cross_asset_median_sharpe": -1.227753775531961,
+  "dsr": 0.019220511649377603,
+  "dsr_pass": false,
+  "trades": 68,
+  "net_pnl": 644.6506554425378,
+  "wf_robust": false
 }
