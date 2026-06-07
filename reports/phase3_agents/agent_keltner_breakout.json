@@ -1,0 +1,186 @@
+{
+  "strategy": "keltner_breakout",
+  "classification": "candidate",
+  "diagnosis": "The strategy computes a Keltner Channel (EMA center \u00b1 ATR multiplier) and enters on a close outside the channel boundaries. Long signals fire when close > upper band with RSI_14 >= rsi_long_min, ADX_14 >= adx_min, and volume_ratio >= volume_threshold. Short signals fire when close < lower band with RSI_14 <= rsi_short_max under the same ADX and volume filters. A regime gate restricts entries to \"breakout\" and \"trend\" regimes only. The strategy manages exits via an ATR-based stop-loss anchored at the EMA center, a wide ATR take-profit (6.24\u00d7 in evolved params), and a 36-hour time stop. Position strength is capped at 1.0 and scaled by the normalized distance outside the band. Critical observation: the strategy explicitly emits \"short\" signals (lines 92-107) which must be suppressed for Phase-3 spot long-only conversion. The long-side edge is plausible: breakouts above the upper Keltner during trending/breakout regimes with volume expansion and RSI momentum confirmation exploit a well-documented momentum continuation pattern in crypto. The weakness is that evolved atr_mult=3.404 makes the upper band very wide so true breakout signals are rare and high-volatility, creating small trade counts and high per-trade variance. The current stop_loss is anchored at ema_center (not atr_mult below entry), meaning the stop widens as the position moves into profit only if the EMA catches up \u2014 a structural risk for whipsaws on wide channels. Walk-forward reported WF_Sharpe=2.30 on 142 trades which is a small sample and warrants skepticism.",
+  "long_only_hypothesis": "In crypto spot markets, prices that break convincingly above a wide ATR-scaled Keltner Channel during confirmed trending/breakout regimes \u2014 with simultaneously elevated ADX (trending market structure), RSI momentum confirmation above 50, and above-average volume (volume_ratio > threshold) \u2014 tend to exhibit short-term momentum continuation. This is the classic \"volatility breakout into trend\" setup: the channel acts as a squeeze-release detector, volume confirms institutional participation, and regime filtering avoids choppy sideways markets where breakouts fail. In a spot long-only context, the strategy holds the asset when these conditions align and sits in USDC otherwise. The short branch is dropped entirely: a break below the lower band is treated as \"no signal\" (remain in cash), allowing the strategy to benefit from BTC/ETH's long-run upward drift while selectively allocating during high-conviction upside breakouts.",
+  "market_techniques": [
+    "Keltner Channel volatility breakout (ATR-based channel, trend-following variant)",
+    "ADX trend-strength filter to avoid false breakouts in ranging markets",
+    "RSI momentum confirmation gate (RSI > 50 threshold for long entries)",
+    "Volume surge confirmation (volume_ratio > threshold) to validate breakout participation",
+    "Regime-conditional trading (entry only in breakout/trend regimes, cash in ranging/mean-reverting regimes)",
+    "ATR-normalized stop-loss and take-profit for volatility-adaptive risk management",
+    "Time stop as a catch-all exit for stalled breakouts (36h)",
+    "Signal strength proportional to distance outside band for fractional position sizing",
+    "Bull Market Support Band as secondary regime filter (bmsb_bullish)",
+    "OBV divergence as volume-price confirmation signal"
+  ],
+  "useful_features": [
+    "trend: adx_14 \u2014 primary trend-strength gate, already in use",
+    "momentum: rsi_14 \u2014 momentum confirmation for long entries, already in use",
+    "momentum: rsi_7 \u2014 shorter RSI for more responsive momentum confirmation",
+    "volume: volume_ratio \u2014 volume surge confirmation, already in use",
+    "volume: volume_zscore \u2014 z-scored volume spike detection for more robust normalization",
+    "volume: obv_divergence \u2014 OBV vs OBV SMA divergence to confirm buying pressure behind breakout",
+    "volatility: atr_14 \u2014 channel width and stop/take-profit scaling, already in use",
+    "volatility: atr_7 \u2014 shorter ATR for detecting volatility expansion at breakout",
+    "volatility: gk_vol \u2014 Garman-Klass realized vol for regime detection and vol targeting",
+    "volatility: bb_bw_percentile \u2014 Bollinger bandwidth percentile to detect pre-breakout compression (squeeze before expansion)",
+    "volatility: bb_bandwidth \u2014 raw bandwidth to measure volatility expansion after breakout",
+    "trend: bmsb_bullish \u2014 Bull Market Support Band composite flag as macro bull-market regime filter",
+    "price/return: dist_from_high_20 \u2014 distance from 20-bar high to gauge whether breakout is near resistance",
+    "price/return: ret_zscore_20 \u2014 z-scored recent returns to filter extreme overextension before entry",
+    "price/return: roc_12 \u2014 12-bar rate of change for momentum confirmation",
+    "microstructure: buying_pressure \u2014 close-location within bar at breakout bar as entry quality filter",
+    "microstructure: pressure_imbalance \u2014 directional pressure imbalance to confirm buying dominance",
+    "microstructure: close_location \u2014 where price closed within the bar (above 0.7 = bullish breakout bar)",
+    "regime: bb_bw_percentile \u2014 low percentile = pre-breakout squeeze condition (strong prior for breakout entries)"
+  ],
+  "genome_params": [
+    {
+      "name": "ema_period",
+      "type": "int",
+      "low": 10,
+      "high": 40,
+      "note": "Controls EMA center of Keltner Channel. Shorter = more reactive channel. Range 10-40 covers scalp to swing. Current evolved value 19 is in the useful middle."
+    },
+    {
+      "name": "atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 4.5,
+      "note": "Width of Keltner Channel in ATR units. Lower = more frequent but noisier signals. Upper extended to 4.5 to allow very wide channels that act as strong breakout filters. Current evolved 3.404 already at top of prior range."
+    },
+    {
+      "name": "rsi_long_min",
+      "type": "float",
+      "low": 45,
+      "high": 65,
+      "note": "Minimum RSI_14 required for long entry. Swept from mild momentum (45) to strong momentum (65). Short-only param rsi_short_max is dropped from genome for long-only."
+    },
+    {
+      "name": "adx_min",
+      "type": "float",
+      "low": 10,
+      "high": 30,
+      "note": "Minimum ADX_14 for trend strength confirmation. Low values allow weak trends, high values require strong directional structure. Current evolved 14.76 is on the permissive side."
+    },
+    {
+      "name": "volume_threshold",
+      "type": "float",
+      "low": 1,
+      "high": 3,
+      "note": "Minimum volume_ratio (current volume / 20-bar SMA volume) for confirmation. Widened upper bound to 3.0 to allow the genome to discover high-conviction volume spike thresholds."
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1,
+      "high": 4,
+      "note": "ATR multiple for stop-loss distance from entry price. Note: the current code sets stop at ema_center (not entry - atr_mult*ATR); this param should be wired to the stop in the new implementation as entry_price - stop_loss_atr_mult * atr."
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 2,
+      "high": 10,
+      "note": "ATR multiple for take-profit above entry. Upper bound raised to 10.0 to allow very wide targets for trend-riding. Current evolved 6.24 already large; genome should explore even wider."
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 12,
+      "high": 96,
+      "note": "Maximum hours to hold a position if neither stop nor take-profit fires. 12h = intraday, 96h = 4-day swing. Controls exposure to stalled breakouts."
+    },
+    {
+      "name": "rsi_lookback",
+      "type": "int",
+      "low": 7,
+      "high": 21,
+      "note": "NEW PARAM: allow genome to choose RSI period (currently hardcoded to 14). Period 7 = fast, 21 = slow momentum filter."
+    },
+    {
+      "name": "bb_squeeze_filter",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "NEW PARAM: if True, only enter when bb_bw_percentile < 30 in the N bars preceding breakout (pre-breakout compression filter). Bool sweep to test whether requiring prior squeeze improves quality."
+    },
+    {
+      "name": "obv_confirm",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "NEW PARAM: if True, require obv_divergence > 0 (OBV above its 20-bar SMA) at entry. Tests whether OBV volume-price alignment adds value to the breakout filter."
+    },
+    {
+      "name": "bmsb_filter",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "NEW PARAM: if True, require bmsb_bullish == True (price above both BMSB SMA and EMA) as macro bull-market regime gate. Tests whether macro filtering reduces bear-market whipsaws."
+    }
+  ],
+  "do_not_optimize": [
+    "consecutive_bars_outside \u2014 with value 1 this has no effect; extending to 2+ drastically reduces trade count; fix at 1",
+    "require_momentum \u2014 always True; making it False degrades signal quality; hardcode to True",
+    "require_close_outside \u2014 always True; required for honest bar-close confirmation; hardcode to True",
+    "volume_confirmation \u2014 always True; volume confirmation is a structural risk filter; hardcode to True",
+    "require_regime \u2014 always True; regime gating is the primary drawdown protection; hardcode to True",
+    "allowed_regimes \u2014 fixing to [breakout, trend] is theoretically motivated and changing adds overfitting surface; hardcode",
+    "rsi_short_max \u2014 this is a short-side parameter, entirely irrelevant post-conversion; remove from genome"
+  ],
+  "risk_management": {
+    "stop": "ATR-anchored stop: entry_price - stop_loss_atr_mult * atr_14. The current implementation anchors stop at ema_center which creates variable risk depending on how far price is from the EMA at entry. This must be fixed to a fixed ATR multiple from entry for consistent position sizing. Genome sweeps stop_loss_atr_mult in [1.0, 4.0].",
+    "take_profit": "ATR-anchored take-profit: entry_price + take_profit_atr_mult * atr_14. Current evolved value 6.24x ATR is wide and allows trend-riding. Genome sweeps [2.0, 10.0]. Consider partial-exit at 3x ATR and trail remainder.",
+    "trailing": "Optional trailing stop once position is +2 ATR in profit: trail at entry_price + (current_gain - 1.5 * atr_14) to lock in partial gains. Implement as a param trail_activation_atr (bool sweep) to test whether trailing improves Sortino vs fixed TP.",
+    "vol_target": "Volatility-targeted sizing via backtester sizing_method=volatility_scaled: target 15-20% annualized portfolio volatility. Position size = equity * (vol_target / realized_vol_annualized). Cap at max_position_pct=0.95 for spot. Use gk_vol or realized_vol_20 as the vol estimate. This naturally reduces size during high-volatility breakouts (which have higher failure rates) and increases size during calm trending conditions.",
+    "max_size": "max_position_pct = 0.95 for spot long (near-full allocation allowed since no leverage). In practice vol-targeting will hold it well below this in high-vol regimes. Hard cap at 0.95 to retain small USDC buffer for costs.",
+    "cooldown": "min_bars_between_trades: after a stop-loss exit, impose a cooldown of at least 2x ema_period bars (38 bars at ema_period=19) before re-entering. This prevents rapid re-entry into a failing breakout environment. Wire through risk_manager min_time_between_trades_hours = ema_period * bar_hours * 2.",
+    "risk_off": "Regime gate (require_regime=True, allowed_regimes=[breakout, trend]) is the primary risk-off filter \u2014 already implemented. Additional gates to add: (1) bmsb_bullish filter to avoid longs during macro bear markets; (2) adx_min threshold blocks ranging/choppy markets; (3) circuit-breaker via risk_manager: halt new entries if equity drawdown from peak > 20% within the rolling window; (4) if gk_vol is in the top decile of its 6-month distribution, reduce position size by 50% or skip entry (extreme vol spikes often precede liquidation cascades)."
+  },
+  "metrics": [
+    "CAGR (annualized geometric return on spot equity, minimum target 20% for candidate)",
+    "Sharpe ratio (annualized, risk-free=0, minimum 0.8 for candidate, 1.0 for promotion)",
+    "Sortino ratio (downside deviation only \u2014 most relevant for long-only since upside vol is desirable)",
+    "Maximum drawdown % (peak-to-trough on equity curve, hard limit 30%)",
+    "Calmar ratio (CAGR / max drawdown, target > 0.7)",
+    "Hit rate (% of trades profitable, expect 40-55% for trend-following breakout)",
+    "Average trade PnL net of costs (must be positive after 2x commission + slippage)",
+    "Trade count per year (minimum 30/year for statistical validity; 142 trades across full history is acceptable)",
+    "Exposure % (fraction of bars in position \u2014 low exposure = lost bull-market drift; target 30-60%)",
+    "Cost sensitivity: re-run with 2x and 3x commission/slippage to verify edge survives realistic costs",
+    "Walk-forward OOS Sharpe vs in-sample Sharpe ratio (OOS degradation < 40%)",
+    "Bootstrap Sharpe confidence interval (1000 resample with replacement, verify lower 5th percentile > 0)",
+    "Per-year Sharpe stability (compute Sharpe for each calendar year 2019-2023 pre-lockbox; reject if any year < -0.3)",
+    "Profit factor (gross wins / gross losses, target > 1.4)",
+    "Average bars held (diagnoses whether time_stop is the dominant exit \u2014 if > 60% exits are time_stop, TP/SL are too wide or too narrow relative to actual market movement)"
+  ],
+  "sweep_changes": [
+    "REMOVE the short signal branch entirely (lines 92-107 in keltner_breakout.py): delete the elif close < lower block; the strategy now returns None when close < lower rather than emitting a short Signal",
+    "REMOVE rsi_short_max from PARAMS and from auto_evolve.py param_space \u2014 it is a dead parameter post-conversion",
+    "FIX stop_loss anchor: replace stop_loss=ema_center with stop_loss=entry_price - stop_loss_atr_mult * atr \u2014 currently the stop-loss level is set at ema_center which is structurally wrong for consistent ATR risk; note that at entry time the signal stop is set but entry_price is only known at fill (next bar open), so set stop relative to fill_price in backtester or pass atr to signal and recalculate in the fill logic",
+    "ADD bmsb_filter param (bool): if True, require current bmsb_bullish == True before entering long; wire into strategy function after adx check",
+    "ADD obv_confirm param (bool): if True, require obv_divergence > 0 at entry bar; validates buying pressure is sustained",
+    "ADD bb_squeeze_filter param (bool): if True, require that bb_bw_percentile was below 30 at any of the prior 5 bars (squeeze-then-expand pattern); add to param_space as bool",
+    "ADD rsi_lookback param (int, 7-21): make RSI period configurable in the sweep instead of hardcoded 14; use features rsi_7 or rsi_14 based on param value or compute inline",
+    "EXTEND atr_mult sweep range to [1.5, 4.5] (current max 3.5 is below the evolved value of 3.404, meaning the evolved genome is near the boundary \u2014 suspicious, likely constrained by the prior range ceiling)",
+    "EXTEND take_profit_atr_mult sweep range to [2.0, 10.0] to allow trend-riding without hard boundary pressure",
+    "ADD time_stop_hours to genome sweep [12, 96] \u2014 currently hardcoded at 36; this is a key trade duration parameter that should be tunable",
+    "ADD trailing stop capability: add trail_activation_atr_mult param (float, 1.5-4.0, bool-gated) to implement trailing once position reaches activation threshold, converting the fixed TP into a trailing exit",
+    "SET sizing_method=volatility_scaled in RiskConfig for this strategy's genome evaluations to enable vol-targeting; add vol_target as a genome param (float 0.10-0.25) to sweep the target annualized volatility",
+    "ENFORCE lockbox: all genome sweeps must use only data before 2024-06-07; the 2024-06-07 to 2026-06-07 window is sealed OOS and must not influence any parameter selection"
+  ],
+  "methodological_risks": [
+    "Small trade count risk: 142 trades across ~7 years of data (2019-2026) yields ~20 trades/year. Walk-forward folds of 15 days may contain 0-3 trades each, making fold-level Sharpe estimates statistically meaningless (high variance from small N). Mitigation: require minimum 30 OOS trades aggregated across all folds before declaring a genome robust.",
+    "Stop-loss anchor bug: the current code sets stop_loss=ema_center in the Signal, which is a price level not a fixed ATR distance from entry. Since entry is filled at the NEXT bar's open (entry_lag=1), the actual risk per trade varies substantially. This creates inconsistent position sizing under vol-targeted sizing. Fix is critical before sweep.",
+    "Evolved parameter boundary pressure: atr_mult evolved to 3.404 against a prior ceiling of 3.5 and take_profit_atr_mult evolved to 6.239 against a ceiling of 8.0. Parameters near boundaries indicate the optimizer was constrained, and the true optimum may be outside the swept range. The reported WF_Sharpe=2.30 may be artificially limited by boundary effects.",
+    "Regime label leakage: the regime classifier labels (breakout, trend) must be computed strictly from past data with the same embargo applied as other features. If the regime classifier uses a rolling window that extends beyond the embargo boundary, regime labels on the first val/test bars are contaminated. Verify regime computation lookback <= embargo_bars (120).",
+    "Volume filter survivorship: volume_threshold=1.98 combined with adx_min=14.76 and wide atr_mult=3.404 may produce so few qualifying bars that the backtest is dominated by a handful of extreme events (COVID crash recovery, 2021 bull run peaks, 2024 ETF-driven rallies). This creates extreme regime concentration risk \u2014 the strategy may only work during specific structural bull phases.",
+    "Forward-looking feature contamination: the strategy computes EMA inline at each bar using closes.ewm(span=ema_period).mean().iloc[-1] on a slice from bar_idx-ema_period to bar_idx+1. This is correct and leak-free. However, atr_14 and adx_14 are pulled from pre-computed feature columns \u2014 verify that build_all_features computes these without future leakage (confirmed in features.py: rolling windows use min_periods, no shift(-1) issues).",
+    "Time stop dominance: if the 36-hour time stop is the dominant exit (> 50% of trades), it signals that the TP at 6.24x ATR is rarely reached. This means the strategy effectively has an asymmetric loss function: stops at ~2.6x ATR down vs time-exits at EV near 0. Must diagnose exit reason distribution before declaring the TP parameter meaningful.",
+    "Crypto-specific structural break risk: evolved parameters from 2019-2026 span multiple structural regimes (2019 accumulation, 2020-2021 leverage-driven bull, 2022 bear/deleveraging, 2023-2024 ETF/institutional, 2025-2026 current). A walk-forward that includes 2022 bear data may produce a regime-dependent edge that disappears if the macro cycle turns. The per-year Sharpe stability check is essential to detect this.",
+    "OBV and volume_ratio collinearity: adding both obv_confirm and volume_threshold creates redundant volume signals. If both are swept as genome params, the optimizer may find configurations that double-count volume evidence, making the apparent edge fragile to any change in volume data quality or exchange reporting methodology."
+  ]
+}

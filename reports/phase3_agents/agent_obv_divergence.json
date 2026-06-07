@@ -1,0 +1,151 @@
+{
+  "strategy": "obv_divergence",
+  "classification": "doubtful",
+  "diagnosis": "The strategy detects OBV/price divergence over a configurable lookback window (default 20 bars). It first checks whether the precomputed `obv_divergence` feature (OBV minus a 20-bar SMA of OBV, from features.py) exceeds the threshold; if not, it falls back to a manual slope-comparison approach that normalises both price and OBV to [0,1] and computes linear-regression slopes via polyfit \u2014 slope_OBV minus slope_price becomes the divergence scalar.\n\nTwo signal branches exist: bullish (obv_div > threshold, signalling accumulation \u2014 long) and bearish (obv_div < -threshold, signalling distribution \u2014 short). The strategy DOES emit short signals via `side=\"short\"`. The short branch uses `rsi_confirm` with the OVERSOLD condition as a gate, which is logically inverted (it blocks shorts when RSI is already oversold, i.e. the most obvious short opportunity), hinting at a logic error in the original code.\n\nRSI confirmation for longs blocks entries when RSI > rsi_overbought (65), a sensible filter. ADX_max=40 is declared in PARAMS but never referenced in the strategy body \u2014 it is dead code. The strategy returns None immediately if already in a position, so it is always long-or-flat or short-or-flat, never pyramiding.\n\nThe `obv_divergence` feature in features.py is actually OBV minus OBV_SMA(20) \u2014 this is NOT a classic price/OBV divergence in the technical analysis sense; it is simply an OBV momentum oscillator. The manual fallback does implement a genuine price/OBV slope comparison but uses the same scalar for entry \u2014 mixing two semantically different quantities behind the same variable name creates inconsistent signal logic depending on whether the precomputed feature is available.\n\nThe strategy was pruned in Round 1 of the registry evolution (0% positive fitness across 29K evaluations), indicating it produced no net positive returns in the in-sample search across all param combinations tried. This is the most important fact for classification. The primary weaknesses are: (1) the `obv_divergence` precomputed feature is not a real divergence, making the fast path semantically wrong; (2) dead ADX filter; (3) inverted RSI logic on the short branch; (4) OBV is a cumulative absolute-volume series that is highly non-stationary and regime-dependent, making threshold comparisons fragile across years of data.",
+  "long_only_hypothesis": "In spot long-only mode, the strategy becomes: buy when OBV is rising faster than price (accumulation phase signals smart-money buying before price catches up), hold with ATR-based stop and take-profit, and go to cash otherwise. The genuine edge hypothesis is that large buyers accumulate at declining or sideways prices, leaving a trail in OBV before price reacts. If this is real, the bullish divergence leg alone should generate positive expectancy on long crypto positions, particularly during the early phases of bull-market cycles. The strategy should be most effective in range-bound-to-breakout transitions, not during momentum-driven parabolic moves. To have any chance of passing OOS, the manual slope-comparison branch (which measures true price/OBV divergence) must be used as the primary signal rather than the OBV-minus-SMA proxy, and the RSI oversold confirmation should be added on the LONG branch (buy when OBV accelerating AND price weak/oversold, suggesting dip accumulation). The bearish branch is simply dropped \u2014 treat it as cash.",
+  "market_techniques": [
+    "OBV slope divergence (linear regression slope difference on normalised price vs OBV over rolling window)",
+    "RSI oversold filter on longs (buy accumulation only when price is depressed, RSI < 40-50)",
+    "ATR-based stop loss and take profit for position management",
+    "ADX low filter to avoid pure trend-following situations where OBV and price move together (divergence is less meaningful in strong trends)",
+    "Volume surge confirmation (volume_ratio or volume_zscore spike at or just before entry confirms smart-money footprint)",
+    "BMSB (Bull Market Support Band) as macro regime gate \u2014 only take long signals when price is above BMSB, filtering bear market accumulation traps",
+    "Walk-forward expanding-window calibration of the divergence threshold using pre-lockbox history only",
+    "Bollinger Band width percentile as volatility-regime filter \u2014 prefer accumulation signals when BB is compressed (pre-breakout), avoid when bandwidth is wide (already in trend)",
+    "Time stop to limit exposure when divergence does not resolve into price movement"
+  ],
+  "useful_features": [
+    "volume: obv \u2014 cumulative on-balance volume (primary input)",
+    "volume: obv_divergence \u2014 OBV minus OBV_SMA(20), use as secondary momentum filter not primary signal",
+    "volume: volume_ratio \u2014 volume/SMA20-volume, confirm accumulation with above-average volume",
+    "volume: volume_zscore \u2014 standardised volume spike detector, useful to confirm breakout after accumulation",
+    "momentum: rsi_14 \u2014 RSI filter to confirm oversold condition on longs (avoid buying overbought OBV divergence)",
+    "momentum: rsi_7 \u2014 faster RSI for tighter timing of oversold entry",
+    "trend: adx_14 \u2014 low ADX (< 25) preferred for divergence signals; high ADX means price is already trending and OBV alignment is expected",
+    "volatility: atr_14 \u2014 stop and take-profit sizing",
+    "volatility: bb_bw_percentile \u2014 low percentile (< 30) indicates compression before breakout, ideal accumulation window",
+    "volatility: gk_vol \u2014 Garman-Klass vol for vol-targeting position size",
+    "price: dist_from_low_20 \u2014 confirm price is near recent lows when buying bullish divergence (dip-accumulation context)",
+    "price: bb_pct_b \u2014 pct_b < 0.2 (price near lower band) strengthens bullish divergence entry case",
+    "regime: bmsb_bullish \u2014 macro bull regime gate, only go long when price > both BMSB bands",
+    "microstructure: buying_pressure / pressure_imbalance \u2014 bar-level buying pressure confirms accumulation footprint",
+    "microstructure: close_location \u2014 high close location (close near bar high) on divergence bar strengthens signal"
+  ],
+  "genome_params": [
+    {
+      "name": "lookback",
+      "type": "int",
+      "low": 10,
+      "high": 40,
+      "note": "Window for slope-comparison divergence; shorter is noisier, longer misses early entries"
+    },
+    {
+      "name": "obv_divergence_threshold",
+      "type": "float",
+      "low": 0.1,
+      "high": 0.8,
+      "note": "Minimum slope difference to trigger; critical param \u2014 too low = noise, too high = rare signals"
+    },
+    {
+      "name": "rsi_oversold",
+      "type": "float",
+      "low": 25,
+      "high": 50,
+      "note": "RSI upper bound for confirming price weakness on longs (buy accumulation when RSI is depressed)"
+    },
+    {
+      "name": "adx_max",
+      "type": "float",
+      "low": 20,
+      "high": 45,
+      "note": "Maximum ADX to allow entry \u2014 divergence is more meaningful in low-trend environments"
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1,
+      "high": 4,
+      "note": "ATR multiplier for stop loss; 1.5-2.5 is the practical range for crypto hourly"
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 6,
+      "note": "ATR multiplier for take profit; reward/risk ratio dial"
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 12,
+      "high": 96,
+      "note": "Max hours to hold if divergence does not resolve into price move"
+    },
+    {
+      "name": "volume_ratio_min",
+      "type": "float",
+      "low": 0.8,
+      "high": 2,
+      "note": "Minimum volume_ratio to confirm accumulation footprint at entry bar"
+    },
+    {
+      "name": "require_bmsb_bull",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Gate entries on bmsb_bullish macro regime flag"
+    }
+  ],
+  "do_not_optimize": [
+    "min_price_move_pct \u2014 currently dead code, no reference in logic body; fixing to a constant avoids a free degree of freedom that adds no value",
+    "rsi_overbought \u2014 for a long-only strategy there is no short branch; this param has no effect and should be removed from the genome entirely",
+    "require_regime / allowed_regimes \u2014 the regime classifier is not well-calibrated enough to be a genome parameter; fix require_regime=False or remove to avoid fitting to regime label noise",
+    "rsi_confirm (bool toggle) \u2014 always enable RSI confirmation on longs (fix to True) rather than allowing the genome to discover that removing a sanity check improves in-sample metrics"
+  ],
+  "risk_management": {
+    "stop": "ATR-based: stop_loss = entry_price - stop_loss_atr_mult * atr_14. Minimum floor at 1.0x ATR. Checked against bar low each tick.",
+    "take_profit": "ATR-based: take_profit = entry_price + take_profit_atr_mult * atr_14. Reward/risk ratio must be >= 1.5 enforced at signal-generation time; reject signals where ATR-implied R:R < 1.5.",
+    "trailing": "Optional trailing stop: once unrealised PnL > 1x ATR, move stop to breakeven; once > 2x ATR, trail at 1x ATR below running high. Helps lock in gains during genuine post-accumulation breakouts.",
+    "vol_target": "Volatility-targeted sizing using gk_vol or atr_14/price as daily vol proxy. Target annualised vol of 30-40% of equity; cap position at max_position_pct. Use backtester sizing_method=volatility_scaled.",
+    "max_size": "Maximum 20% of equity per trade (max_position_pct=0.20). Reduce to 10% in high-volatility regimes (gk_vol > 90th percentile of trailing 90-day window).",
+    "cooldown": "Minimum 6-hour cooldown between trades (min_bars_between_trades ~ 6 on hourly data) to avoid rapid-fire re-entry after stop-outs. Enforced via RiskManager min_interval.",
+    "risk_off": "Hard gate: do not enter new longs if bmsb_bullish is False AND adx_14 < 15 (choppy bear). Secondary gate: if strategy has suffered 3 consecutive stop-outs, pause for 48 hours (circuit-breaker mode). Daily loss limit: halt if equity drops > 5% from day-open."
+  },
+  "metrics": [
+    "CAGR (annualised compound return) \u2014 primary return metric; target > 20% for long-only crypto to justify the strategy vs buy-and-hold",
+    "Sharpe ratio (annualised, risk-free=0) \u2014 target > 0.8 OOS; was 0% positive fitness in Round 1 so any positive Sharpe in OOS is meaningful progress",
+    "Sortino ratio \u2014 more appropriate than Sharpe for long-only (downside deviation only); target > 1.0",
+    "Maximum drawdown % \u2014 hard cap at 30% for spot long-only; crypto buy-and-hold DD is 80%+, so beating that bar is easy but Calmar must still be positive",
+    "Calmar ratio (CAGR / maxDD) \u2014 target > 0.5; key quality signal for a strategy that can be in cash",
+    "Hit rate (% winning trades) \u2014 divergence strategies typically have <50% win rates with high R:R; monitor that R:R compensates",
+    "Turnover (average number of round-trips per month) \u2014 OBV divergence should generate 4-12 trades/month on hourly data; verify cost sensitivity",
+    "Gross/net exposure % (fraction of time in market) \u2014 target 20-50%; lower exposure (more time in cash) reduces drawdown but must be justified by signal quality",
+    "Average trade duration vs time_stop_hours \u2014 if most exits are via time_stop, the divergence is not resolving; reduce lookback or tighten threshold",
+    "Cost sensitivity (Sharpe vs commission_bps sweep from 2bp to 20bp) \u2014 a fragile strategy dies at 10bp; target < 20% Sharpe degradation from 5bp to 15bp",
+    "Bootstrap/Monte Carlo Sharpe confidence interval (1000 resamples of trade returns) \u2014 report 5th/95th percentile Sharpe; strategy must have CI lower bound > 0.3 to be credible",
+    "Per-year Sharpe stability (compute Sharpe on each calendar year of pre-lockbox data) \u2014 flag if any year is < -0.5 (fragile to regime)",
+    "OOS degradation % (walk-forward train vs test Sharpe drop) \u2014 target < 40% degradation; Round 1 result of 0% positive fitness suggests this will be very high"
+  ],
+  "sweep_changes": [
+    "DROP the short branch entirely: replace the bearish elif block with a return None so the strategy is strictly long-or-cash. Remove rsi_overbought from PARAMS and genome.",
+    "FIX RSI confirmation logic for longs: change the bullish gate from `rsi > rsi_overbought` (blocks buying when not overbought) to `rsi > rsi_oversold` (require price weakness), and make rsi_confirm always True for the long branch.",
+    "REMOVE the fast-path using the precomputed obv_divergence feature (OBV - OBV_SMA, which is an OBV momentum oscillator, not a price/OBV divergence). Always use the manual slope-comparison branch to ensure semantically correct divergence measurement. Alternatively, compute a correct precomputed feature (polyfit slopes of normalised price vs OBV) in features.py.",
+    "ADD adx_max enforcement: the PARAMS dict already declares adx_max=40 but it is never used in the code body. Add a guard: `if current.get('adx_14', 0) > p['adx_max']: return None`.",
+    "ADD volume_ratio confirmation: add a check that volume_ratio >= volume_ratio_min at the signal bar to confirm the accumulation is volume-backed. Add volume_ratio_min to PARAMS (default 1.0) and the genome param_space.",
+    "ADD bmsb_bullish macro gate: add optional require_bmsb_bull param; if True, skip longs when bmsb_bullish is False. Add to genome as bool param.",
+    "ADD bb_pct_b context filter: optionally require bb_pct_b < 0.4 (price in lower half of Bollinger Band) to confirm price weakness at accumulation entry.",
+    "ADD dist_from_low_20 filter: only enter long if dist_from_low_20 > -0.15 (price within 15% of 20-bar low) to focus on dip-accumulation context.",
+    "ADD to STRATEGY_REGISTRY in auto_evolve.py: re-add obv_divergence with the cleaned param_space covering lookback (int 10-40), obv_divergence_threshold (float 0.1-0.8), rsi_oversold (float 25-50), adx_max (float 20-45), stop_loss_atr_mult (float 1.0-4.0), take_profit_atr_mult (float 1.5-6.0), time_stop_hours (int 12-96), volume_ratio_min (float 0.8-2.0), require_bmsb_bull (bool).",
+    "VALIDATE that the manual polyfit branch handles edge cases: p_range==0 or o_range==0 already returns None (good), but also guard len(window) < lookback+1 which can occur near data boundaries."
+  ],
+  "methodological_risks": [
+    "OBV non-stationarity: OBV is a cumulative series whose absolute level has no meaning across time; normalising to [0,1] per window and computing slopes partially addresses this but the slope differences are still sensitive to the volume regime (low-vol periods produce smaller slopes). The threshold 0.3 calibrated on 2019-2023 data may not generalise to 2024-2026 volume structures.",
+    "Feature mismatch \u2014 fast path vs slow path: the precomputed obv_divergence (OBV - OBV_SMA) and the manual slope-difference are not the same quantity. When the precomputed feature is available (which it always will be after features.py runs), the fast path always fires \u2014 meaning the manual slope-comparison is dead code in practice. This silent misuse produces a completely different signal than intended.",
+    "Round 1 fitness failure: 0% positive fitness across 29K evaluations is a strong negative prior. The signal may have no edge at any param setting, not just at the defaults. Re-adding it to the registry should only happen if the code fix (short removal + RSI logic fix + correct OBV divergence computation) is substantial enough to constitute a genuinely different strategy.",
+    "Lookback window data leakage risk: the manual slope comparison slices `df.iloc[bar_idx - lookback: bar_idx + 1]`, which is correct and does not leak. However if lookback is evolved to large values (e.g. 40 bars), early bars in a walk-forward fold may have insufficient warmup data, causing NaN-heavy periods that bias fitness.",
+    "RSI confirmation filter reduces trade count drastically: with rsi_oversold = 35 (default) and lookback=20 on hourly crypto, valid signals may be extremely rare (perhaps 1-3 per month), making walk-forward fold statistics unreliable (few trades per fold, high Sharpe variance).",
+    "Threshold overfitting: obv_divergence_threshold is a continuous param swept over [0.1, 0.8]. The optimal threshold is highly data-period dependent (in trending markets divergences rarely reach 0.5; in choppy markets many false divergences appear at 0.1). This is the primary overfitting axis \u2014 any optimised threshold on in-sample data is unlikely to transfer.",
+    "Time-stop interaction with divergence resolution: if the divergence does not resolve within time_stop_hours, the position exits at cost. In choppy regimes, most trades will hit time stops, creating a negative-expectancy drip from spread + commission without a winning tail. Monitor exit-reason distribution carefully.",
+    "Signal sparsity in the OOS lockbox (2024-2026): with tighter RSI filters and volume confirmation added, the strategy may generate fewer than 20 trades in the 2-year OOS window, making statistical conclusions about OOS performance unreliable."
+  ]
+}

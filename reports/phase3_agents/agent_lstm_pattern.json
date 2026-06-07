@@ -1,0 +1,192 @@
+{
+  "strategy": "lstm_pattern",
+  "classification": "doubtful",
+  "diagnosis": "The strategy uses a two-stage classification pipeline: (1) K-Means or hierarchical/bisecting clustering on rolling OHLCV candle windows (variants: kmeans_8/20/50, hier_20/50, bisect_20/50) to label each bar with a pattern cluster ID, then (2) a pre-trained LSTM that receives a one-hot cluster sequence plus 8 technical features (rsi_14, adx_14, volume_ratio, ret_zscore_20, bb_pct_b, pressure_imbalance, gk_vol, vol_ratio) to predict 3-class directional probabilities (down/neutral/up). The final signal is a weighted combination (cluster_weight + lstm_weight) of both confidence scores. Filters include ADX >= 15, volume_ratio >= 1.0, RSI overbought guard. The strategy emits BOTH long (combined_up > combined_down > min_combined) and short signals (combined_down > combined_up > min_combined). The short branch at lines 359-376 is a direct perp-short: it produces side=\"short\", stop_loss = close + atr * mult, take_profit = close - atr * mult. This must be excised for Phase-3. The performance-critical optimization \u2014 batch LSTM inference at the start of each backtest rather than per-bar \u2014 is sound and retains O(1) per-bar lookup. Key weaknesses: (a) the strategy has a hard dependency on pre-trained sklearn clustering models and TensorFlow LSTM weights stored in models/; if those files are absent or were trained on future data, the strategy silently emits uniform priors (uniform 1/3 predictions), making all backtest PnL an artifact of the ADX/volume filters alone; (b) the short branch generates edge from predicting price declines \u2014 in spot long-only mode this edge is discarded, halving the trade frequency; (c) the LSTM architecture is fixed at training time (window_size, seq_length, n_features), so genetic evolution of cluster_variant can trigger shape mismatches between the model input_shape and runtime feature count, causing silent uniform-prediction fallback that inflates Sharpe noise; (d) cluster labels are forward-filled from the last valid window, introducing a mild information-from-past-window artifact that is structurally unavoidable but at least not lookahead.",
+  "long_only_hypothesis": "Trained LSTM pattern clusters capture recurrent bullish candlestick microstructures (e.g., accumulation wicks, momentum bursts) that persist at multi-hour horizons. When the LSTM's P(up) and the cluster's historical win-rate both exceed threshold under rising volume (volume_ratio > 1) and confirmed trend (ADX > 15), price tends to continue upward on the next 1-4 bars. In spot long-only mode: enter on the long signal, exit via take-profit/stop/time-stop, and treat a short signal or a neutral cluster read as \"stay in cash.\" The edge hypothesis is that the LSTM conditions on sequential cluster-state transitions \u2014 not just a snapshot \u2014 and these transitions have autocorrelation in bull markets. Bull-market regimes (price > BMSB SMA/EMA) should be used as an outer gate because the cluster training distribution is likely skewed toward the 2020-2024 bull cycle; pattern edge degrades sharply in sustained downtrends or high-correlation macro selloffs where all clusters collapse to \"down.\"",
+  "market_techniques": [
+    "Batch LSTM inference with per-backtest cache for O(1) per-bar prediction lookups (already implemented \u2014 preserve)",
+    "K-Means / hierarchical / bisecting-KMeans pattern clustering on normalized OHLCV windows to build a discrete state vocabulary",
+    "Cluster profile historical win-rate as a Bayesian prior combined with LSTM posterior via weighted average",
+    "Walk-forward re-training of cluster models on expanding in-sample windows to reduce train/test distribution shift",
+    "Regime gating via BMSB (bull-market support band) to restrict longs to confirmed uptrends",
+    "ATR-based dynamic stop and take-profit sizing to adapt risk to realized volatility",
+    "RSI overbought filter on long entries to avoid chasing extended moves",
+    "Volume confirmation filter (volume_ratio threshold) to require participation on entry bars",
+    "ADX trend-strength filter to avoid pattern signals in ranging/choppy markets",
+    "Time-stop as safety net when the LSTM-predicted move fails to materialize within the expected horizon"
+  ],
+  "useful_features": [
+    "trend: adx_14 \u2014 existing filter, keep as continuous param not binary gate",
+    "trend: bmsb_bullish \u2014 binary outer regime gate (price above both BMSB SMA and EMA)",
+    "trend: bmsb_spread \u2014 spread between BMSB SMA and EMA as trend-strength proxy",
+    "momentum: rsi_14 \u2014 existing overbought exit filter, also usable as long entry quality filter",
+    "momentum: rsi_7 \u2014 faster RSI for short-term momentum confirmation",
+    "momentum: roc_12 \u2014 12-bar rate of change to confirm cluster direction signal",
+    "momentum: ret_zscore_20 \u2014 already in LSTM feature vector; also useful as standalone entry filter",
+    "volatility: atr_14 \u2014 stop and TP sizing (already used)",
+    "volatility: gk_vol \u2014 already in LSTM feature vector; also usable as vol-regime gate",
+    "volatility: vol_ratio \u2014 short-term vs long-term vol ratio; low ratio = favorable entry environment",
+    "volatility: bb_bandwidth \u2014 low bandwidth signals compression before breakout",
+    "volatility: bb_bw_percentile \u2014 rolling percentile of bandwidth to detect squeeze setups",
+    "volume: volume_ratio \u2014 existing filter; continuous version more informative than binary threshold",
+    "volume: volume_zscore \u2014 spike detector for abnormal activity",
+    "volume: obv_divergence \u2014 OBV vs its SMA as accumulation/distribution signal",
+    "volume: buying_pressure \u2014 bar-level proxy for aggressive buying",
+    "volume: pressure_imbalance \u2014 already in LSTM feature vector; also useful as standalone directional filter",
+    "microstructure: close_location \u2014 where close falls in bar range; high close_location on entry bar is bullish",
+    "regime: dist_from_high_20 \u2014 distance from 20-bar high; low dist_from_high = near breakout",
+    "regime: dist_from_low_20 \u2014 distance from 20-bar low; use as drawdown/recovery context"
+  ],
+  "genome_params": [
+    {
+      "name": "cluster_variant",
+      "type": "choice",
+      "low": 0,
+      "high": 6,
+      "note": "Choice among 7 variants: kmeans_8/20/50, hier_20/50, bisect_20/50. Each implies a different pre-trained model file; evolution discovers the best granularity and algorithm."
+    },
+    {
+      "name": "min_cluster_prob",
+      "type": "float",
+      "low": 0.45,
+      "high": 0.75,
+      "note": "Minimum historical P(up) from cluster profile. Low values allow weaker pattern signals; high values enforce selectivity."
+    },
+    {
+      "name": "min_lstm_confidence",
+      "type": "float",
+      "low": 0.35,
+      "high": 0.65,
+      "note": "Minimum max(P(up), P(down)) from LSTM output. Below 0.35 the model is essentially random; above 0.65 signals are rare."
+    },
+    {
+      "name": "min_combined_confidence",
+      "type": "float",
+      "low": 0.45,
+      "high": 0.72,
+      "note": "Minimum weighted combined confidence for any signal to be emitted. Key selectivity gate."
+    },
+    {
+      "name": "cluster_weight",
+      "type": "float",
+      "low": 0.2,
+      "high": 0.6,
+      "note": "Weight of cluster-profile probability in the combination. Complement is lstm_weight; enforce cluster_weight + lstm_weight = 1.0 in the implementation."
+    },
+    {
+      "name": "adx_min",
+      "type": "float",
+      "low": 10,
+      "high": 30,
+      "note": "ADX threshold for trend confirmation. Low values allow more signals in weak trends; high values restrict to strong trends only."
+    },
+    {
+      "name": "volume_threshold",
+      "type": "float",
+      "low": 0.7,
+      "high": 2,
+      "note": "Minimum volume_ratio required on entry bar. Enforces that pattern signals coincide with above-average participation."
+    },
+    {
+      "name": "rsi_overbought",
+      "type": "float",
+      "low": 65,
+      "high": 85,
+      "note": "RSI level above which long entries are blocked. Prevents chasing extended moves."
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 4.5,
+      "note": "ATR multiplier for initial stop-loss placement below entry."
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 2.5,
+      "high": 7,
+      "note": "ATR multiplier for take-profit. Must remain > stop_loss_atr_mult; enforced in genome constraint."
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 18,
+      "high": 72,
+      "note": "Maximum hours to hold if neither stop nor TP triggers. Reflects expected LSTM prediction horizon."
+    },
+    {
+      "name": "require_bmsb",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "NEW param: whether to require price above both BMSB SMA and EMA as an outer bull-market gate. Reduces exposure in bear regimes."
+    },
+    {
+      "name": "rsi_entry_min",
+      "type": "float",
+      "low": 30,
+      "high": 55,
+      "note": "NEW param: minimum RSI for long entry (avoids dead-cat bounces in established downtrends). Complement to rsi_overbought."
+    }
+  ],
+  "do_not_optimize": [
+    "window_size \u2014 must match the pre-trained cluster model's input shape; changing it requires full model retraining, not just param sweep",
+    "seq_length \u2014 must match the trained LSTM's input_shape[1]; mismatch causes silent uniform-prediction fallback that silently degrades all results",
+    "lstm_weight \u2014 redundant with cluster_weight if we enforce cluster_weight + lstm_weight = 1.0; only optimize cluster_weight and derive lstm_weight = 1 - cluster_weight",
+    "rsi_oversold \u2014 only relevant for the short branch which is removed in Phase-3; keeping it in the genome wastes a search dimension",
+    "allowed_regimes list \u2014 high-cardinality string list; interaction with the binary require_regime flag makes this a multi-parameter combinatorial trap with no clear optimum",
+    "require_regime / allowed_regimes \u2014 the BMSB-based require_bmsb bool replaces this cleanly; the legacy string-regime system should be fixed or removed to avoid overfitting to regime label strings"
+  ],
+  "risk_management": {
+    "stop": "ATR-based hard stop below entry: stop_loss = entry_price - atr_14 * stop_loss_atr_mult. ATR mult swept 1.5-4.5. Stop is checked intra-bar on low price (backtester already implements this). Stop is fixed at entry \u2014 no trailing by default unless trailing gate fires (see trailing).",
+    "take_profit": "ATR-based take-profit above entry: take_profit = entry_price + atr_14 * take_profit_atr_mult. Mult swept 2.5-7.0. Checked intra-bar on high price. Enforce TP mult > SL mult via genome constraint (already in auto_evolve.py). Optional: partial-profit exit at 50% of full TP to lock gains while letting remainder run.",
+    "trailing": "Optional trailing stop: once position is in profit by >= 1.0 * atr_14, trail stop up to entry + 0.5 * atr_14 to guarantee a scratch at worst. Keep as a fixed hard-coded rule (not evolvable) to avoid overfitting the trailing threshold.",
+    "vol_target": "Volatility-targeted sizing via the backtester's 'volatility_scaled' sizing method: position size = equity * (vol_target_annualized / realized_annual_vol), capped at max_position_pct. Default vol_target_annualized = 0.20 (20% annualized). This auto-reduces size in high-vol regimes and increases in calm periods.",
+    "max_size": "Hard cap at 25% of equity per trade (max_position_pct = 0.25 in BacktestConfig). Given LSTM signals are relatively rare and the stop is 1.5-4.5 ATR, a 25% cap with vol-targeting keeps per-trade risk at approximately 1-3% of equity.",
+    "cooldown": "Minimum 4 hours between new entries (min_time_between_trades = 4h via RiskManager). Prevents re-entry chasing on the same pattern cluster after a fast stop-out.",
+    "risk_off": "Outer BMSB gate (require_bmsb param): if close < bmsb_sma AND close < bmsb_ema, block all new long entries regardless of LSTM signal. Additionally: circuit-breaker drawdown halt at 15% peak-to-trough (already in RiskManager); daily loss halt at 5% of daily equity. These are applied by the backtester's RiskManager and do not need to be re-implemented in the strategy function."
+  },
+  "metrics": [
+    "CAGR (annualized return) \u2014 primary return metric for the 2-year OOS lockbox",
+    "Sharpe ratio (annualized, risk-free = 0) \u2014 primary risk-adjusted metric; target > 1.0 OOS",
+    "Sortino ratio \u2014 downside-deviation adjusted return; better than Sharpe for skewed crypto returns",
+    "Maximum drawdown % (peak-to-trough on equity curve) \u2014 hard constraint; reject if > 25% OOS",
+    "Calmar ratio (CAGR / max drawdown) \u2014 combined return/risk metric; target > 0.5",
+    "Hit rate (win rate) \u2014 fraction of trades with positive net PnL; LSTM should show > 50% if directional edge is real",
+    "Profit factor (gross wins / gross losses) \u2014 needs > 1.2 to cover costs",
+    "Average trade net PnL in bps \u2014 must be positive after 2-sided commission + slippage (approx 10-20bps round-trip)",
+    "Turnover (trades per month) \u2014 LSTM signals are infrequent; expect 4-15 trades/month; too few trades = insufficient statistical power",
+    "Exposure % (fraction of time in position) \u2014 with spot long-only, target 30-60% exposure to capture uptrends",
+    "Cost sensitivity: Sharpe degradation from 5bps -> 15bps round-trip slippage \u2014 signals must survive realistic cost assumptions",
+    "Bootstrap / Monte Carlo trade-sequence resampling: 95th percentile max drawdown and probability of ruin across 1000 simulations",
+    "Per-year Sharpe stability: compute annual Sharpe for each calendar year in the pre-lockbox history; strategy should show positive Sharpe in >= 3 of 4 pre-lockbox years",
+    "Walk-forward OOS degradation: average (IS Sharpe - OOS Sharpe) / IS Sharpe; target < 30% degradation",
+    "Deflated Sharpe Ratio (DSR): Bailey-Lopez-de-Prado DSR to correct for multiple testing across genome evaluations; minimum DSR >= 0.95 for global HoF admission (already implemented in auto_evolve.py)"
+  ],
+  "sweep_changes": [
+    "Remove the short branch entirely (lines 359-376 in lstm_pattern.py): delete the elif combined_down > combined_up block. Short signal is treated as 'stay in cash / do not re-enter.' Update the Signal call to never emit side='short'.",
+    "Remove rsi_oversold from PARAMS and from the registry param_space (it was only used in the short branch guard at line 361). Remove from STRATEGY_REGISTRY param_space.",
+    "Remove require_regime and allowed_regimes from PARAMS and param_space. Replace with a single require_bmsb bool param and add the BMSB gate check in the strategy function: if p['require_bmsb'] and not (current.get('bmsb_bullish', True)): return None.",
+    "Add rsi_entry_min to PARAMS (default 35.0) and param_space (float, 30.0-55.0): add a long-entry floor check if not pd.isna(rsi) and rsi < p['rsi_entry_min']: return None.",
+    "Enforce cluster_weight + lstm_weight = 1.0 by removing lstm_weight from PARAMS and param_space; in the strategy function derive lw = 1.0 - cw. This eliminates a redundant dimension and prevents inadvertently using mis-normalized weights.",
+    "Remove time_stop_hours from PARAMS default (or fix to 36) and add it as an int param in the registry param_space with range 18-72, type int.",
+    "Add require_bmsb to PARAMS (default True) and to the registry param_space as a bool.",
+    "Add rsi_entry_min to PARAMS (default 35.0) and to the registry param_space as float 30.0-55.0.",
+    "In the param_space, tighten min_cluster_prob lower bound to 0.50 (was 0.45 in registry) \u2014 below 0.50 cluster profile favors down, which is useless for long-only.",
+    "In auto_evolve.py STRATEGY_REGISTRY for lstm_pattern, add require_bmsb: ('bool',) and rsi_entry_min: ('float', 30.0, 55.0) to param_space. Remove rsi_oversold, require_regime, allowed_regimes, and lstm_weight from param_space.",
+    "Validate the BMSB feature availability in _precompute_all or at signal time: check if 'bmsb_sma' and 'bmsb_ema' columns exist in df before applying the BMSB gate; fall back gracefully if missing.",
+    "In the fitness function in auto_evolve.py, add a long-only assertion check: any genome that somehow emits side='short' in a backtest trace should receive fitness = -999.0 (safety net)."
+  ],
+  "methodological_risks": [
+    "Pre-trained model lookahead: if the cluster models or LSTM weights were trained on data that overlaps with or extends into the 2024-2026 OOS lockbox, every backtest using those models is contaminated. The model training provenance must be audited \u2014 training cutoff must be strictly before 2024-06-07.",
+    "Silent fallback to uniform predictions: when a model file is missing or the LSTM input_shape mismatches the runtime feature count, _precompute_all silently fills _bar_lstm_preds with 1/3 everywhere. Backtest results then reflect only the ADX/volume/RSI filter behavior, not the LSTM, but the reported strategy is 'lstm_pattern' \u2014 a fundamental misattribution of edge. Add an explicit check and log an ERROR if the model fails to load, and return fitness = -999.0.",
+    "Cluster label forward-fill: bars where window_size > bar_idx get cluster=-1 and are skipped. Bars between valid cluster windows are forward-filled from the previous label. If price is in a transition state the stale label can generate a spurious directional signal. This is a structural artifact \u2014 mitigate by requiring that the current bar's cluster was computed from a window ending at most 2 bars ago.",
+    "Cluster-variant mismatch across evolution runs: evolving cluster_variant as a choice param means each genome loads different model weights via _load_models. The model cache uses a global mutable state (_models_loaded, _cluster_model, etc.). In the multiprocessing spawn context each worker has its own copy (spawn isolation), so this is not a shared-state race condition \u2014 but it means each variant evaluation pays a full model-load cost on the first bar, which can cause timeout issues (300s per-genome limit in auto_evolve.py).",
+    "Overfitting via architecture search: the 7 cluster variants with different k values are effectively a hyperparameter search over clustering granularity baked into the genetic sweep. If the LSTM models were each tuned on the same in-sample data, the evolution is doing nested model selection \u2014 the OOS degradation can be severe.",
+    "Insufficient trade count: with ADX >= 15, volume_ratio >= 1.0, min_combined >= 0.55, and long-only (dropping ~50% of all signals), the strategy may generate fewer than 30 trades in a 90-day walk-forward window. Below ~30 trades, Sharpe, DSR, and walk-forward statistics have very wide confidence intervals and are likely to pass the DSR filter by random chance.",
+    "Cost drag at low signal frequency: if the strategy generates only 5-10 trades per month, each trade must earn >20bps net of round-trip costs to achieve Sharpe > 1.0. The cluster pattern signal does not directly predict the *magnitude* of the move, only the direction \u2014 so the take-profit multiplier (which determines gross return per trade) is the dominant driver of PnL, making the strategy highly sensitive to TP overfitting.",
+    "Label leakage in cluster training: the cluster profiles (prob_up, prob_down) are computed by labeling candle windows with their *subsequent* return. If this label computation used a rolling window that overlaps with the in-sample/OOS boundary, prob_up in the cluster profile carries forward-looking information. The cluster_profiles must be re-computed on strictly in-sample data only.",
+    "No re-training in walk-forward: the WalkForwardValidator re-runs the strategy function with different params but uses the SAME pre-trained cluster model and LSTM weights across all folds. This means the model's distributional assumption is not updated as markets evolve \u2014 OOS degradation from 2019-trained models applied to 2025-2026 data can be severe."
+  ]
+}

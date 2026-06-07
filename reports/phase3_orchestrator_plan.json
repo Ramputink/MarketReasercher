@@ -1,0 +1,207 @@
+{
+  "common_genome": "ONE shared long-only genome every strategy maps into. Two layers.\n\nLAYER A \u2014 SHARED CORE (identical keys + ranges for ALL strategies; injected by a registry helper so no strategy reinvents risk/exec/gating):\n  exec.stop_loss_atr_mult   float [1.5,4.5]  ATR-14 stop below fill; floor 1.5\n  exec.take_profit_atr_mult float [2.0,9.0]  ATR-14 TP; engine enforces TP>=SL+0.5 (lines 372/411/439)\n  exec.time_stop_hours      int   [12,120]   promoted from per-strategy hard-codes\n  exec.trail_enable         bool             one shared trailing rule (engine-side)\n  gate.adx_min              float [10,40]    single trend-strength key\n  gate.adx_polarity         choice[min,max]  min=trend req adx>=x; max=reversion req adx<=x (no duplicate adx_max)\n  gate.require_bmsb_bullish bool             macro long gate via bmsb_macro_bullish feature\n  gate.volume_min_ratio     float [0.7,2.5]  reuse volume_ratio; require_volume FIXED True\n  gate.rsi_entry_min        float [20,55]    floor (trend ~45, reversion ~20)\n  gate.rsi_entry_max        float [60,85]    overbought cap\n  size.method               FIXED volatility_scaled (RiskConfig.sizing_method)\n  size.vol_target_annualized float [0.12,0.25]\n  size.max_position_pct     FIXED 0.80 (spot, no leverage)\n\nLAYER B \u2014 PER-STRATEGY SIGNAL BLOCK (only the unique entry trigger; risk/exec/gate keys forbidden here):\n  chaos_trend: hurst_window, hurst_min, hurst_max, ema_fast<ema_slow, momentum_period, min_momentum_strength, use_fractal_filter\n  donchian_breakout: entry_period, exit_period, use_volatility_filter, atr_filter_mult, bb_compression_pctile_max\n  dual_ma: fast_period<slow_period, signal_type\n  ichimoku_kumo: tenkan_period, kijun_period, senkou_b(~2*kijun derived), displacement(~kijun derived), require_chikou_confirm, require_tk_cross\n  kama_trend: er_period, fast_sc, slow_sc(fixed early), signal_period, slope_threshold_pct, bb_bw_pctile_min\n  keltner_breakout: ema_period, atr_mult, bb_squeeze_filter, obv_confirm\n  trend_following: fib_zone_tolerance_pct, fib_lookback, require_higher_lows, structure_lookback, buying_pressure_min\n  vol_regime_arb: gk_fast_period, gk_slow_period, gk_baseline_period, expansion_zscore_threshold, expansion_min_bars_compressed, contraction_zscore_threshold, contraction_rsi_oversold, enable_contraction_mode\n  volatility_squeeze: keltner_atr_mult, squeeze_min_bars, momentum_lookback, squeeze_depth_pct_max\n  volatility_breakout: bandwidth_percentile_threshold, min_compression_bars, atr_expansion_ratio, require_atr_expansion\n  fisher_transform: period, signal_threshold, require_divergence, divergence_lookback\n  connors_rsi2: rsi_period, entry_threshold_long, exit_threshold_long, trend_ema_period\n  mean_reversion: zscore_entry_threshold, zscore_exit_threshold, spike_lookback_candles, spike_min_move_pct, min_volume_zscore, min_close_location\n  vwap_reversion: vwap_deviation_pct, wick_ratio_min, bb_bw_pct_gate\n  rsi_divergence: divergence_lookback, rsi_extreme_low, min_price_delta_pct, min_rsi_delta, bb_pct_b_max\n  obv_divergence: lookback, obv_divergence_threshold (SLOPE branch only)\n  williams_cci: wr_period, wr_oversold, cci_period, cci_long_threshold, bb_squeeze_percentile\n  supertrend: multiplier, atr_period, bb_bw_pct_min\n  momentum: rsi_long_threshold<rsi_overbought(gap>=5), roc_min_magnitude, use_acceleration_filter\n  heikin_ashi_ema: ema_fast<ema_slow, require_consecutive_ha\n  lstm_pattern: cluster_variant(choice), min_cluster_prob, min_lstm_confidence, min_combined_confidence, cluster_weight(lstm_weight=1-cw)\n\nImpl: SHARED_LONG_CORE dict merged into every STRATEGY_REGISTRY[name]['param_space'] via a build helper; random_genome/mutate_genome/crossover already iterate param_space generically so shared keys evolve with zero per-strategy code. All short-only keys (rsi_short_*, entry_threshold_short, contraction_rsi_overbought, wr_overbought, cci_short_threshold, max_bb_pct_b_short, rsi_oversold of obv short) DELETED from param_space and PARAMS.",
+  "search_limits": "GLOBAL BOUNDS:\n- stop_loss_atr_mult [1.5,4.5]; take_profit_atr_mult [2.0,9.0] with TP>=SL+0.5 (engine repair already present at lines 372/411/439).\n- time_stop_hours [12,120]; adx gate [10,40]; volume_min_ratio [0.7,2.5]; vol_target_annualized [0.12,0.25]; max_position_pct FIXED 0.80.\n- Ordering constraints (fast<slow, tenkan<kijun, ema_fast<ema_slow) repaired post-mutation by mirroring the existing TP>SL repair block. senkou_b~=2*kijun and displacement~=kijun are DERIVED, not swept.\n- Max 3 evolvable booleans per strategy signal block to bound 2^k filter-combo overfit surface.\n\nCOMPUTE BUDGET / 1h ITERATION (existing spawn-multiprocessing GA):\n- Population 60-80 genomes, 8-12 generations per active strategy slice; ~600-1000 genome evals/hour total (each eval = 1 full backtest + 1 WF validate train90/val15/test45 + 2-3 cross-asset confirm backtests).\n- Allocation: candidates ~55%, doubtful ~35%, fragile ~10% (fragile only AFTER its code fix + >=40-trade gate on a 6-month pre-lockbox slice).\n- Trade floor: keep MIN_TRADES_FOR_POSITIVE_FITNESS=30; override to 40 for sparse set (williams_cci, fisher_transform, kama_trend, supertrend, ichimoku long-only) via per-strategy min_trades arg in fitness.\n- Early-kill before WF: discard genomes with IS train Sharpe<0 OR trades<(floor/2).\n- DSR deflated by REAL cumulative n_trials (already wired); require dsr_pass before HoF admission.",
+  "long_only_enforcement": "EXACT MECHANISM (implementable today, single choke-point + defense in depth):\n\n1. ENGINE FLAG (authoritative): add long_only: bool=False to engine/backtester.py Backtester.__init__. In the NEW-entry block (~line 385) right after signal=strategy_fn(df,i,None):\n     if self.long_only and signal is not None and signal.side != \"long\": signal = None\n   This makes it physically impossible for the simulator to open a short. The position-management call (line 301) keeps the signal.side != position.side -> signal_exit path (line 302), so a short signal while LONG cleanly exits to cash = exactly the 'treat short as exit-to-cash' rule. Apply the same guard before line 301 so a short cannot be misread as a new short.\n\n2. WRAPPER FILTER (central, all strategies): auto_evolve.py:519-523 wrapper becomes:\n     def strategy_fn(d,i,p):\n         sig = strategy_fn_ref(d,i,p,regime=_bar_regime(d,i))\n         return None if (sig is not None and sig.side != 'long') else sig\n   Build Backtester(..., long_only=True) in evolution, sweep/run.py, and benchmark/runner.\n\n3. FITNESS SAFETY NET: in fitness_worker, if any trade in trades_df has side!='long', set fitness=-999.0.\n\n4. CODE-LEVEL DURABLE FIX: strip short branches in each strategy file (return None where side would be short); delete short-only params.\n\n5. COST HONESTY / NO FUNDING-AS-PNL: set funding_bps_per_8h=0.0 for all Phase-3 spot runs (default 1.0 is a perp cost; structurally prevents funding-as-PnL). Net exposure bounded [0,0.80] by long-or-cash + max_position_pct.",
+  "dedup_and_conflicts": "DEDUP (same idea in many reports -> ONE shared mechanism):\n- BMSB gate (~14 reports): one gate.require_bmsb_bullish. CAVEAT (5 reports): bmsb_sma/ema are 20/21 BARS (~20h on 1h data), not weeks. FIX ONCE: add bmsb_macro_bullish = close>close.rolling(480).mean() (~20d) in engine/features.py; point the shared gate at it.\n- RSI gates: collapse all rsi_max_entry/rsi_overbought_cap/rsi_oversold_max into gate.rsi_entry_min/gate.rsi_entry_max (one rsi_14 read).\n- ADX min vs max: unify via gate.adx_min + gate.adx_polarity.\n- Volume confirmation: one gate.volume_min_ratio (volume_ratio), require_volume FIXED True; volume_zscore/obv kept only where orthogonal (keltner obv_confirm, mean_reversion min_volume_zscore).\n- Vol-target sizing + trailing: implement ONCE (RiskConfig.sizing_method='volatility_scaled' global; one engine-side trailing rule gated by exec.trail_enable). Strategies never reimplement trailing.\n- time_stop: promoted ONCE to exec.time_stop_hours.\n\nCONFLICTS:\n- Trend vs reversion ADX direction: resolved by gate.adx_polarity (no contradiction in one schema).\n- allowed_regimes disagreements: FREEZE per archetype (trend/breakout -> ['trend','breakout']; reversion -> ['lateral','mean_reversion']) as a non-evolvable structural constant (kills regime-label overfit); read from causal _regime col.\n- Evolved-param reuse: ALL reports warn evolved PARAMS were tuned WITH shorts and may overlap the lockbox. RESOLUTION: discard all evolved values as finals; re-evolve from scratch pre-lockbox only; old values may seed at most ONE genome of the initial population.\n\nPREVENT PER-STRATEGY FRAMEWORK DRIFT: SHARED_LONG_CORE + build-helper inject identical exec/gate/size keys; long_only flag, vol-target sizing, trailing rule, bmsb_macro feature, regime-set freeze all live in shared engine code. Strategy files keep only their unique trigger. Add a unit test asserting every registry entry has the full SHARED_LONG_CORE keys and zero forbidden short-only keys.",
+  "priority_ranking": [
+    {
+      "change": "Engine long_only flag in backtester.py (drop short signals at entry) + wrapper filter + fitness safety net",
+      "impact": "high",
+      "risk": "low"
+    },
+    {
+      "change": "Set lockbox_days=730 (2y sealed OOS) and funding_bps_per_8h=0.0 for all Phase-3 runs",
+      "impact": "high",
+      "risk": "low"
+    },
+    {
+      "change": "Add SHARED_LONG_CORE genome + build-helper; delete all short-only params from registry/PARAMS",
+      "impact": "high",
+      "risk": "medium"
+    },
+    {
+      "change": "Freeze allowed_regimes per archetype as non-evolvable constants (kill regime-label overfit)",
+      "impact": "medium",
+      "risk": "low"
+    },
+    {
+      "change": "Add bmsb_macro_bullish (~480-bar) feature and point shared BMSB gate at it",
+      "impact": "medium",
+      "risk": "low"
+    },
+    {
+      "change": "Re-evolve all candidates from scratch on pre-lockbox data (discard short-era evolved PARAMS)",
+      "impact": "high",
+      "risk": "medium"
+    },
+    {
+      "change": "Promote time_stop_hours + volatility_scaled sizing + single trailing rule to shared engine layer",
+      "impact": "medium",
+      "risk": "medium"
+    },
+    {
+      "change": "Raise trade floor to 40 for sparse strategies + early-kill negative-Sharpe genomes",
+      "impact": "medium",
+      "risk": "low"
+    },
+    {
+      "change": "Fix functional exit bugs (donchian/keltner stop anchor, inert wick filter, connors/dead exit) flagged in reports",
+      "impact": "medium",
+      "risk": "medium"
+    },
+    {
+      "change": "Re-admit doubtful strategies only after code fix + 40-trade gate on 6-month pre-lockbox slice",
+      "impact": "low",
+      "risk": "high"
+    }
+  ],
+  "strategies_table": [
+    {
+      "strategy": "trend_following",
+      "tier": "candidate",
+      "rationale": "Sound long edge (Fib pullback in confirmed uptrend), 181 trades, WF Sharpe 1.62/1.96; needs short branch drop + BMSB macro fix + Fib-vs-noise ablation."
+    },
+    {
+      "strategy": "donchian_breakout",
+      "tier": "candidate",
+      "rationale": "Genuine momentum breakout with positive crypto skew; needs short removal, stop-anchor + signal_exit functional fixes, full re-evolution (Sharpe 2.79 was long+short)."
+    },
+    {
+      "strategy": "dual_ma",
+      "tier": "candidate",
+      "rationale": "Clean trend-follow; thin 41 trades and suspicious WF>IS, but structurally robust as long-or-cash; widen periods, re-evolve."
+    },
+    {
+      "strategy": "chaos_trend",
+      "tier": "candidate",
+      "rationale": "Hurst regime filter is a real edge; activate min_momentum_strength, drop short, fix EMA-cache fold bug; watch estimator noise/low trade count."
+    },
+    {
+      "strategy": "kama_trend",
+      "tier": "candidate",
+      "rationale": "Adaptive MA sound, but 18-trade IS Sharpe 3.32 is overfit-suspect; constrain fast/slow co-sweep, 40-trade gate, BMSB-macro gate."
+    },
+    {
+      "strategy": "keltner_breakout",
+      "tier": "candidate",
+      "rationale": "Vol-breakout-into-trend plausible; fix stop anchored at ema_center -> entry-relative ATR, drop short, re-evolve off boundary-pressured params."
+    },
+    {
+      "strategy": "ichimoku_kumo",
+      "tier": "candidate",
+      "rationale": "Cloud breakout strong in crypto but WF 2.28 included shorts; lock senkou/displacement structure, raise adx floor, re-evolve long-only."
+    },
+    {
+      "strategy": "vol_regime_arb",
+      "tier": "candidate",
+      "rationale": "Compression->expansion + capitulation-bounce are established; drop both short branches, fix module-cache key, add BMSB + bb_bw confirmation."
+    },
+    {
+      "strategy": "volatility_squeeze",
+      "tier": "candidate",
+      "rationale": "TTM squeeze release valid; 49 trades sparse and short-removal halves it; extend time_stop, add trailing, 40-trade gate."
+    },
+    {
+      "strategy": "momentum",
+      "tier": "doubtful",
+      "rationale": "Pruned R2 0.5% fitness; narrow 6.5pt RSI window starves signals. Only worth a slot if widened RSI band clears 40-trade gate."
+    },
+    {
+      "strategy": "fisher_transform",
+      "tier": "doubtful",
+      "rationale": "Mean-reversion at extremes ok but 34->~17 long trades, recursive lag + slice warm-up bias; needs slice-state fix + sparsity bootstrap."
+    },
+    {
+      "strategy": "connors_rsi2",
+      "tier": "doubtful",
+      "rationale": "Dip-buy-in-uptrend has logic but pruned R2 1.2%, dead exit code, short=main edge; wire RSI exit, extend time_stop, BMSB gate."
+    },
+    {
+      "strategy": "lstm_pattern",
+      "tier": "doubtful",
+      "rationale": "Model-dependency + silent uniform-fallback + possible label/lockbox leakage; only viable after provenance audit and load-failure hard error."
+    },
+    {
+      "strategy": "vwap_reversion",
+      "tier": "doubtful",
+      "rationale": "Pruned R1 0% fitness; TP-at-VWAP gives inverted R-multiple, short was the carry; needs ATR-ceiling TP + bb_bw gate + bmsb."
+    },
+    {
+      "strategy": "williams_cci",
+      "tier": "doubtful",
+      "rationale": "Pruned R2 1.0%, extreme filter stacking -> 19 trades, overfit thresholds; long-only halves further; treat as hypothesis test."
+    },
+    {
+      "strategy": "supertrend",
+      "tier": "doubtful",
+      "rationale": "Pruned R2 0.3%; lagging flips, near-trivial adx/volume thresholds; long-only conversion does not fix signal quality."
+    },
+    {
+      "strategy": "obv_divergence",
+      "tier": "fragile",
+      "rationale": "Pruned R1 0% fitness; precomputed obv_divergence is NOT real divergence (fast path semantically wrong), dead ADX filter, inverted RSI on short; needs structural rewrite."
+    },
+    {
+      "strategy": "rsi_divergence",
+      "tier": "fragile",
+      "rationale": "Pruned R1 0% fitness; split-window min/max is not swing-pivot divergence, fires on noise; structural rewrite needed before any budget."
+    },
+    {
+      "strategy": "mean_reversion",
+      "tier": "fragile",
+      "rationale": "Pruned R1 0% fitness; only Phase-3 branch (buy downside spike) catches falling knives, inert wick filter, fixed-% spike non-stationary; restructure to ATR-normalized capitulation."
+    },
+    {
+      "strategy": "heikin_ashi_ema",
+      "tier": "fragile",
+      "rationale": "Pruned R2 0.4%; HA recomputed from short window has no memory (logic flaw), 53 trades over 7y; needs standing-HA fix before any claim of edge."
+    },
+    {
+      "strategy": "momentum (short-only residual)",
+      "tier": "fragile",
+      "rationale": "Placeholder: the short-side momentum logic is forbidden and removed; only the widened long branch (listed above as doubtful) is carried forward."
+    }
+  ],
+  "iteration_plan": [
+    {
+      "iteration": 1,
+      "focus": "Infrastructure hard-gates: long-only, lockbox, spot costs, shared genome scaffold",
+      "actions": "Implement Backtester long_only flag + wrapper filter + fitness -999 safety net; set lockbox_days=730 and funding_bps_per_8h=0.0 everywhere; add SHARED_LONG_CORE dict + registry build-helper; delete all short-only params; add unit test (every registry entry has core keys, no short keys; no trade has side!=long). Run a smoke evolution (1 candidate, small pop) to confirm zero short trades and sealed lockbox. Commit."
+    },
+    {
+      "iteration": 2,
+      "focus": "Candidate trend cluster A: trend_following, dual_ma, chaos_trend",
+      "actions": "Strip short branches in code; add bmsb_macro_bullish feature; freeze allowed_regimes per archetype; fix chaos_trend EMA-cache fold bug + activate min_momentum_strength. Re-evolve all three from scratch pre-lockbox (pop 70, ~10 gens). Validate WF train90/val15/test45 + cross-asset; save HoF, commit, relaunch."
+    },
+    {
+      "iteration": 3,
+      "focus": "Candidate breakout cluster: donchian_breakout, keltner_breakout",
+      "actions": "Fix donchian signal_exit + strength max(0,..); fix keltner stop anchor (ema_center -> entry-relative ATR); drop shorts; add bb-compression + obv/bmsb gates. Re-evolve both; verify exit-reason distribution (TP/SL/time split) and trade>=40. Save, commit, relaunch."
+    },
+    {
+      "iteration": 4,
+      "focus": "Candidate adaptive/cloud cluster: kama_trend, ichimoku_kumo, volatility_squeeze",
+      "actions": "Lock senkou~2*kijun + displacement~kijun; raise ichimoku adx floor; constrain kama fast/slow co-sweep (fix slow_sc early); extend squeeze time_stop + enable shared trailing. Re-evolve with 40-trade floor + bootstrap CI on Sharpe. Save, commit, relaunch."
+    },
+    {
+      "iteration": 5,
+      "focus": "Candidate vol-regime + consolidation pass: vol_regime_arb + re-check cluster A/B stability",
+      "actions": "Drop both vol_regime_arb short branches; fix module-cache key (id(df)+params strict); add bmsb + bb_bw confirmation + composite momentum (slope & ret_zscore & roc agree). Re-evolve. Re-run iters 2-3 winners on the same harness to confirm no regression; rank candidates by Calmar/Sortino + DSR. Commit."
+    },
+    {
+      "iteration": 6,
+      "focus": "Doubtful set, gated re-admission: momentum, connors_rsi2, fisher_transform",
+      "actions": "Apply code fixes (widen momentum RSI band gap>=5; wire connors RSI exit + kill dead return-None guard; fix fisher slice warm-up state). Gate: run a 6-month pre-lockbox slice; only those producing >=40 trades and IS Sharpe>0 enter full evolution. Bootstrap CI mandatory. Save survivors, commit, relaunch."
+    },
+    {
+      "iteration": 7,
+      "focus": "Doubtful set 2: vwap_reversion, williams_cci, supertrend, lstm_pattern",
+      "actions": "vwap: ATR-ceiling TP + bb_bw gate; williams_cci: drop short + rsi_7 + bmsb; supertrend: long-flip-only + bb_bw expansion + raise adx floor; lstm: audit model training cutoff (<2024-06-07), make load-failure a hard error (-999), enforce cluster_weight+lstm_weight=1. Same 40-trade gate; discard non-passers. Commit."
+    },
+    {
+      "iteration": 8,
+      "focus": "Fragile triage, final portfolio assembly, sealed-OOS read",
+      "actions": "Apply structural rewrites where cheap (obv true-slope-divergence; mean_reversion ATR-normalized capitulation + fix inert wick filter; heikin standing-HA series). Only re-admit if a fix yields >=40 trades and positive IS Sharpe; otherwise leave dropped with rationale. Assemble final long-only portfolio from HoF survivors; run the SINGLE sealed-lockbox (2024-06-07->2026-06-07) evaluation ONCE for reporting only (no re-tuning). Produce per-strategy + portfolio scorecard (CAGR, Sharpe, Sortino, maxDD, Calmar, exposure, cost-sensitivity, bootstrap CI, DSR). Commit final."
+    }
+  ]
+}

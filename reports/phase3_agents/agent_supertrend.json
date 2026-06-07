@@ -1,0 +1,164 @@
+{
+  "strategy": "supertrend",
+  "classification": "doubtful",
+  "diagnosis": "The strategy computes the classic ATR-based SuperTrend indicator from scratch at every bar (lookback capped at 200 bars) and fires only on a direction FLIP (dir_now != dir_prev). It uses three gatekeeping filters before accepting a flip: a regime gate (trend or breakout only), an ADX floor (adx_min=17.2), and a volume ratio floor (volume_ratio >= 1.06). Evolved params include a wide multiplier (3.9) and a generous take-profit multiplier (5.8x ATR) relative to a 3.0x ATR stop-loss. Time stop is 48 hours. The strategy emits BOTH \"long\" and \"short\" sides \u2014 lines 132-146 of supertrend.py build a short Signal when dir_now == -1. The current code is therefore NOT Phase-3 compliant. In Phase-2 evolutionary runs (36,000 evaluations over 14 hours) the strategy produced only 0.3% positive-fitness genomes before being pruned from the STRATEGY_REGISTRY. The survived genome achieved Sharpe=1.20 (walk-forward 1.10) with only 69 trades, suggesting the edge is thin and trade count is insufficient for reliable statistics. Core weakness: SuperTrend direction flips are inherently a lagging trend-entry/reversal signal. On hourly crypto data the signal arrives well after the impulsive move, and the wide ATR multiplier (3.9) reduces flip frequency so much that the strategy is essentially inactive during choppy regimes and arrives late during fast trends. The 0.3% positive-fitness rate from 36K evaluations is a strong red flag that the raw signal does not carry a consistently exploitable edge in this market structure.",
+  "long_only_hypothesis": "SuperTrend bullish flips (direction from -1 to +1) tend to coincide with sustained uptrend resumptions in strongly trending crypto markets: price has reclaimed a dynamic ATR-based support band, short-term volatility has compressed, and momentum is accelerating. The long-only variant enters only on bullish flips when ADX confirms trend strength (not range), volume confirms participation, and the macro regime is trend or breakout. Instead of shorting bearish flips, the strategy exits to cash (treat short signal as flat). The hypothesis is that bullish SuperTrend flips that co-occur with above-average ADX and volume, occurring above the BMSB (Bull Market Support Band), carry a positive expected return over the subsequent 24-72 hours in spot BTC/ETH/altcoin markets because they capture breakouts out of ATR-anchored consolidations. However, given the 0.3% positive-fitness rate in prior evolution, this hypothesis is weak and requires strong additional confirmation filters (RSI, BMSB, bb_bw_percentile expansion) to be viable. Classification as doubtful reflects this uncertainty.",
+  "market_techniques": [
+    "ATR-trailing SuperTrend flip as trend-resumption signal (long-only bullish flips only)",
+    "ADX trend-strength gate to suppress whipsaws in ranging markets",
+    "Volatility-percentile regime filter (bb_bw_percentile) to require bandwidth expansion at entry \u2014 avoids entering during tight squeezes where flips are noise",
+    "BMSB macro filter: only enter longs when price is above both BMSB SMA and EMA \u2014 structurally bullish market regime",
+    "Volume confirmation: volume_ratio > threshold at flip bar to require institutional participation",
+    "ATR-scaled stop-loss and take-profit to make risk levels adaptive to realized volatility",
+    "Time stop to cap exposure when the trend fails to develop within 48 hours",
+    "RSI momentum confirmation: avoid entries when rsi_14 is already overbought (>70) at flip \u2014 prevents buying exhaustion tops",
+    "Cooldown after stop-loss hit to prevent re-entry into whipsawing market",
+    "Walk-forward expanding-window optimization on pre-lockbox data only"
+  ],
+  "useful_features": [
+    "trend: adx_14 \u2014 primary trend-strength filter, keep ADX floor in sweep",
+    "trend: bmsb_bullish (bool) \u2014 structural macro bull filter; long only when price is above both 20-SMA and 21-EMA bands",
+    "volatility: atr_14 \u2014 used internally for SuperTrend bands and for SL/TP sizing",
+    "volatility: bb_bw_percentile \u2014 bandwidth percentile rank; require >40 to confirm volatility expansion at flip, reducing noise-flip entries",
+    "volatility: gk_vol \u2014 Garman-Klass vol as alternative volatility regime filter",
+    "volume: volume_ratio \u2014 volume vs 20-bar SMA, existing filter; consider raising threshold",
+    "volume: volume_zscore \u2014 z-score vs 50-bar rolling; spike confirmation",
+    "volume: obv_divergence \u2014 OBV divergence from its SMA as secondary volume trend filter",
+    "momentum: rsi_14 \u2014 overbought guard: skip longs if rsi_14 > 70 at entry to avoid buying tops",
+    "momentum: roc_12 \u2014 rate of change over 12 bars; only enter if roc_12 > 0 (price accelerating upward)",
+    "momentum: price_acceleration \u2014 second derivative of price; positive value at flip confirms impulse",
+    "mean-reversion: dist_from_high_20 \u2014 avoid entries when price is already stretched near 20-bar high (>-2%)",
+    "market regime: _regime column (trend/breakout/range/bear) \u2014 existing filter; tighten to trend-only or add breakout only when bb_bw_percentile > 50",
+    "microstructure: pressure_imbalance \u2014 buying minus selling pressure proxy; require positive imbalance at flip bar",
+    "microstructure: close_location \u2014 bar close in upper half of range at flip bar confirms bullish close"
+  ],
+  "genome_params": [
+    {
+      "name": "multiplier",
+      "type": "float",
+      "low": 2,
+      "high": 5,
+      "note": "ATR multiplier for SuperTrend bands. Wider = fewer flips. Current evolved value 3.9 is near the high end; allow GA to explore 2.0-5.0."
+    },
+    {
+      "name": "atr_period",
+      "type": "int",
+      "low": 7,
+      "high": 21,
+      "note": "Period for ATR calculation inside SuperTrend. Shorter = more sensitive. Fixed at 14 in current code; open to sweep."
+    },
+    {
+      "name": "adx_min",
+      "type": "float",
+      "low": 15,
+      "high": 35,
+      "note": "ADX floor for trend strength filter. Current evolved 17.2; allow broader sweep to find optimal gate."
+    },
+    {
+      "name": "volume_threshold",
+      "type": "float",
+      "low": 0.8,
+      "high": 2,
+      "note": "volume_ratio threshold. Current 1.06 (near-average); GA should explore stricter confirmation up to 2.0x."
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 4,
+      "note": "ATR multiplier for initial stop-loss below entry. Current 3.0; tighten floor to 1.5 for better R:R."
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 3,
+      "high": 8,
+      "note": "ATR multiplier for take-profit target. Must remain > stop_loss_atr_mult. Current 5.8; wide range is acceptable for trend trades."
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 24,
+      "high": 120,
+      "note": "Maximum hours in position before forced exit. Current 48h; allow sweep up to 120h (5 days) for longer trend trades."
+    },
+    {
+      "name": "rsi_overbought_cap",
+      "type": "float",
+      "low": 65,
+      "high": 80,
+      "note": "New param: skip long entries when rsi_14 exceeds this threshold at flip bar. Prevents buying exhaustion."
+    },
+    {
+      "name": "bb_bw_pct_min",
+      "type": "float",
+      "low": 30,
+      "high": 60,
+      "note": "New param: minimum bb_bw_percentile at entry bar. Requires volatility expansion at flip, reducing noise entries."
+    },
+    {
+      "name": "require_bmsb",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "New param: if True, only enter longs when bmsb_bullish is True (price above both BMSB bands). Structural bull filter."
+    }
+  ],
+  "do_not_optimize": [
+    "allowed_regimes \u2014 fixing to [trend, breakout] is conceptually correct; letting the GA choose regime sets creates enormous regime-label leakage and overfitting to historical regime labels",
+    "require_trend_regime \u2014 always True; removing the regime gate turns the strategy into an always-on flipper which will be overfit to trend periods in IS data",
+    "require_volume \u2014 always True in long-only spot; volume confirmation is a fundamental quality filter and should not be an evolvable boolean",
+    "atr_period when jointly sweeping multiplier \u2014 the two parameters are strongly collinear (wider ATR period smooths the band equivalent to a larger multiplier); sweeping both simultaneously invites a degenerate solution space with many equivalent configurations"
+  ],
+  "risk_management": {
+    "stop": "ATR-scaled initial hard stop: entry_price - stop_loss_atr_mult * atr_14, where stop_loss_atr_mult in [1.5, 4.0]. Checked against bar low each bar (current backtester implementation). For spot: stop triggers a full exit to cash, no re-entry for cooldown_hours.",
+    "take_profit": "ATR-scaled fixed take-profit: entry_price + take_profit_atr_mult * atr_14, where take_profit_atr_mult > stop_loss_atr_mult. Checked against bar high. Wide TPs (5-8x ATR) preferred for trend trades to allow the trend to run.",
+    "trailing": "Optional trailing stop: after price moves 1.5x ATR in favor, trail the stop at 1.0x ATR below the rolling high. Implemented externally; the current backtester does not support trailing natively \u2014 add as a post-entry adjustment each bar when unrealized PnL > 1.5 ATR.",
+    "vol_target": "Volatility-scaled sizing using the backtester's volatility_scaled sizing_method: target 15-20% annualized portfolio volatility. Position size = equity * (vol_target / realized_vol). Cap at max_position_pct. This prevents oversizing during low-volatility regimes where ATR is compressed.",
+    "max_size": "Maximum 25% of equity per position (max_position_pct=0.25). Spot-only, no leverage. Circuit breaker halts new entries if drawdown exceeds 15% from peak.",
+    "cooldown": "Minimum 6-hour cooldown after any stop-loss hit before re-entry is permitted (min_time_between_trades in RiskConfig). Prevents whipsaw sequences. Extend to 24 hours after two consecutive stop-outs.",
+    "risk_off": "Regime gate: require _regime in [trend, breakout]. Additionally gate on bmsb_bullish=True as macro filter. If adx_14 < 15 for the last 5 bars (range regime confirmed), suppress all new entries regardless of SuperTrend flip. Do not enter during bear regimes."
+  },
+  "metrics": [
+    "CAGR on OOS lockbox (2024-06-07 to 2026-06-07) \u2014 primary performance metric",
+    "Sharpe ratio (annualized, risk-free=0) on OOS equity curve \u2014 target > 1.0",
+    "Sortino ratio (downside deviation only) \u2014 target > 1.3, more appropriate for one-sided spot exposure",
+    "Maximum drawdown % (peak-to-trough) on full OOS period \u2014 target < 20%",
+    "Calmar ratio (CAGR / maxDD) \u2014 target > 0.5",
+    "Hit rate (% winning trades) \u2014 expect 35-50% for trend-following with wide TP; low hit rate with high avg win is acceptable",
+    "Turnover (trades per month) \u2014 expect 3-8 trades/month given wide multiplier; too-low turnover reduces statistical power",
+    "Average trade duration (hours) \u2014 validate against time_stop_hours; should see bimodal distribution (quick stops vs TP hits)",
+    "Exposure % (fraction of time in position) \u2014 expect 20-40% for long-only trend strategy with strong filters",
+    "Average winning trade / average losing trade ratio \u2014 target > 1.8 to compensate for sub-50% hit rate",
+    "Cost sensitivity: rerun OOS with 2x commission and 2x slippage to verify edge survives realistic friction (69 trades * 2 legs * ~0.1% = ~14% gross PnL consumed by costs at baseline)",
+    "Walk-forward Sharpe stability (per-fold coefficient of variation < 0.5) \u2014 checks that performance does not come from one lucky fold",
+    "Bootstrap/Monte Carlo: 1000 resamplings of trade sequence to get 95% CI on Sharpe and maxDD (already in auto_evolve for top genomes)",
+    "Per-year CAGR breakdown (2024, 2025, first half 2026) \u2014 must be positive in at least 2 of 3 years to avoid single-year fluke",
+    "OOS degradation % vs IS walk-forward Sharpe \u2014 flag if degradation > 50% (strategy is overfit)"
+  ],
+  "sweep_changes": [
+    "Convert short branch to flat: in supertrend_strategy, change line 132 from `side = 'long' if dir_now == 1 else 'short'` to `if dir_now != 1: return None` and always set side='long'. Remove the short-side stop/TP block (lines 144-146).",
+    "Add rsi_overbought_cap filter: after the existing ADX and volume checks, add `if current.get('rsi_14', 50) > p['rsi_overbought_cap']: return None` to prevent buying into exhaustion.",
+    "Add bb_bw_percentile expansion filter: `if current.get('bb_bw_percentile', 50) < p['bb_bw_pct_min']: return None` to require volatility expansion at the flip bar.",
+    "Add BMSB macro filter (optional param): `if p['require_bmsb'] and not current.get('bmsb_bullish', True): return None` to restrict longs to structurally bullish market phases.",
+    "Add rsi_overbought_cap to PARAMS default (75.0) and to STRATEGY_REGISTRY param_space: ('float', 65.0, 80.0).",
+    "Add bb_bw_pct_min to PARAMS default (35.0) and to STRATEGY_REGISTRY param_space: ('float', 30.0, 60.0).",
+    "Add require_bmsb to PARAMS default (True) and to STRATEGY_REGISTRY param_space: ('bool',).",
+    "Re-add supertrend to STRATEGY_REGISTRY with the updated long-only param_space covering: multiplier [2.0, 5.0], atr_period [7, 21], adx_min [15.0, 35.0], volume_threshold [0.8, 2.0], stop_loss_atr_mult [1.5, 4.0], take_profit_atr_mult [3.0, 8.0], time_stop_hours [24, 120], rsi_overbought_cap [65.0, 80.0], bb_bw_pct_min [30.0, 60.0], require_bmsb (bool).",
+    "Set minimum trade count threshold to 40 for this strategy in fitness evaluation (currently 30 global) \u2014 given the 69-trade IS result with a wide multiplier, the genome needs enough flips to be statistically meaningful.",
+    "Add cooldown enforcement: track last_exit_reason in metadata; if stop_loss, suppress new signals for at least 6 hours (via time_between_trades in RiskConfig or a bar counter in the strategy function itself).",
+    "Do NOT add supertrend back to the active registry for standard evolution until the long-only conversion is verified against a 6-month pre-lockbox validation window \u2014 the 0.3% positive-fitness rate from 36K evals is a strong prior that should not be ignored without new evidence."
+  ],
+  "methodological_risks": [
+    "Survivorship bias in the evolved PARAMS: the single surviving genome from 36K evaluations (Sharpe=1.20, 69 trades) may represent an extreme overfit to a specific trend period in IS data. The small trade count means that a handful of high-PnL trades drive the entire backlog.",
+    "Low positive-fitness rate (0.3% from 36K evaluations) constitutes strong empirical evidence that the signal lacks a consistent edge in this market. Converting to long-only does not fix the fundamental signal quality \u2014 it only removes one broken branch. The prior probability that long-only variant is viable is very low.",
+    "SuperTrend's bar-by-bar recompute with a 200-bar lookback cap causes the computed band and direction to drift vs a full-history computation, especially early in the lookback window. This creates inconsistent signal behavior that makes IS/OOS comparison unreliable \u2014 the IS Sharpe may reflect a slightly different indicator than the OOS one.",
+    "ADX filter at 17.2 is so loose that it barely filters anything. If the GA finds 17.2 as the 'optimal' floor, it means the ADX filter has zero discrimination power at that level. A loose threshold fitted to noise is worse than no threshold.",
+    "The volume_threshold of 1.06 (slightly above average) means the volume filter is nearly always satisfied. Both ADX and volume filters evolved to near-trivial thresholds, suggesting the GA was not actually selecting for quality entries but rather maximizing the number of trades.",
+    "Regime label leakage: the _regime column is itself derived from historical feature windows that overlap training data. If regime labels are computed on the full dataset before the walk-forward split (which is common), they constitute a form of lookahead across fold boundaries.",
+    "The 48-hour time stop combined with the entry lag of 1 bar means a flip on bar N is entered at bar N+1's open and exits at most 48 hours later. In hourly data this is 48 bars. Given SuperTrend's lagging nature, the impulsive move that caused the flip has typically already occurred within the first few bars \u2014 the time stop may be capturing mean-reversion, not trend continuation.",
+    "Monte Carlo ruin probability not reported for the existing genome \u2014 with only 69 trades, bootstrap CIs on Sharpe will be very wide, meaning the 1.20 IS Sharpe could plausibly be noise.",
+    "Cost sensitivity is a significant concern: 69 trades * 2 legs * ~10bps commission + slippage = roughly 10-15% of gross PnL consumed by costs. Any reduction in edge from the long-only conversion (losing the short-side PnL, which was ~50% of trades) must be compensated by higher per-trade quality.",
+    "The per-bar SuperTrend recomputation is O(n) inside the bar loop, making the strategy O(n^2) total. At 200-bar lookback and hourly data over 5 years, this is manageable, but in the GA with 36K evaluations it represents significant wasted compute for a signal that ultimately fails."
+  ]
+}

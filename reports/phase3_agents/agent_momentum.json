@@ -1,0 +1,161 @@
+{
+  "strategy": "momentum",
+  "classification": "doubtful",
+  "diagnosis": "The momentum strategy uses three simultaneous conditions to enter: RSI_14 in a range bracketed by rsi_long_threshold (63.4) and rsi_overbought (69.9), roc_12 above roc_min_magnitude (0.55%), and adx_14 above adx_min (19.3). Volume confirmation (volume_ratio > 1.311) is required by default. The strategy emits BOTH long and short signals. The short branch fires when RSI < 45.5 and ROC < -0.55% (momentum deterioration, not oversold). The regime gate restricts entries to \"trend\" and \"breakout\" regimes only. Exits are governed by a hard stop at 2.844 * ATR below entry, a wide take-profit at 6.05 * ATR above, and a 36-hour time stop. Signal strength is proportional to (RSI - 50) / 30 capped at 1.0. The strategy was pruned from the STRATEGY_REGISTRY in Round 2 (after 14 hours / 36K genome evaluations) with only 0.5% positive fitness across all trials \u2014 one of the weakest performers in the entire registry. The weakness is structural: the long entry requires RSI between 63.4 and 69.9, a very narrow 6.5-point window that rarely fires simultaneously with high ADX and a volume surge, producing very few trades. The short branch is also being exercised and contributes noise in what should be a spot-only context. The roc_12 filter (12-bar) has a meaningful look-back but the combined filter stack is over-constrained, resulting in sparse signals. The genetic optimizer found no viable parameter region across ~180 momentum-specific evaluations in Round 2.",
+  "long_only_hypothesis": "Drop the short branch entirely. In a spot long-only context, momentum in crypto is genuinely persistent over 12-48h horizons when the market is already trending \u2014 studies on crypto time-series show positive autocorrelation in 1-6h returns during confirmed uptrends. The rehabilitated hypothesis: enter long when price is exhibiting strong directional momentum (RSI in a wide bullish zone, positive ROC, trending ADX) in a trend or breakout regime, and remain in cash otherwise. The key fix is to widen the RSI entry band from the current 6.5-point window (63.4-69.9) to a broader zone (55-75) so that signals are not pathologically rare. The secondary fix is to allow the time stop and take-profit to do the work of exiting rather than relying on a narrow entry gate. This converts the strategy from a perp-friendly bi-directional approach into a spot buy-and-hold-when-trending structure that is naturally aligned with crypto's bullish long-run drift and momentum regimes.",
+  "market_techniques": [
+    "ATR-normalized stops: set stop_loss as close - N * ATR_14 to adapt to current volatility regime",
+    "Regime filtering: restrict long entries to 'trend' and 'breakout' regimes; go to cash in 'ranging' or 'unknown' regimes to avoid whipsaws",
+    "Volume confirmation: require volume_ratio above threshold to distinguish genuine momentum breakouts from low-liquidity noise moves",
+    "RSI momentum band entry: use RSI as a momentum proxy in a broad bullish zone (not overbought avoidance \u2014 momentum continuation is the edge), widened from the current 6.5-point band",
+    "ROC directional filter: roc_12 screens for actual price directional motion as a complement to RSI so both oscillator and price-rate confirm the same direction",
+    "ADX trend strength gate: require ADX > threshold to avoid entering during choppy/sideways markets where momentum signals fail most",
+    "Time stop as primary exit: the 36-hour time stop acts as a forced portfolio refresh and prevents holding through full momentum reversals",
+    "BB bandwidth percentile filter: optionally require bb_bw_percentile > 50 (expanding volatility, not squeeze) to confirm momentum is live rather than compressing"
+  ],
+  "useful_features": [
+    "momentum: rsi_14 \u2014 primary entry gate, bullish zone 55-75, must be below overbought cap",
+    "momentum: roc_12 \u2014 rate of change over 12 bars, confirms directional velocity is positive",
+    "trend: adx_14 \u2014 trend strength gate, filters out ranging markets where momentum signals fail",
+    "volatility: atr_14 \u2014 denominator for ATR-based stop and take-profit placement",
+    "volume: volume_ratio \u2014 volume_ratio = current_volume / 20-bar SMA, confirms momentum is backed by participation",
+    "volume: volume_zscore \u2014 z-score of volume relative to 50-bar history, higher granularity than ratio for volume spikes",
+    "momentum: price_acceleration \u2014 second derivative of close, optionally required positive to confirm acceleration phase (currently disabled in evolved params but available)",
+    "trend: bmsb_bullish \u2014 boolean flag: price above both 20-SMA and 21-EMA, useful as a macro long-only gate to avoid longs during sustained bear market regimes",
+    "volatility: bb_bandwidth \u2014 Bollinger Band width, useful as expanding-volatility confirmation that momentum is not in a squeeze",
+    "volatility: bb_bw_percentile \u2014 rolling percentile of BB bandwidth, >50 means expanding relative to recent history",
+    "momentum: ret_zscore_20 \u2014 z-score of 1-bar returns, can screen for anomalous bars that distort RSI readings",
+    "market regime: regime label passed as argument \u2014 restrict to 'trend' and 'breakout' only",
+    "drawdown: dist_from_high_20 \u2014 how far price is below the 20-bar high; entering when dist_from_high_20 is near 0 (near highs) is a breakout confirmation",
+    "microstructure: pressure_imbalance \u2014 buying minus selling pressure within each bar, positive value confirms bullish intra-bar dynamics"
+  ],
+  "genome_params": [
+    {
+      "name": "rsi_long_threshold",
+      "type": "float",
+      "low": 50,
+      "high": 68,
+      "note": "Lower bound of RSI bullish zone; widen from evolved 63.4 to allow more signal frequency"
+    },
+    {
+      "name": "rsi_overbought",
+      "type": "float",
+      "low": 65,
+      "high": 82,
+      "note": "Upper bound / overbought exclusion; was 69.9 in evolved params, effectively killing signals in a 6.5-point window \u2014 must be wider than rsi_long_threshold by at least 5"
+    },
+    {
+      "name": "roc_min_magnitude",
+      "type": "float",
+      "low": 0.2,
+      "high": 2,
+      "note": "Minimum ROC_12 for long entry in percent; evolved at 0.55, sweep explores softer and harder thresholds"
+    },
+    {
+      "name": "adx_min",
+      "type": "float",
+      "low": 12,
+      "high": 35,
+      "note": "Minimum ADX_14 for entry; evolved at 19.3, floor raised to 12 to avoid false trend signals"
+    },
+    {
+      "name": "volume_surge_threshold",
+      "type": "float",
+      "low": 0.8,
+      "high": 2.5,
+      "note": "Minimum volume_ratio to confirm entry; evolved at 1.311"
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 5,
+      "note": "ATR multiplier for stop; evolved at 2.844"
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 3,
+      "high": 9,
+      "note": "ATR multiplier for take-profit; evolved at 6.05, must remain > stop_loss_atr_mult"
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 12,
+      "high": 96,
+      "note": "Maximum hours to hold position; evolved at 36h, sweep range covers half-day to 4-day holds"
+    },
+    {
+      "name": "use_acceleration_filter",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Whether to require price_acceleration > 0 for long entry; evolved OFF, sweep explores both"
+    },
+    {
+      "name": "require_volume_confirmation",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Whether to require volume_ratio > threshold; evolved ON"
+    }
+  ],
+  "do_not_optimize": [
+    "rsi_period: fixing at 14 is standard; sweeping RSI period multiplies search space without adding signal quality",
+    "rsi_short_threshold: the entire short branch must be removed \u2014 optimizing its threshold is forbidden in Phase 3",
+    "rsi_oversold: belongs to the removed short branch",
+    "allowed_regimes: fixing to ['trend', 'breakout'] is a structural choice, not a numeric param \u2014 sweeping over regime lists risks overfitting to regime-labeler behavior in-sample",
+    "require_trend_regime: fixing True is correct; allowing False would expose the strategy to choppy regime signals that historically destroy momentum edge",
+    "roc_period: fixing at 12 avoids conflation with the rsi_period; adding a second period param creates near-collinear redundancy"
+  ],
+  "risk_management": {
+    "stop": "ATR-based hard stop: close - stop_loss_atr_mult * ATR_14 at time of entry; backtester checks bar low vs stop price so intra-bar stops are honored. Range: 1.5x to 5x ATR. Never use a fixed-dollar or fixed-percent stop because crypto volatility regimes shift by 3-5x.",
+    "take_profit": "ATR-based take-profit: close + take_profit_atr_mult * ATR_14 at entry. Range 3x-9x ATR. Must satisfy TP_mult > SL_mult (enforced in genome crossover). The wide evolved TP (6x) is reasonable for momentum \u2014 let winners run.",
+    "trailing": "Optional trailing stop: once position is 2x ATR in profit, trail stop to breakeven plus 0.5x ATR. Not currently implemented in the backtester Signal interface (time_stop_hours is available); implement as post-entry logic monitoring unrealized PnL.",
+    "vol_target": "Volatility-targeted sizing via backtester's 'volatility_scaled' sizing_method: target annual vol of 20-30%, scale position size inversely with realized_vol_20. This prevents the strategy from being oversized during high-vol regimes (crypto bear markets) and undersized in trending low-vol environments.",
+    "max_size": "Cap at 50% of equity per position (max_position_pct = 0.50 in BacktestConfig). This leaves cash buffer for cost drag and prevents single-trade ruin on a stop-loss event.",
+    "cooldown": "Minimum 6-bar cooldown between entries (enforced via RiskManager min_time_between_trades). After a stop-loss exit, add an additional 12-bar cooldown to avoid entering into the same failing momentum move.",
+    "risk_off": "Gate all entries on bmsb_bullish = True (price above 20-SMA and 21-EMA simultaneously) as a macro regime filter. If bmsb_bullish is False for 5 consecutive bars, suppress all new long entries regardless of other signal conditions. Additionally, if the equity curve drops more than 15% from its rolling 30-day peak, activate a circuit-breaker halt (already implemented in RiskManager)."
+  },
+  "metrics": [
+    "CAGR: primary return metric, target > 15% annualized on OOS 2024-2026 window to justify cost drag",
+    "Sharpe ratio (annualized): target > 0.8 on OOS; the evolved params showed walk-forward Sharpe of 1.58 but this is likely inflated given 0.5% positive fitness rate",
+    "Sortino ratio: more relevant than Sharpe for crypto's asymmetric return distribution; target > 1.0",
+    "Max drawdown: must remain below 25% on OOS full-sample; the backtester's full-sample drawdown check (not fold-by-fold max) is the binding constraint",
+    "Calmar ratio (CAGR / MaxDD): target > 0.5 to ensure return per unit drawdown is economically meaningful",
+    "Hit rate (win rate): momentum strategies typically need only 40-50% hit rate if R:R (TP/SL ratio) is 2:1 or better; monitor closely with evolved 6x/2.8x ratio (R:R ~2.1)",
+    "Trade count: minimum 30 trades across walk-forward OOS windows; the narrow RSI window (63.4-69.9) likely produces far fewer; widening RSI band is critical to meet this floor",
+    "Market exposure (time in trade): target 20-50% exposure; full-time-in-market defeats the risk-off benefit",
+    "Average trade duration vs time_stop_hours: if >80% of trades exit via time_stop rather than SL or TP, the momentum signal is not predictive of direction",
+    "Cost sensitivity: re-run with 2x commission and 2x slippage; if Sharpe degrades by >50%, the edge is too thin to survive realistic cost variation",
+    "OOS degradation (wf_degradation): target <50%; the evolved params showed 0.5% positive fitness suggesting severe OOS collapse",
+    "Bootstrap / Monte Carlo confidence interval: run 1000 bootstrap resamples of OOS trade PnLs; 5th percentile Sharpe must remain positive",
+    "Per-year Sharpe stability: compute separate Sharpe for each calendar year in pre-lockbox history; reject if standard deviation of annual Sharpe > 0.5 (too regime-dependent)",
+    "Turnover: trades per week; given time_stop_hours=36, expect 2-4 round-trips per week if signals fire; measure against cost budget"
+  ],
+  "sweep_changes": [
+    "Remove short branch entirely: delete the 'elif rsi < rsi_short_threshold...' block and its Signal emission. The strategy_fn must return None instead of a short Signal when bearish conditions are met.",
+    "Widen RSI long band: change rsi_long_threshold sweep range to (50.0, 68.0) and rsi_overbought to (65.0, 82.0), with a constraint enforcing rsi_overbought - rsi_long_threshold >= 5.0 to prevent the pathological 6.5-point window that starved signal count in Round 2",
+    "Add momentum strategy back to STRATEGY_REGISTRY as 'momentum_long' with the revised long-only param_space (rsi_long_threshold, rsi_overbought, roc_min_magnitude, adx_min, volume_surge_threshold, stop_loss_atr_mult, take_profit_atr_mult, time_stop_hours, use_acceleration_filter, require_volume_confirmation)",
+    "Remove rsi_short_threshold and rsi_oversold from param_space entirely (they belong to the deleted short branch)",
+    "Add bmsb_bullish gate as a hardcoded filter: in the strategy function, return None if bmsb_bullish == False to enforce the macro long-only regime gate without making it an evolvable param (avoids overfitting to BMSB period)",
+    "Signal strength formula: keep (rsi - 50) / 30 capped at 1.0 \u2014 this feeds into volatility-scaled sizing and is already well-designed for the long branch",
+    "Enforce TP > SL constraint in STRATEGY_REGISTRY genome initialization (already done generically in random_genome and mutate_genome, verify it applies to the new momentum_long entry)",
+    "Fitness function: since momentum was pruned due to low positive fitness, ensure the trade_count floor (MIN_TRADES_FOR_POSITIVE_FITNESS=30) is achievable with the widened RSI band before promoting to production; add an explicit signal-count diagnostic log per genome evaluation",
+    "Walk-forward window: use train_days=90, val_days=20, test_days=30 to give momentum enough time-in-sample to generate 30+ trades given the sporadic signal rate",
+    "Cross-asset generalization: include BTC/USDT and ETH/USDT as cross-asset targets in _freeze_cross_assets; momentum is expected to generalize across large-cap crypto better than mean-reversion strategies"
+  ],
+  "methodological_risks": [
+    "Extremely low historical positive fitness (0.5% of 36K evals in Round 2): this is the most serious red flag. It means the strategy's fundamental signal construction (RSI band + ROC + ADX + volume) did not find a viable parameter region in ~180 momentum-specific evaluations. Widening the RSI band is a structural fix but does not guarantee the underlying momentum edge exists in this data.",
+    "Narrow RSI entry band creates survivorship selection in the training data: because the entry condition RSI in (63.4, 69.9) fires rarely, the few trades that do execute may sample specific market regimes (strong bull runs) and produce inflated in-sample metrics that collapse OOS. The evolved Sharpe=0.90 / WF_Sharpe=1.58 on only 234 trades (across ~2019-2024) may reflect cherry-picked bull-market episodes.",
+    "Filter stack over-determination: requiring RSI range + ROC threshold + ADX minimum + volume_ratio simultaneously creates a conjunction of four independent conditions. If each fires 30% of the time independently, the joint probability is ~0.8% of bars, producing perhaps 1-2 signals per week. Any one condition being miscalibrated eliminates most trades.",
+    "Time stop as primary exit creates arbitrary exit timing: if 80%+ of trades exit via the 36h time_stop rather than TP or SL, the trade outcome is determined by where price happens to be after 36h, not by the momentum signal quality. This is effectively a random 36h hold after a momentum entry, which has limited edge over a simple buy-and-hold segment.",
+    "ATR-based stop leakage at fold boundaries: ATR_14 is computed on a rolling 14-bar window; at walk-forward fold boundaries the first 14 bars of each test fold use ATR values partially influenced by the training fold's price data, creating a minor information bridge. The 120-bar embargo in WalkForwardValidator mitigates but does not fully eliminate this for short folds.",
+    "RSI period fixed at 14 with EWM smoothing: the RSI implementation uses EWM (alpha=1/14) rather than Wilder's simple rolling average, which makes RSI values slightly different from standard implementations. If the evolved thresholds (63.4, 69.9) were calibrated to this specific implementation, they may not translate to other data sources or timeframes.",
+    "Volume_ratio denominator staleness: volume_ratio = current_volume / 20-bar SMA volume. During sustained low-volume periods (e.g., weekends in legacy markets, though less relevant for crypto), the 20-bar SMA captures the low-volume baseline and makes any moderate volume appear as a surge. This creates false volume confirmations during low-activity periods.",
+    "No position re-entry logic during strong trends: the strategy exits to cash and waits for the next signal. During strong multi-day trends, a 36h time stop forces exit and the next re-entry requires a fresh RSI+ROC+ADX+volume conjunction, which may not materialize until the trend has already moved significantly. The strategy may systematically miss the bulk of trending moves.",
+    "OOS lockbox contamination risk: the commented evolved parameters claim 'Walk-forward ROBUST: WF_Sharpe=1.58, 234 trades' which implies optimization was run on data up to 2026-03-22. If the 2024-2026 lockbox window overlaps with the optimization period, the OOS evaluation is compromised. Must verify the lockbox window (2024-06-07 to 2026-06-07) was strictly excluded from all parameter search.",
+    "Regime label dependency: the strategy gates on regime in ('trend', 'breakout'). If the regime labeler itself has lookahead or is calibrated on the full dataset rather than a causal rolling window, the regime filter embeds future information into the entry condition. The quality of the regime labeling is not analyzed in this file and represents an unquantified leakage risk."
+  ]
+}

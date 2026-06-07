@@ -1,0 +1,183 @@
+{
+  "strategy": "donchian_breakout",
+  "classification": "candidate",
+  "diagnosis": "The strategy implements a classic Turtle Trading Donchian channel breakout: it enters long when the current close exceeds the rolling N-bar high, and enters short when the close falls below the rolling N-bar low. Before entry it gates on ADX >= adx_min (trend strength), optional volume confirmation (volume_ratio >= volume_surge_threshold), an optional channel-width ATR filter, and a regime gate (regime must be in allowed_regimes, defaulting to [\"breakout\",\"trend\"]). It explicitly emits short signals (side=\"short\") when close breaks below the channel low. Exits are managed via ATR-anchored stop-loss (2.66x ATR), very wide take-profit (7.85x ATR), and a 48-hour time stop. Strength is capped at 1.0 using (close - channel_high)/atr. The evolved PARAMS reflect generation 144 of GA optimization with Sharpe=2.79 WF=2.99. Key weakness: the short branch is populated and actively fires; it will need to be stripped for Phase 3. The strategy has 132 trades in the evolved state \u2014 reasonable sample, but the very wide TP (7.85x) and short time stop (48h) suggest it is optimized for large impulsive moves. The ADX gate (27.6) and volume surge (1.5x) are reasonable quality filters. Key structural edge: Donchian breakouts on crypto do capture genuine momentum runs; the long side historically benefits from positive skew in crypto markets. The short side likely contributed a significant portion of walk-forward Sharpe during bear periods, so dropping it may reduce returns meaningfully without regime compensation.",
+  "long_only_hypothesis": "Crypto spot assets exhibit persistent positive skew \u2014 large upside tail returns dominate large downside ones over multi-year horizons. A Donchian channel breakout on the LONG side only captures the beginning of momentum regimes: when price breaks above an N-bar high with concurrent trend strength (ADX), volume confirmation, and a bull-market regime filter, the probability of continuation is elevated above random. The edge is strongest after periods of volatility compression (low BB bandwidth / bb_bw_percentile), which precede explosive directional moves. Long-only Donchian is effectively a momentum + volatility-breakout filter that stays in cash during ranging and bear markets, avoiding the negative compounding of short exposure on a spot asset. The hypothesis is: enter long on N-bar high breakout with trend + volume confirmation, hold until ATR-stop or time-stop triggers, remain flat (cash) otherwise. Complemented by a regime gate (bull-market support band above both BMSB lines), this should generate a hit-rate in the 45-55% range with favorable reward-to-risk via the wide TP.",
+  "market_techniques": [
+    "Donchian channel breakout (N-bar high expansion) for entry trigger",
+    "ATR-normalized stop placement to adapt to realized volatility",
+    "ADX trend-strength filter to avoid false breakouts in ranging markets",
+    "Volume surge confirmation to verify institutional participation at breakout",
+    "Regime gating via BMSB (bull-market support band) to restrict entries to bull phases only",
+    "BB bandwidth percentile as volatility-compression pre-filter (squeeze before breakout)",
+    "Time stop to flush stalled positions and free capital",
+    "Walk-forward expanding-window validation on pre-2024 data only, with 120-bar embargo between folds",
+    "Volatility targeting for position sizing to equalize risk across high- and low-vol regimes",
+    "Cooldown period after stop-loss exits to avoid whipsaw re-entries"
+  ],
+  "useful_features": [
+    "trend: adx_14 \u2014 primary trend-strength gate, already used",
+    "trend: bmsb_bullish \u2014 boolean bull-market support band filter (price above both 20-SMA and 21-EMA), use as hard regime gate",
+    "trend: bmsb_spread \u2014 SMA/EMA divergence within BMSB as trend health indicator",
+    "volatility: atr_14 \u2014 stop and TP anchor, already used",
+    "volatility: atr_7 \u2014 faster ATR for detecting vol regime shifts",
+    "volatility: bb_bw_percentile \u2014 rolling bandwidth percentile; low values signal compression preceding breakout, use as pre-condition",
+    "volatility: bb_bandwidth \u2014 raw bandwidth, secondary squeeze indicator",
+    "volatility: gk_vol \u2014 Garman-Klass vol estimator for cleaner realized vol estimate",
+    "volume: volume_ratio \u2014 volume surge confirmation, already used",
+    "volume: volume_zscore \u2014 z-score of volume vs 50-bar mean, stricter spike filter",
+    "volume: obv_divergence \u2014 OBV vs its 20-SMA; positive divergence supports breakout validity",
+    "momentum: rsi_14 \u2014 confirm momentum not overbought at entry (RSI < 75 avoids exhaustion entries)",
+    "momentum: roc_12 \u2014 12-bar rate of change as secondary momentum confirmation",
+    "momentum: dist_from_high_20 \u2014 closeness to 20-bar high; near 0 signals proximity to breakout",
+    "price/return: ret_zscore_20 \u2014 z-score of 1-bar return, avoid entries after extreme spikes",
+    "market regime: bb_pct_b \u2014 position within Bollinger Bands; near 1.0 confirms upper band breakout",
+    "microstructure: buying_pressure \u2014 close proximity to bar high signals strong demand at breakout bar",
+    "microstructure: pressure_imbalance \u2014 buying minus selling pressure for bar-level confirmation",
+    "microstructure: close_location \u2014 where within bar did price close (1.0 = at high = strongest signal)"
+  ],
+  "genome_params": [
+    {
+      "name": "entry_period",
+      "type": "int",
+      "low": 15,
+      "high": 60,
+      "note": "Donchian lookback for channel high. Wider = fewer, higher-quality breakouts. Current evolved: 40. Keep floor at 15 to avoid noise."
+    },
+    {
+      "name": "exit_period",
+      "type": "int",
+      "low": 5,
+      "high": 20,
+      "note": "Lookback for exit channel (lower of N-bar lows triggers exit). Currently 14. Keep separate from entry to allow asymmetric channel."
+    },
+    {
+      "name": "adx_min",
+      "type": "float",
+      "low": 15,
+      "high": 35,
+      "note": "Minimum ADX for trend confirmation. Current evolved: 27.6. Wider range to let sweep find the frontier between quality and frequency."
+    },
+    {
+      "name": "volume_surge_threshold",
+      "type": "float",
+      "low": 1,
+      "high": 2.5,
+      "note": "Minimum volume_ratio at breakout bar. Current: 1.50. Hard floor at 1.0 (at least average volume)."
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 4,
+      "note": "ATR multiple for stop-loss. Current: 2.66. Range tightened on low end to avoid tiny stops that whipsaw; high end capped to avoid excessive risk per trade."
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 3,
+      "high": 10,
+      "note": "ATR multiple for take-profit. Current: 7.85. Wide range acceptable since TP on long-only crypto can be very large during momentum runs."
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 24,
+      "high": 120,
+      "note": "Maximum hours to hold a position. Current: 48. Wider sweep to allow longer ride on strong trends vs. quick flush of stalled trades."
+    },
+    {
+      "name": "use_volatility_filter",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Toggle ATR-width filter for channel. Currently False (evolved off). Keep as bool genome param to let future sweeps test with compression pre-filter."
+    },
+    {
+      "name": "atr_filter_mult",
+      "type": "float",
+      "low": 0.2,
+      "high": 2,
+      "note": "Only active when use_volatility_filter=True. Minimum channel width in ATR units. Current: 0.71. Range widened to allow tighter or looser squeeze filter."
+    },
+    {
+      "name": "bmsb_gate",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "NEW: require price above both BMSB lines (bmsb_bullish=True) before entering. Restricts longs to bull-market phase only."
+    },
+    {
+      "name": "rsi_max_entry",
+      "type": "float",
+      "low": 65,
+      "high": 85,
+      "note": "NEW: maximum RSI-14 at entry to avoid overbought exhaustion entries. Filters breakouts that are already extended."
+    },
+    {
+      "name": "bb_compression_pctile_max",
+      "type": "float",
+      "low": 20,
+      "high": 60,
+      "note": "NEW: maximum bb_bw_percentile allowed before entry (require compression state). Only active when use_volatility_filter=True. Captures squeeze-then-breakout pattern."
+    }
+  ],
+  "do_not_optimize": [
+    "require_volume_confirmation \u2014 keep hardcoded True; turning off volume confirmation removes a meaningful quality filter and invites noise entries that look good in-sample",
+    "require_breakout_regime \u2014 keep hardcoded True for long-only; the regime gate is the primary bear-market shield and must not be swept away by the optimizer",
+    "allowed_regimes \u2014 fix to [\"breakout\", \"trend\"] for long-only; do not optimize which regimes to allow as this creates a binary overfit on a small set of regime labels",
+    "exit_period relative to entry_period \u2014 do not constrain these jointly in the sweep; they are independent and the optimizer should find the asymmetric channel ratio naturally",
+    "funding_bps_per_8h \u2014 not a strategy param but a backtester cost assumption; must be fixed at a realistic value (e.g., 1.0 bps/8h) and never treated as a tunable"
+  ],
+  "risk_management": {
+    "stop": "ATR-anchored hard stop at entry_price - stop_loss_atr_mult * atr_14; checked intra-bar against the bar low. Current evolved multiplier 2.66x is reasonable; sweep range 1.5-4.0x. For long-only spot, the stop is a hard floor \u2014 no short hedge.",
+    "take_profit": "ATR-anchored take-profit at entry_price + take_profit_atr_mult * atr_14; checked intra-bar against bar high. Current 7.85x allows riding large momentum moves. Do not cap below 5x \u2014 the long-tail wins are the primary P&L driver for a breakout strategy.",
+    "trailing": "Optional ATR trailing stop: after position is profitable by >= 2x ATR, trail stop at highest_close - 1.5 * atr_14. Not currently implemented but recommended to add as a genome bool param (use_trailing_stop) to capture large trends while protecting gains.",
+    "vol_target": "Volatility-targeted sizing via backtester sizing_method=volatility_scaled: size = equity * (vol_target_annualized / annual_vol), capped at max_position_pct. Recommended vol_target_annualized=0.25 (25% annualized target) given crypto vol. This ensures ATR-large entries do not over-size and ATR-small entries do not under-size.",
+    "max_size": "Hard cap at 30% of equity per trade (max_position_pct=0.30). In high-ADX breakout conditions, signal strength reaches 1.0, so the vol-target sizing or the 30% cap \u2014 whichever is smaller \u2014 applies. Never exceed 50% on a single breakout in spot.",
+    "cooldown": "48-hour cooldown after any stop-loss exit before the next entry is allowed. Prevents whipsaw chains on false breakouts. Implemented via risk_manager min_time_between_trades. After a time-stop exit (non-loss), cooldown reduces to 12 hours.",
+    "risk_off": "Hard regime gate: if bmsb_bullish=False (price below either BMSB line), no new longs regardless of channel breakout. Secondary gate: if adx_14 < adx_min, skip. Tertiary gate: if regime not in ['breakout','trend'], skip. Circuit-breaker via risk_manager: if equity drawdown from peak exceeds 20%, halt all new entries for the rest of the simulation segment."
+  },
+  "metrics": [
+    "CAGR (annualized compound return on long-only equity curve, target > 20% net of costs)",
+    "Sharpe ratio (annualized, using hourly equity curve, target >= 1.5 for long-only phase)",
+    "Sortino ratio (penalizes only downside deviation; more relevant for positively-skewed breakout strategy, target >= 2.0)",
+    "Maximum drawdown % (peak-to-trough on full-sample equity curve; hard fail if > 25%)",
+    "Calmar ratio (CAGR / maxDD; target > 1.0)",
+    "Hit rate (% of trades that are profitable; expect 40-55% \u2014 breakout strategies win less often but with high reward/risk)",
+    "Average win / Average loss ratio (reward-to-risk realized; target > 2.0 given 7-8x ATR TP vs 2.7x ATR stop)",
+    "Turnover (trades per month; target 4-10 for hourly data \u2014 too high = cost drag, too low = insufficient sample)",
+    "Market exposure % (% of time with an open position; expect 15-35% for a selective long-only strategy)",
+    "Average holding period hours (diagnostic; cross-check against time_stop_hours to see if time stops dominate)",
+    "Cost sensitivity: rerun with 2x commission and 2x slippage to verify Sharpe degrades < 30%",
+    "Walk-forward OOS Sharpe (mean of per-fold test Sharpe across pre-lockbox folds; target >= 1.0)",
+    "OOS degradation % (train_sharpe - test_sharpe / train_sharpe; target < 40%)",
+    "Per-year realized Sharpe (stability check: no single calendar year should be < 0 in the training set)",
+    "Bootstrap 95th percentile Sharpe (1000 block-bootstrap resamples of OOS equity curve; verify lower bound > 0.5)",
+    "Profit factor (gross profit / gross loss; target > 1.5 net of costs)"
+  ],
+  "sweep_changes": [
+    "REMOVE the short branch entirely (lines 79-90 in donchian_breakout.py): delete the elif close < channel_low block that emits side='short'. Strategy must return None when price breaks below the channel low \u2014 this is the 'exit to cash' or 'stay flat' branch for Phase 3.",
+    "ADD bmsb_gate parameter: if bmsb_gate=True, check current['bmsb_bullish'] and return None if False. Add to PARAMS dict with default True and to auto_evolve.py param_space as ('bool',).",
+    "ADD rsi_max_entry parameter: if rsi_14 > rsi_max_entry at the breakout bar, return None (avoid exhaustion entries). Add to PARAMS with default 75.0 and sweep range (65.0, 85.0).",
+    "ADD bb_compression_pctile_max to PARAMS (active only when use_volatility_filter=True): check current['bb_bw_percentile'] < bb_compression_pctile_max before allowing entry. Default 50.0, sweep range (20.0, 60.0).",
+    "UPDATE genome param_space in auto_evolve.py: add bmsb_gate ('bool',), rsi_max_entry ('float', 65.0, 85.0), bb_compression_pctile_max ('float', 20.0, 60.0), time_stop_hours ('int', 24, 120). Expand entry_period range to (15, 60) and take_profit_atr_mult to (3.0, 10.0).",
+    "UPDATE allowed_regimes to ['breakout', 'trend', 'bull'] if the regime engine produces a 'bull' label \u2014 this ensures the strategy can trade in persistent bull markets that don't show explicit 'breakout' tags.",
+    "ADD close_location confirmation: require current['close_location'] >= 0.6 at entry (price closed in top 40% of bar range), ensuring the breakout bar itself shows conviction. Add as optional param close_location_min (default 0.5, sweep 0.4-0.8).",
+    "ADD pressure_imbalance filter: require current['pressure_imbalance'] > 0 (positive buying pressure) at the breakout bar. Add as require_positive_pressure bool param (default True).",
+    "FIX strength computation: the current strength formula min((close - channel_high) / atr, 1.0) can be negative if close equals channel_high exactly \u2014 add max(0, ...) guard.",
+    "VERIFY position exit logic: when close drops below exit_period channel low, the strategy should return a signal to trigger 'signal_exit'. Currently the strategy returns None when a position is held (line 35-36 returns None unconditionally). Implement exit logic: when position is not None, check if close < rolling exit_period low and return a flat/exit signal. This is a functional bug in the current code \u2014 the strategy never generates a signal_exit, relying solely on stop/TP/time-stop for exits."
+  ],
+  "methodological_risks": [
+    "SHORT BRANCH REMOVAL RISK: The evolved PARAMS (Sharpe=2.79) were optimized with both long AND short branches active. Removing the short branch invalidates the evolved parameter set. All parameters \u2014 especially adx_min, stop_loss_atr_mult, take_profit_atr_mult \u2014 must be re-evolved from scratch on long-only. The reported Sharpe=2.79 must not be attributed to the long-only version.",
+    "FUNCTIONAL EXIT BUG: Lines 35-36 unconditionally return None when a position is open, meaning the exit_period channel is never actually checked for signal_exit. The strategy relies entirely on the backtester's stop_loss/take_profit/time_stop exits. This means exit_period is a dead parameter in the current implementation and the walk-forward Sharpe=2.99 was achieved without channel-based exits. This should be fixed but the fix changes behavior \u2014 requires full re-evaluation.",
+    "SMALL TRADE SAMPLE: 132 trades across the full GA-evolved history is borderline for robust estimation. After removing shorts (likely ~65-66 longs), the per-fold samples may be too small (< 10 trades/fold) for stable Sharpe estimation. Risk of fold-level noise dominating the walk-forward aggregate.",
+    "EVOLVED PARAMETER LEAKAGE CONCERN: GA ran 2739 evaluations on what appears to be a full historical dataset (comment says 'Walk-forward ROBUST' but the GA itself saw all data). If the fitness function's walk-forward folds overlapped with any part of the 2024-2026 OOS lockbox, the evolved params are contaminated. Must verify the GA's data window was strictly pre-2024-06-07.",
+    "ADX FILTER AT 27.6 IS CLOSE TO THE UPPER BOUND: The sweep range in auto_evolve.py tops out at 30.0, and the evolved value of 27.6 is near the ceiling. This suggests the optimizer was hitting the wall and the true optimum may be above 30. For re-evolution, expand the upper bound to at least 40.",
+    "TIME STOP DOMINANCE: With only 48h time stop and a 7.85x ATR take-profit, many trades likely expire via time stop rather than TP. If time_stop is the dominant exit, the wide TP is decorative and CAGR depends heavily on time_stop_hours \u2014 a fragile 1-parameter dependency that may not generalize.",
+    "REGIME LABEL DEPENDENCY: The strategy gates on regime in ['breakout','trend'] but the regime classifier is a separate component whose parameters and training are not visible here. If the regime classifier was also optimized on the same data, the combined system has more hidden degrees of freedom than the parameter count suggests.",
+    "COST SENSITIVITY ON BREAKOUTS: Donchian breakouts enter at the exact moment of a new N-bar high, which in practice means buying after the first bar that closes above the prior high \u2014 a momentum chase point. Slippage and spread are systematically adverse here. The 1-bar entry lag in the backtester helps, but real fill quality at breakout moments may be 2-3x worse than the modeled slippage_bps.",
+    "BULL MARKET SPECIFICITY: Long-only Donchian is structurally biased to outperform in trending bull markets (2020-2021, 2023-2024) and will generate flat-to-negative returns in choppy or bear phases (2022). Without a robust regime gate, the 2-year OOS lockbox (2024-2026) performance will depend heavily on whether that window is bullish or ranging.",
+    "OVERLAPPING FEATURE LOOKBACKS AND EMBARGO: The walk-forward validator uses 120-bar embargo which covers the 100-bar bb_bw_percentile lookback. However, entry_period up to 60 bars also creates rolling channel windows. The 120-bar embargo is sufficient (120 > 60), but if entry_period is expanded beyond 60 in the new sweep, the embargo should be increased accordingly."
+  ]
+}

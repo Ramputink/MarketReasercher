@@ -1,0 +1,183 @@
+{
+  "strategy": "trend_following",
+  "classification": "candidate",
+  "diagnosis": "The strategy is a 1-2 day horizon trend-following system built around three stacked filters: (1) BMSB (Bull Market Support Band: 20-bar SMA and 21-bar EMA) as a macro directional gate \u2014 price must be above both bands for a long, below both for a short; (2) ADX-14 above an evolved threshold (30.17) as a trend-strength qualifier; and (3) Fibonacci pullback detection \u2014 price must be within fib_zone_tolerance_pct (2.10%) of the 0.382, 0.50, or 0.618 retracement level computed over the last 50 bars. Secondary filters are a volume_ratio floor (0.98x 20-bar average) and an RSI-14 band (34\u201370) to avoid buying deeply oversold or selling deeply overbought on a retest basis. An optional higher-lows structure check exists but is evolved off (require_higher_lows=False). Exits use wide evolved ATR multiples: SL=4.55x ATR-14, TP=5.58x ATR-14, time_stop=48h. Signal strength is modulated by fib depth, ADX level, and volume spike. The strategy EMITS SHORTS: whenever is_downtrend is True (price below 50-bar EMA AND bmsb_bullish==False), it generates side='short' signals with stop_loss above entry and take_profit below. The short branch must be fully removed for Phase 3. The core long-side edge is structurally sound: buying Fibonacci pullbacks inside a confirmed uptrend (BMSB above + EMA50 above + ADX filtered) is a well-documented crypto edge because BTC/ETH trend-following has historically had positive skew during bull regimes. The weakness is that BMSB is computed with very short periods (20/21 bars, not the canonical 20-week/21-week) on hourly data \u2014 this makes the filter reactive rather than structural, and the strategy may generate many false breakout signals in sideways markets. The evolved ADX threshold of 30 is strict enough to filter most chop. The Fibonacci entry is a discretionary-style rule that is hard to optimize cleanly because the lookback swing high/low is path-dependent. The wide SL/TP multiples (4.55/5.58) mean each trade carries large individual risk but targets asymmetric payoff \u2014 a reasonable trade-off for a trend-rider but sensitive to cost drag at low trade frequency. Walk-forward Sharpe was reported at 1.62 IS / 1.96 WF with 181 trades and $735 PnL, suggesting the strategy has genuine signal but a relatively small trade count for robust OOS inference.",
+  "long_only_hypothesis": "In a confirmed uptrend (price above both BMSB bands AND 50-bar EMA, ADX>threshold), crypto assets exhibit positive autocorrelation at the 1-2 day horizon: momentum persists, and shallow pullbacks to Fibonacci retracement zones (0.382\u20130.618) represent temporary profit-taking by weak hands, not a trend reversal. Entering long at these levels with a volatility-scaled stop captures the resumption of the primary trend. The BMSB macro filter keeps the strategy in cash during bear markets and choppy regimes (bmsb_bullish=False \u2192 no trade), converting the original short branch into a cash position. The net effect is a long-biased trend-rider that holds the spot asset only when structural momentum is confirmed, and sits in cash (zero cost, zero exposure) otherwise. This hypothesis is independently testable: the historical win-rate at Fibonacci pullback entries in BMSB-bullish regimes should be meaningfully above 50% with positive average trade P/L net of costs, and trades initiated during ADX>30 regimes should show lower drawdown and higher holding-period returns than random entries.",
+  "market_techniques": [
+    "BMSB (Bull Market Support Band) as a macro bull-regime gate \u2014 keep, but validate period scaling for the actual bar timeframe",
+    "Fibonacci retracement entry timing \u2014 retain 0.382/0.5/0.618 pullback zones as entry triggers within confirmed uptrend",
+    "ADX-14 trend-strength filter \u2014 retain as gating condition, sweep threshold 20\u201340",
+    "RSI-14 anti-extremes filter \u2014 reframe for long-only: block entry only if RSI is in extreme overbought territory (>75) to avoid chasing exhausted moves; drop the oversold floor (was blocking good pullback entries)",
+    "ATR-based stop and take-profit placement \u2014 retain, consider tightening SL to 2.5\u20134x ATR to reduce cost of losing trades",
+    "Time stop (48h) \u2014 retain, sweep 24\u201396h",
+    "Volume confirmation on entry bar \u2014 retain volume_ratio filter, expand sweep range",
+    "Volatility-targeted position sizing via vol_target_annualized \u2014 size down during high-ATR regimes to maintain consistent dollar risk",
+    "Walk-forward validation with 120-bar embargo \u2014 already in engine, must be used for all sweep runs",
+    "Regime gate (trend/breakout allowed regimes) \u2014 retain; optionally add bb_bw_percentile < threshold to block entries during compressed-volatility chop before trend confirmation"
+  ],
+  "useful_features": [
+    "trend: bmsb_bullish \u2014 primary bull-regime gate, price above both 20-bar SMA and 21-bar EMA",
+    "trend: adx_14 \u2014 trend-strength filter, threshold sweep 20\u201340",
+    "trend: roc_12 \u2014 12-bar rate-of-change as trend momentum proxy; positive and rising confirms uptrend",
+    "price/return: dist_from_high_20 \u2014 measures how far price has pulled back from recent 20-bar high; deeper pullback = more attractive Fibonacci entry",
+    "price/return: dist_from_low_20 \u2014 gauge of how extended the move is from recent low; prevents entering near exhaustion",
+    "momentum: rsi_14 \u2014 anti-overbought filter for long entry (block if RSI > 75); confirms pullback is not an impulsive reversal",
+    "momentum: rsi_7 \u2014 faster RSI for near-term momentum confirmation at Fibonacci entry point",
+    "momentum: ret_zscore_20 \u2014 normalized momentum; positive z-score in an uptrend confirms momentum alignment",
+    "volatility: atr_14 \u2014 for stop/TP placement and position sizing via vol targeting",
+    "volatility: gk_vol \u2014 Garman-Klass vol as regime volatility estimate; high gk_vol can trigger size reduction",
+    "volatility: vol_ratio (short-term vol / long-term vol) \u2014 vol expansion at entry is a confirmation signal for breakout resumption",
+    "volatility: bb_bw_percentile \u2014 Bollinger bandwidth percentile; low values signal pre-breakout compression (good for vol_squeeze), high values signal extended trend (can confirm fib pullback in trending regime)",
+    "volume: volume_ratio \u2014 volume vs 20-bar SMA; >1.0 confirms participation on pullback entries",
+    "volume: obv_divergence \u2014 OBV vs OBV SMA; positive divergence while price pulls back confirms accumulation during Fibonacci retest",
+    "volume: volume_zscore \u2014 volume spike detection; z-score>1.5 at entry bar is a bullish signal",
+    "microstructure: buying_pressure \u2014 (close-low)/(high-low); >0.6 at entry bar signals buyers stepping in at Fibonacci level",
+    "microstructure: pressure_imbalance \u2014 buying minus selling pressure; positive and rising at entry zone confirms demand",
+    "microstructure: close_location \u2014 where bar closes within its range; >0.5 at fib zone confirms rejection and resumption",
+    "market regime: allowed_regimes=['trend','breakout'] \u2014 existing regime gate acts as a categorical filter; convert to use the engine's regime field",
+    "funding/sentiment (informative only): bb_pct_b \u2014 Bollinger percent-B as a sentiment/extension proxy; used only as a filter, never as a PnL source"
+  ],
+  "genome_params": [
+    {
+      "name": "adx_threshold",
+      "type": "float",
+      "low": 18,
+      "high": 40,
+      "note": "ADX-14 minimum for trend strength; evolved IS at 30.17, sweep wider to find long-only optimum"
+    },
+    {
+      "name": "fib_zone_tolerance_pct",
+      "type": "float",
+      "low": 0.5,
+      "high": 4,
+      "note": "Percentage tolerance around each Fibonacci price level; wider = more entries, narrower = higher quality"
+    },
+    {
+      "name": "fib_lookback",
+      "type": "int",
+      "low": 30,
+      "high": 100,
+      "note": "Window for swing high/low used to compute Fibonacci levels; longer = more structural levels"
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 5,
+      "note": "ATR-14 multiplier for stop loss below entry; current evolved value 4.55 is very wide, sweep tighter for long-only"
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 2,
+      "high": 8,
+      "note": "ATR-14 multiplier for take profit above entry; should maintain positive expected R"
+    },
+    {
+      "name": "min_volume_ratio",
+      "type": "float",
+      "low": 0.5,
+      "high": 1.8,
+      "note": "Minimum volume_ratio (vs 20-bar SMA) to allow entry; higher = stricter volume confirmation"
+    },
+    {
+      "name": "rsi_upper_bound",
+      "type": "int",
+      "low": 60,
+      "high": 82,
+      "note": "RSI-14 ceiling for long entry; block entries in overbought zone; lower = more selective"
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 24,
+      "high": 96,
+      "note": "Maximum hours to hold a position before forced exit; current 48h is reasonable, explore 24-96"
+    },
+    {
+      "name": "require_higher_lows",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Whether to require ascending lows in structure_lookback window before entry; currently evolved off, test if it helps long-only quality"
+    },
+    {
+      "name": "structure_lookback",
+      "type": "int",
+      "low": 3,
+      "high": 10,
+      "note": "Bars to check for higher-lows confirmation; only relevant if require_higher_lows=True"
+    },
+    {
+      "name": "buying_pressure_min",
+      "type": "float",
+      "low": 0.4,
+      "high": 0.7,
+      "note": "New param: minimum buying_pressure on entry bar to confirm buyers at fib level; not in current code, add as optional filter"
+    },
+    {
+      "name": "obv_divergence_positive",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "New param: require obv_divergence > 0 (OBV above its 20-bar SMA) at entry; informative accumulation filter"
+    }
+  ],
+  "do_not_optimize": [
+    "bmsb_sma_period (20) and bmsb_ema_period (21) \u2014 these are canonical BMSB periods; changing them changes the indicator identity, not a trading parameter",
+    "fib_levels list [0.382, 0.5, 0.618] \u2014 these are fixed mathematical Fibonacci ratios; sweeping them introduces data-mined ratio selection with no theoretical basis",
+    "trend_ema_period (50) \u2014 a standard trend-definition EMA; sweeping this against the same data that also has BMSB creates redundant multicollinearity and overfitting risk",
+    "volume_ma_period (20) \u2014 the lookback for volume SMA is a cosmetic parameter, not a signal parameter; sweeping it at the hourly level would surface spurious correlations",
+    "allowed_regimes list \u2014 this is a structural constraint that should be set by domain judgment, not optimized; sweeping which regime labels are 'allowed' amounts to fitting labels to regimes on training data",
+    "require_bmsb_bullish \u2014 this must be True for the long-only version; it is a hard constraint, not a tunable parameter",
+    "rsi_lower_bound \u2014 for long-only, the RSI lower bound (was 34) should be dropped entirely: a pullback to a Fibonacci zone will naturally produce lower RSI; blocking it hurts entry quality"
+  ],
+  "risk_management": {
+    "stop": "ATR-14 based stop below entry: stop_loss = entry_price - stop_loss_atr_mult * atr_14. Current evolved value of 4.55x is very wide for spot; target sweep range 1.5\u20134.0x. The backtester fills stop at the stop_loss price when bar low <= stop_loss, which is the correct mechanism.",
+    "take_profit": "ATR-14 based take profit above entry: take_profit = entry_price + take_profit_atr_mult * atr_14. Must maintain R/R >= 1.2 (TP/SL ratio). Sweep range 2.0\u20138.0x. Evolved 5.58x is reasonable for trend-following where winners need to be large.",
+    "trailing": "Optional trailing stop: after price moves 2x ATR above entry, trail stop to breakeven plus 0.5x ATR; after 3x ATR move, trail at 1x ATR below current price. This is not currently in code \u2014 add as a boolean parameter trail_stop_enabled with trail_activation_atr_mult in genome.",
+    "vol_target": "Use volatility_scaled sizing from RiskConfig: vol_target_annualized=0.40 (40% annualized vol target) so position size scales inversely with gk_vol or realized_vol_20. During high-ATR regimes, this naturally reduces exposure. Cap at max_position_pct.",
+    "max_size": "max_position_pct <= 0.25 (25% of equity per trade) for spot long-only. Given the 48h time stop and wide ATR-based SL, a full 100% position would create unacceptable drawdown. Signal-strength scalar (0.5\u20131.0) already modulates size in current code.",
+    "cooldown": "Minimum 4-hour cooldown between trades (min_time_between_trades in RiskManager) to prevent rapid re-entry after a stop-out. The backtester's entry_lag_bars=1 already enforces 1-bar delay. Add 4h minimum interval at the RiskManager level.",
+    "risk_off": "Hard gate: if regime not in ['trend', 'breakout'] \u2192 no entry (already implemented). Additional risk-off: if bmsb_bullish==False \u2192 cash only (already enforced by long-only conversion). Optional: if gk_vol > 2.5x its 50-bar median \u2192 halve max_position_pct or skip entirely. Circuit-breaker in RiskManager halts trading if full-sample drawdown exceeds max_drawdown_pct threshold."
+  },
+  "metrics": [
+    "CAGR (annualized compound growth rate) \u2014 primary return metric; target > 15% for spot long-only to justify active strategy vs buy-and-hold BTC",
+    "Sharpe ratio (annualized, risk-free=0) \u2014 target >= 1.0 OOS; current evolved IS Sharpe=1.62 is promising but must survive OOS",
+    "Sortino ratio (downside deviation only) \u2014 more relevant for long-only spot since we only care about downside risk; target >= 1.2",
+    "Maximum drawdown % (full-sample, peak-to-trough) \u2014 hard limit 25% for Phase 3 spot; the engine's WalkForwardValidator already computes full-sample DD",
+    "Calmar ratio (CAGR / maxDD) \u2014 composite risk/return metric; target >= 0.5",
+    "Hit rate (% winning trades) \u2014 for a trend-following strategy with wide SL and TP, expect 40\u201355% hit rate; too high (>65%) suggests TP is too tight or SL too wide",
+    "Average trade P/L net of costs \u2014 must be positive after commission (0.06%) + slippage; given 181 trades across evolution period, avg trade should be >= 0.3% to survive costs",
+    "Turnover (trades per month) \u2014 at 181 trades over evolution period, expect ~5-15 trades/month; too low (<3) reduces statistical confidence, too high (>30) creates cost drag",
+    "Market exposure % (fraction of time in position) \u2014 for trend-following with 48h time stop, expect 15\u201340% exposure; lower exposure = better Sharpe per unit risk",
+    "Cost sensitivity test \u2014 rerun backtest at 2x and 3x assumed commission+slippage; robust strategy should maintain positive Sharpe at 2x costs",
+    "Bootstrap / Monte Carlo confidence interval \u2014 resample trade returns 1000x to get 95% CI on Sharpe and maxDD; reject if CI lower bound is negative Sharpe",
+    "Per-year Sharpe stability \u2014 compute annual Sharpe for each calendar year 2019\u20132023 (pre-lockbox); strategy should have positive Sharpe in >= 4 of 5 years; 2022 bear market is the key stress test",
+    "OOS degradation % \u2014 engine's compute_oos_degradation(train, test); target <= 40% degradation from IS to OOS Sharpe; current WF shows Sharpe actually improving OOS (1.62 IS vs 1.96 WF) which is suspicious and warrants scrutiny",
+    "Profit factor (gross profit / gross loss) \u2014 target > 1.3; already in robustness check (>1.0 required)"
+  ],
+  "sweep_changes": [
+    "REMOVE short branch entirely: delete the is_downtrend path, the 'short' side Signal emission, and the short-side SL/TP calculation. Replace: if not is_uptrend: return None. This is the mandatory Phase 3 conversion.",
+    "REMOVE rsi_lower_bound filter for long entries: the current code returns None if is_uptrend and rsi_val < rsi_lower_bound (34). In a Fibonacci pullback strategy, a lower RSI during the pullback is desirable, not a disqualifier. Remove this guard for longs or set it to a fixed low value (e.g., 20) outside the sweep.",
+    "ADD buying_pressure_min parameter: after the volume filter, add a check that current['buying_pressure'] >= buying_pressure_min (default 0.45) to confirm buyers are active at the Fibonacci level. Add to genome with range 0.35\u20130.65.",
+    "ADD obv_divergence confirmation (optional, bool): if obv_divergence_positive=True, require current['obv_divergence'] > 0 (OBV above its 20-bar SMA) before entering long. This filters entries during distribution phases where price holds but volume is declining.",
+    "EXPAND fib_lookback into genome: current code uses fixed 50-bar lookback for swing high/low. Add to sweep as int [30, 100] to let evolution find the most relevant structural swing horizon.",
+    "ADD time_stop_hours to genome: sweep [24, 96] to let evolution choose optimal holding period for long-only (may prefer shorter holds in volatile regimes).",
+    "ADD require_higher_lows as bool genome param: test whether requiring ascending lows in the last structure_lookback bars improves long-only trade quality. Current evolved value is False.",
+    "CHANGE allowed_regimes to hard-code ['trend', 'breakout'] and remove from sweep: regime label optimization on training data is an overfitting vector. The regime gate should be a structural constraint.",
+    "ADD rsi_upper_bound sweep for long-only only: in long-only, block entry if RSI > rsi_upper_bound (sweep 65\u201382). This prevents chasing extended moves at Fibonacci zones that have already run far.",
+    "VALIDATE BMSB period scaling: the PARAMS use bmsb_sma_period=20 and bmsb_ema_period=21. On hourly data, the canonical 20-week/21-week BMSB would be ~3360 and ~3528 bars. The current 20/21 makes BMSB a very short-term filter. Document this explicitly and consider adding a separate long-term trend filter (e.g., close > close.rolling(500).mean()) as an additional bull-market gate.",
+    "ADD walk-forward sweep discipline: all genome evaluations must use pre-2024 data only (embargo at 2024-06-07). The sweep should use WalkForwardValidator with embargo_bars=120, train_days=60, val_days=15, test_days=15 as already implemented in the engine."
+  ],
+  "methodological_risks": [
+    "SHORT-TO-LONG CONVERSION RISK: The strategy was evolved with both long and short branches. Removing the short branch changes the opportunity set (fewer trades, different regime coverage). The evolved parameters (especially ADX threshold=30.17, SL/TP multiples) were optimized for a combined long+short PnL stream. Re-evolution on long-only data is mandatory \u2014 do not use the evolved parameters as-is.",
+    "BMSB PERIOD MISMATCH: The PARAMS use periods 20/21 on what appears to be hourly bars. The canonical BMSB uses 20-week and 21-week MAs. On 1h data, 20 bars = 20 hours (not 20 weeks). This makes bmsb_bullish a very short-term indicator, not the intended macro bull-market filter. The strategy comment says 'adapted to hourly' but does not verify period scaling. This is a conceptual risk: the BMSB filter may fire during intra-day bounces within a bear market.",
+    "FIBONACCI SWING LOOKBACK OVERFITTING: Swing high and low are computed as max(high) and min(low) over the last fib_lookback bars. The tolerance parameter (2.1%) is wide enough to match almost any price to one of three Fibonacci levels most of the time. This could make the Fibonacci filter nearly inactive, and the real entry driver becomes just BMSB + ADX. Run a test where fib_levels is set to non-Fibonacci values ([0.3, 0.45, 0.55]) to check whether the Fibonacci structure matters at all.",
+    "SMALL TRADE COUNT: 181 trades across the evolution period is borderline for statistical inference. At hourly bars from 2019\u20132024, this is roughly 43,000 bars with only 181 entries (~0.4% entry rate). Bootstrap CI on Sharpe with n=181 will be very wide. OOS WF Sharpe improving over IS Sharpe (1.96 vs 1.62) is a red flag \u2014 it could indicate lucky OOS windows rather than genuine edge.",
+    "EVOLVED PARAMETER RECENCY BIAS: The comment notes evolution ran to generation ~400 with 1112 evaluations. With 7 genome parameters and 1112 evaluations, the search space is moderately covered but susceptible to local optima. The ADX threshold of 30.168 (not 30.0) suggests the optimizer found a precise local optimum that may not generalize.",
+    "SAME-BAR SIGNAL COMPUTATION INSIDE POSITION EXIT PATH: The backtester calls strategy_fn(df, i, position) to check for a signal-exit even when a position is open. The strategy returns None whenever position is not None (line 83-84), so signal-exits are impossible \u2014 the only exits are SL, TP, and time_stop. This means a trend reversal (BMSB turning bearish mid-trade) does not trigger an early exit. For long-only spot, this is suboptimal: a BMSB bearish flip during a long trade should trigger an exit.",
+    "COST DRAG AT LOW FREQUENCY: With ~5-15 trades/month and wide SL (4.55x ATR), each losing trade is costly. At commission 0.06% round-trip + slippage 0.05%, a 4.55x ATR stop on BTC at $50k with ATR=$1000 is a $4550 loss on a full position. The strategy needs enough winners at 5.58x TP to overcome this. In a long-only spot regime with fewer trades, cost drag per unit exposure is higher than in the evolved combined long+short version.",
+    "REGIME LABEL DEPENDENCY: The strategy depends on the engine passing regime as a string ('trend', 'breakout', etc.). If the regime classifier changes or is recalibrated, the strategy's behavior changes non-deterministically. The regime gate should be independently reproducible from price data alone."
+  ]
+}

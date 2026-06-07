@@ -1,0 +1,178 @@
+{
+  "strategy": "kama_trend",
+  "classification": "candidate",
+  "diagnosis": "kama_trend computes a Kaufman Adaptive Moving Average (KAMA) over a rolling 200-bar window at every bar. KAMA's efficiency ratio (ER = direction/volatility) controls the smoothing constant, making the average fast during trending price action and nearly stationary during noise. The strategy generates a bullish entry in two sub-cases: (a) KAMA direction flip from falling to rising while price is above KAMA and slope > threshold, or (b) slope > 2x threshold while the previous bar's close was below KAMA and current close is above (crossover). It mirrors both sub-cases with negative slope for a SHORT entry. The strategy does emit short signals (lines 126-131: side = \"short\"). It holds only one position at a time, exits via ATR-based stop/TP or a 48-hour time stop. Entry is gated by ADX >= adx_min and optionally by volume_ratio. The regime filter currently allows \"trend\", \"breakout\", and \"lateral\", meaning it fires broadly.\n\nThe claimed IS Sharpe of 3.32 with only 18 trades is a severe red flag for overfitting \u2014 18 trades is far too few to establish statistical significance (t-stat < 2 requires ~50+ trades for a Sharpe of 1). The evolved params were selected over 4,211 evaluations, implying heavy search over a small trade count, making the walk-forward claim of WF_Sharpe=4.25 suspect. The core KAMA mechanism is nevertheless sound: adaptive smoothing genuinely adapts position relative to trend quality, and the dual-condition entry (flip or strong slope + crossover) keeps entries selective. The weakness is relying on KAMA slope alone without a secondary momentum or volume confirmation, and the absence of a macro regime gate beyond ADX.",
+  "long_only_hypothesis": "KAMA's efficiency ratio is high precisely when price is making sustained directional progress relative to its noise (trending). In crypto spot markets, strong bull trends exist with measurable persistence. The hypothesis: when KAMA begins rising (ER has been elevated for several bars, confirming a genuine directional move rather than a noise spike) and spot price crosses or remains above KAMA, hold spot \u2014 exit to cash otherwise. This captures the early-to-mid phase of a trend, sidesteps the mean-reverting noise regime where KAMA is nearly flat, and exits to cash rather than going short during reversals, naturally avoiding the downside exposure that the short branch previously captured. The edge is that KAMA's adaptive smoothing identifies trend quality more robustly than a fixed-period MA, so entries are skewed toward higher-momentum, lower-noise windows.",
+  "market_techniques": [
+    "Adaptive moving average trend-following (KAMA efficiency ratio as trend-quality gate)",
+    "ATR-normalized stop-loss and take-profit for consistent risk units across volatility regimes",
+    "1-bar entry lag (next-bar open fill) already built into the backtester \u2014 ensures no same-bar look-ahead",
+    "Regime-aware filtering (ADX floor to exclude lateral/noise conditions)",
+    "Volatility-scaled position sizing using atr_14 so position risk is normalized across calm and choppy periods",
+    "Walk-forward expanding-window validation to detect overfitting before touching the OOS lockbox",
+    "Bootstrap / Monte Carlo simulation on trade sequences for Sharpe confidence intervals (especially critical given the historically low trade count)",
+    "Cooldown period after a stop-loss exit to prevent chasing whipsaws in noisy conditions"
+  ],
+  "useful_features": [
+    "trend: adx_14 \u2014 already in use; primary trend-strength gate",
+    "trend: bmsb_bullish \u2014 confirms price above 20W SMA and 21W EMA, filtering for macro bull phases only",
+    "trend: roc_12 \u2014 rate of change over 12 bars for secondary momentum confirmation of KAMA direction",
+    "momentum: rsi_14 \u2014 avoid buying into overbought conditions (RSI > 75 caution gate); avoids chasing tops",
+    "momentum: price_acceleration \u2014 second derivative of price; positive acceleration strengthens the entry case",
+    "volatility: atr_14 \u2014 already in use for stop/TP sizing; also used for position sizing denominator",
+    "volatility: bb_bandwidth \u2014 low BB bandwidth = compression; rising bandwidth from low baseline suggests breakout, aligning with KAMA flip",
+    "volatility: bb_bw_percentile \u2014 percentile rank of BB bandwidth; low percentile (<25) before entry confirms compression regime prior to expansion",
+    "volatility: gk_vol \u2014 Garman-Klass estimator; cross-check ATR for position sizing on extreme-volatility days",
+    "volume: volume_ratio \u2014 relative volume vs 20-bar SMA; volume confirmation that the KAMA crossover has institutional backing",
+    "volume: volume_zscore \u2014 spike detection; very high volume (z > 2) on the entry bar adds conviction",
+    "volume: obv_divergence \u2014 OBV vs its SMA; positive divergence signals accumulation behind the trend",
+    "price/return: ret_zscore_20 \u2014 z-score of 1-bar return; avoid entries when ret_zscore > 3 (parabolic spike, mean-reversion risk)",
+    "market regime: bb_pct_b \u2014 position within Bollinger Bands; entry when bb_pct_b > 0.5 confirms upside momentum",
+    "drawdown filter: dist_from_high_20 \u2014 entering when price is within 5% of its 20-bar high confirms trend strength",
+    "microstructure: buying_pressure \u2014 bar-level buyer dominance (close near high); confirm demand on signal bar",
+    "microstructure: pressure_imbalance \u2014 cumulative buy/sell imbalance over 10 bars as a trend confirmation signal"
+  ],
+  "genome_params": [
+    {
+      "name": "er_period",
+      "type": "int",
+      "low": 8,
+      "high": 25,
+      "note": "Efficiency ratio lookback. Shorter = more reactive KAMA; longer = smoother but more lag. Range extended to 25 from current 20 ceiling to allow exploration."
+    },
+    {
+      "name": "fast_sc",
+      "type": "int",
+      "low": 2,
+      "high": 6,
+      "note": "Fast smoothing constant. Lower = more aggressive fast tracking; keep ceiling at 6 since above 6 the 'fast' side of KAMA becomes too slow to be meaningful."
+    },
+    {
+      "name": "slow_sc",
+      "type": "int",
+      "low": 20,
+      "high": 40,
+      "note": "Slow smoothing constant. Controls noise-floor tracking speed. Range extended to 40 to allow more sluggish baselines in choppy regimes."
+    },
+    {
+      "name": "signal_period",
+      "type": "int",
+      "low": 3,
+      "high": 10,
+      "note": "Bars over which KAMA slope is measured. Longer = smoother slope estimate, fewer whipsaw entries."
+    },
+    {
+      "name": "slope_threshold_pct",
+      "type": "float",
+      "low": 0.02,
+      "high": 0.2,
+      "note": "Minimum KAMA slope in percent over signal_period to qualify as trending. Evolved value 0.1325 is within range; wider range for exploration."
+    },
+    {
+      "name": "adx_min",
+      "type": "float",
+      "low": 10,
+      "high": 30,
+      "note": "ADX floor. Prevents entries in pure noise. Current evolved value 16.7 is reasonable; allow up to 30 to enforce stricter trend-only entries."
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 4,
+      "note": "ATR multiplier for stop-loss. Controls trade-level risk per unit of volatility."
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 2,
+      "high": 6,
+      "note": "ATR multiplier for take-profit. Should generally exceed stop to maintain positive expectancy."
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 24,
+      "high": 120,
+      "note": "Maximum hours to hold a trade without reaching SL/TP. Prevents capital lock-up in stalled trades."
+    },
+    {
+      "name": "volume_threshold",
+      "type": "float",
+      "low": 0.6,
+      "high": 1.5,
+      "note": "Minimum volume_ratio when require_volume=True. Only sweep when require_volume is forced on."
+    },
+    {
+      "name": "rsi_max_entry",
+      "type": "float",
+      "low": 65,
+      "high": 85,
+      "note": "NEW: upper RSI gate \u2014 skip entries when rsi_14 > this value to avoid buying into overbought extensions. Replaces the missing top-filter."
+    },
+    {
+      "name": "bb_bw_pctile_min",
+      "type": "float",
+      "low": 0,
+      "high": 40,
+      "note": "NEW: minimum BB bandwidth percentile at entry. Low values (<25) mean we entered during compression \u2014 a valid breakout setup. Set 0 to disable."
+    }
+  ],
+  "do_not_optimize": [
+    "require_trend_regime \u2014 boolean gate; toggling it in the genome exposes the optimizer to regime-label overfitting since regime labels are themselves heuristic",
+    "allowed_regimes \u2014 list of strings; enumerating subsets over 4211 evals is pure combinatorial overfitting given only 18 trades",
+    "require_volume \u2014 as a boolean coupled with volume_threshold it creates a two-param interaction that is too easy to over-tune on a small sample; fix require_volume=True and sweep only volume_threshold separately",
+    "fast_sc and slow_sc simultaneously \u2014 they interact nonlinearly via the KAMA smoothing formula; sweeping both together on 18 trades is a textbook overfitting trap; fix slow_sc at a biologically meaningful default (30) and sweep only fast_sc"
+  ],
+  "risk_management": {
+    "stop": "ATR-based stop loss at entry_price - stop_loss_atr_mult * atr_14. Current evolved value of 2.28x ATR is reasonable; enforce a floor of 1.5x ATR to prevent stops so tight they are triggered by normal volatility. Stop is set at signal time and held fixed (no trailing until a trailing option is added).",
+    "take_profit": "ATR-based TP at entry_price + take_profit_atr_mult * atr_14. Current 3.18x ATR gives a reward:risk ratio of ~1.4:1 with 2.28x SL \u2014 acceptable minimum. Prefer 2.0+ ratio; enforce floor of 2.0x ATR and allow genome to push higher.",
+    "trailing": "Optional: activate a trailing stop that ratchets up to entry_price + 1x ATR once the trade is 1.5x ATR in profit, then trails at 1.5x ATR below the rolling high. This converts time stops into profit-protection stops on strong trending moves and avoids giving back large open gains.",
+    "vol_target": "Volatility-scaled sizing: target 15% annualized portfolio vol. Position size = equity * (vol_target / realized_vol_20) capped at max_position_pct. Use gk_vol or atr_14/price as the vol estimate. This naturally reduces exposure during crypto volatility spikes.",
+    "max_size": "Cap position at 80% of equity (max_position_pct=0.80) to always maintain a cash buffer. In long-only spot, a 100% allocation means zero ability to act on new signals or survive an early stop.",
+    "cooldown": "After any stop-loss exit, impose a 4-bar cooldown (no new entries for 4 bars / ~4 hours on hourly data) to prevent immediate re-entry into the same whipsaw. Optionally extend cooldown to 12 bars if two consecutive stop-losses occur.",
+    "risk_off": "Gate entries with bmsb_bullish=True as a macro regime filter (price above 20W SMA and 21W EMA). When bmsb_bullish=False, suppress all new long entries regardless of KAMA signal, effectively going to cash. This provides a coarse bear-market filter without requiring a short position."
+  },
+  "metrics": [
+    "CAGR (annualized, compound) over OOS period 2024-06 to 2026-06",
+    "Sharpe ratio (annualized, risk-free = 0 for crypto spot) \u2014 target > 1.2 OOS",
+    "Sortino ratio (only downside deviation in denominator) \u2014 more relevant for asymmetric long-only returns",
+    "Maximum drawdown (peak-to-trough, full-sample continuous run) \u2014 hard limit 25% for spot long-only",
+    "Calmar ratio (CAGR / max drawdown) \u2014 target > 1.0",
+    "Hit rate (% winning trades) \u2014 with positive reward:risk this can be below 50%; target > 40%",
+    "Profit factor (gross wins / gross losses) \u2014 target > 1.5",
+    "Trade count (total OOS) \u2014 CRITICAL: minimum 30 trades for any statistical inference; reject configurations producing fewer",
+    "Average trade duration (hours held) \u2014 diagnose whether time_stop is doing most of the work",
+    "Turnover (round-trips per month) \u2014 monitor cost sensitivity; high turnover kills edge with commission+slippage",
+    "Exposure ratio (fraction of bars in-position) \u2014 long-only spot; low exposure means lower risk but also lower CAGR; track separately",
+    "Cost sensitivity test: rerun OOS with 2x commission+slippage and confirm Sharpe degrades by less than 30%",
+    "Bootstrap confidence interval on Sharpe (1000 resamples of trade returns with replacement) \u2014 reject if 5th pctile Sharpe < 0.5",
+    "Per-year Sharpe decomposition (2024, 2025, 2026 partial) to confirm no single-year dominance",
+    "Walk-forward OOS degradation: IS Sharpe vs OOS Sharpe per fold \u2014 target OOS/IS ratio > 0.6",
+    "Max consecutive losses \u2014 for mental/operational risk management assessment"
+  ],
+  "sweep_changes": [
+    "REMOVE short branch entirely: delete lines 125-131 in kama_trend.py (the elif price_below block that sets side='short'); replace with a comment marking that short signals are dropped in Phase 3. When KAMA is declining and price crosses below, emit None (go to cash silently).",
+    "ADD rsi_max_entry gate: after the ADX check, add 'if float(current.get(\"rsi_14\", 50)) > p[\"rsi_max_entry\"]: return None' to avoid buying into overbought tops. Add 'rsi_max_entry': 75 to PARAMS and genome.",
+    "ADD bmsb_bullish macro filter: add 'if not current.get(\"bmsb_bullish\", True): return None' to enforce the bull-market support band as a regime gate. This replaces the currently unreliable 'allowed_regimes' list.",
+    "ADD volume confirmation as always-on gate: set require_volume=True fixed in PARAMS; keep volume_threshold in the genome as a swept param (range 0.6 to 1.5) rather than the boolean toggle.",
+    "ADD rsi_max_entry and bb_bw_pctile_min as new swept params in STRATEGY_REGISTRY param_space with the ranges specified in genome_params.",
+    "EXTEND er_period genome range upper bound from 20 to 25 in auto_evolve.py STRATEGY_REGISTRY.",
+    "EXTEND slow_sc genome range to (20, 40) and REMOVE slow_sc from simultaneous co-optimization with fast_sc by fixing slow_sc=30 as the starting default \u2014 only sweep fast_sc (2-6) in early rounds; unlock slow_sc in a later round once trade count is confirmed sufficient.",
+    "ADD time_stop_hours to the genome (24\u2013120) \u2014 it is currently a fixed PARAMS value of 48 not in the param_space; time horizon significantly affects trade count and Sharpe.",
+    "ENFORCE trade count floor of 30 in WalkForwardValidator robustness check: reject genomes where aggregate.total_trades < 30 regardless of Sharpe, given the historical 18-trade IS count.",
+    "ADD bootstrap Sharpe CI reporting to the sweep output: after each candidate genome is evaluated, compute 1000-resample bootstrap CI on OOS trade returns and log the 5th-percentile Sharpe alongside the point estimate.",
+    "REPLACE allowed_regimes list from PARAMS and genome with the bmsb_bullish binary gate; remove require_trend_regime from PARAMS entirely (redundant once bmsb and ADX gates are in place)."
+  ],
+  "methodological_risks": [
+    "Low trade count (18 IS trades) is the dominant risk: with a 4211-evaluation genetic search, any observed Sharpe above ~2.0 on 18 trades is almost certainly the result of selecting a lucky trade sequence rather than discovering a genuine edge. The WF_Sharpe=4.25 is especially suspect \u2014 small OOS windows on few trades have enormous variance.",
+    "The current param_space simultaneously sweeps fast_sc and slow_sc alongside slope_threshold_pct and adx_min \u2014 four interacting parameters over an already tiny trade set. This is a classic parameter soup / overfitting cocktail.",
+    "The allowed_regimes=['trend','breakout','lateral'] list effectively includes nearly all regimes, making require_trend_regime=True almost a no-op. If the regime classifier itself is not robustly OOS-validated, this filter provides false confidence.",
+    "The KAMA computation is re-run from scratch on a trailing 200-bar window at every bar (O(n^2) worst case). For validation this is fine, but results must be verified to match a streaming implementation to avoid numerical differences between backtest and live.",
+    "same-bar signal vs. next-bar fill: the backtester correctly uses entry_lag_bars=1 (next bar's open), but the strategy's KAMA slope is measured up to and including bar_idx. If the KAMA is computed on the close that triggers the signal, and entry is at next bar's open, the gap risk between signal bar close and next bar open is not modeled \u2014 in crypto this can be 0.5-2% adverse on breakouts.",
+    "Walk-forward fold granularity: with 15-day test windows and ~18 total trades in the full sample, many individual WF folds will have 0-2 trades. Averaging Sharpe ratios across nearly-empty folds is statistically meaningless \u2014 the aggregate WF Sharpe number should not be trusted at face value.",
+    "The stop_loss is set at the signal bar's price, but the actual entry fill is at the next bar's open. If the next open gaps significantly (e.g., +2% on a BTC news catalyst), the effective stop distance in ATR units is different from what was intended, creating inconsistent risk per trade.",
+    "Survivorship and selection bias in genetic evolution: 296 generations of selection on a train dataset that covers 2019-2026 (minus the 2-year OOS lockbox) may have selected params that are specifically good for the 2021 bull run or 2023 recovery \u2014 periods with unusually clean KAMA signals. The OOS lockbox (2024-2026) contains a meaningfully different macro context.",
+    "The bmsb_sma and bmsb_ema in features.py use periods of 20 and 21 (bars, not weeks), which on hourly data represents 20 hours \u2014 not the intended 20-week/21-week bands from Bitcoin analysis. This makes the bmsb_bullish feature potentially meaningless as a macro filter unless the period parameters are adjusted to reflect weekly timescales (3360 and 3528 hours respectively)."
+  ]
+}

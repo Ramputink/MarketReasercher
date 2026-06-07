@@ -1,0 +1,183 @@
+{
+  "strategy": "rsi_divergence",
+  "classification": "doubtful",
+  "diagnosis": "The strategy detects classic price/RSI divergence over a rolling `divergence_lookback` window split into two equal halves. For bullish divergence it compares minimum prices and RSI values in the first half vs the second half; for bearish divergence it compares maximums. It requires RSI to be below `rsi_extreme_low` (35) for bullish and above `rsi_extreme_high` (65) for bearish signals. An ADX cap (`adx_max` = 35) forces it away from strong trends, and an optional volume-decline filter exists. Stop/take-profit are ATR-based (2.5x / 3.5x). Time stop at 36 hours.\n\nThe strategy DOES emit short signals: the bearish-divergence branch generates `Signal(side=\"short\", ...)`, including a flipped stop_loss (close + ATR * mult) and take_profit (close - ATR * mult). This branch is active and must be dropped for Phase-3 compliance.\n\nThe strategy was explicitly listed in Round 1 of the STRATEGY_REGISTRY pruning notes in auto_evolve.py with 0% positive fitness across 29,000 evaluations. It is not in the current active STRATEGY_REGISTRY. It therefore has NO demonstrated viability in the existing evolutionary framework.\n\nLikely edge: RSI bullish divergence can capture genuine mean-reversion bounces from oversold levels in ranging/lateral markets, but in crypto's dominant trending-up environment the signal fires rarely and often too early. The half-window min/max comparison is a very crude approximation of swing divergence \u2014 it catches coincidental coincidences in noisy data at least as often as true structural divergence. The bearish branch is irrelevant for long-only and further pollutes the signal space. The regime gate (lateral, mean_reversion, trend) is broad enough to let almost anything through.\n\nWeakness: The divergence detection (split-window min/max) does not identify actual price swing pivots. It is equivalent to comparing averages of two halves, making it sensitive to any transient dip. Very low true-positive rate in trending markets. RSI thresholds of 35/65 are loose for crypto (RSI can stay near 70 for weeks in strong uptrends). The 0% positive fitness in 29K evolutionary evals is the decisive evidence that even generous parameter sweeps cannot find a profitable regime.",
+  "long_only_hypothesis": "In ranging or early-recovery crypto regimes, price sometimes makes a lower low while RSI makes a higher low, signalling exhaustion of selling pressure. If this divergence is detected at a confirmed swing low (not just a half-window minimum artifact), near strong support (BMSB, VWAP, Bollinger lower band), with volume contraction during the re-test leg, the setup can produce a mean-reversion bounce that justifies going long spot with a tight ATR stop. The long-only version drops the bearish branch entirely and adds regime, support-proximity, and volume-contraction filters to reduce false positives, making it long-or-flat only. The core bet is: oversold RSI divergence + volume dry-up + structural support = exhausted sellers; enter long, target prior swing high or 3-4x ATR, exit on time stop if the bounce fails.",
+  "market_techniques": [
+    "Split-window RSI divergence (bullish branch only, drop bearish entirely)",
+    "ATR-based adaptive stops and take-profits",
+    "ADX cap to avoid strong-trend false signals (mean-reversion context)",
+    "Volume contraction confirmation on the re-test leg (volume_ratio < threshold signals seller exhaustion)",
+    "Bollinger Band lower-band proximity filter (price near or below lower band adds structural support context)",
+    "BMSB (Bull Market Support Band) as regime gate \u2014 only trade longs when price is above or re-testing the BMSB",
+    "VWAP distance filter \u2014 entries only when price is near or below VWAP_20 to avoid chasing",
+    "Pressure imbalance as entry timing \u2014 buying_pressure rising at divergence confirmation",
+    "OBV divergence cross-check \u2014 OBV should NOT be making a new low to confirm divergence is real",
+    "Time-based exit (time_stop_hours) as primary exit when take-profit not reached"
+  ],
+  "useful_features": [
+    "momentum: rsi_14 \u2014 primary divergence oscillator, current-bar level gate",
+    "momentum: rsi_7 \u2014 faster RSI for entry timing refinement after divergence detection",
+    "trend: adx_14 \u2014 cap to ensure mean-reversion context; high ADX = skip",
+    "volatility: atr_14 \u2014 stop and take-profit distance denominator",
+    "volatility: atr_7 \u2014 shorter-window ATR for tighter stop in low-vol regimes",
+    "volatility: bb_pct_b \u2014 proximity to Bollinger lower band as support confirmation",
+    "volatility: bb_bandwidth \u2014 low bandwidth = compression before potential bounce",
+    "volatility: gk_vol \u2014 regime filter; extremely high GK vol = avoid (gap risk)",
+    "volume: volume_ratio \u2014 confirm volume contraction on re-test (require_volume_decline filter)",
+    "volume: obv_divergence \u2014 OBV vs OBV_SMA; positive divergence supports bullish price divergence",
+    "volume: volume_zscore \u2014 spike detector; avoid entering on volume spike re-tests",
+    "trend: bmsb_bullish \u2014 boolean flag; long-only entries only when above BMSB or re-testing it",
+    "mean-reversion: dist_from_low_20 \u2014 how far price is from 20-bar low; low distance = oversold context",
+    "mean-reversion: ret_zscore_20 \u2014 z-score of recent returns; extreme negative z-score confirms oversold",
+    "microstructure: pressure_imbalance \u2014 buying_pressure - selling_pressure; should turn positive at divergence confirmation",
+    "microstructure: buying_pressure \u2014 close relative to bar range; rising at signal bar is confirming",
+    "price: vwap_20 \u2014 support/resistance context; entries below VWAP are better risk-adjusted",
+    "market regime: regime string \u2014 gate on lateral / mean_reversion only (drop trend from allowed_regimes to reduce false breakout entries)"
+  ],
+  "genome_params": [
+    {
+      "name": "divergence_lookback",
+      "type": "int",
+      "low": 8,
+      "high": 30,
+      "note": "Number of bars over which split-window divergence is measured. Shorter = more frequent but noisier signals; longer = rarer but more confirmed divergences."
+    },
+    {
+      "name": "rsi_extreme_low",
+      "type": "float",
+      "low": 25,
+      "high": 45,
+      "note": "RSI must be below this threshold for a bullish-divergence long entry. Tighter (25) = fewer but more oversold signals; looser (45) = more frequent."
+    },
+    {
+      "name": "min_price_delta_pct",
+      "type": "float",
+      "low": 0.3,
+      "high": 3,
+      "note": "Minimum percentage price decline from first-half min to second-half min to qualify as a lower low. Prevents triggering on negligible moves."
+    },
+    {
+      "name": "min_rsi_delta",
+      "type": "float",
+      "low": 2,
+      "high": 15,
+      "note": "Minimum RSI improvement from first-half min to second-half min to qualify divergence. Prevents weak divergence signals."
+    },
+    {
+      "name": "adx_max",
+      "type": "float",
+      "low": 20,
+      "high": 45,
+      "note": "Maximum ADX allowed for entry. Low values enforce mean-reversion context; high values allow entries in mild trends."
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 4,
+      "note": "ATR multiplier for stop-loss distance. Must be wide enough to survive divergence noise but not so wide it destroys risk-reward."
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 2,
+      "high": 6,
+      "note": "ATR multiplier for take-profit target. Should exceed stop multiplier to keep R:R positive."
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 18,
+      "high": 72,
+      "note": "Maximum hours to hold if neither stop nor take-profit is hit. Divergence bounces typically resolve within 1-3 days; longer = more drift risk."
+    },
+    {
+      "name": "require_volume_decline",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Toggle volume-contraction confirmation (volume_ratio below volume_decline_ratio). When True, filters signals where re-test volume is not drying up."
+    },
+    {
+      "name": "volume_decline_ratio",
+      "type": "float",
+      "low": 0.5,
+      "high": 0.95,
+      "note": "Threshold for volume_ratio below which volume is considered contracting. Only active when require_volume_decline=True."
+    },
+    {
+      "name": "require_obv_confirm",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "NEW: require OBV divergence (obv_divergence > 0) to co-confirm bullish price/RSI divergence. Reduces false positives."
+    },
+    {
+      "name": "require_bmsb",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "NEW: gate entries on bmsb_bullish flag (price above both BMSB SMA and EMA). Only enter longs in macro bull-market context."
+    },
+    {
+      "name": "bb_pct_b_max",
+      "type": "float",
+      "low": 0.2,
+      "high": 0.6,
+      "note": "NEW: maximum Bollinger bb_pct_b allowed at entry. Values near 0 mean price is near lower band, adding support-proximity confirmation."
+    }
+  ],
+  "do_not_optimize": [
+    "rsi_period \u2014 fixing at 14 is standard; sweeping it creates look-ahead bias in divergence window construction since the same bars build both RSI and the divergence window",
+    "allowed_regimes \u2014 sweeping the regime set produces severe regime-label overfitting across the limited history; fix at lateral + mean_reversion only for long-only",
+    "require_regime \u2014 always True; turning it off defeats the strategy's only meaningful filter against trending false signals",
+    "divergence_lookback combined with rsi_period in the same sweep \u2014 these two parameters interact multiplicatively in the warmup skip, so sweeping both simultaneously vastly overfits the lookback space"
+  ],
+  "risk_management": {
+    "stop": "ATR-based hard stop: close - atr_14 * stop_loss_atr_mult (genome range 1.5-4.0x). Stop is set at signal time and checked against bar low each subsequent bar. This is already implemented correctly in backtester._settle via position.stop_loss.",
+    "take_profit": "ATR-based take-profit: close + atr_14 * take_profit_atr_mult (genome range 2.0-6.0x). Must exceed stop multiplier. Fixed at signal time and checked against bar high.",
+    "trailing": "No trailing stop initially \u2014 divergence bounces have a discrete target (prior swing high). Optionally add a trailing stop that activates once unrealized gain exceeds 1.5x ATR, protecting a portion of gains against late reversals.",
+    "vol_target": "Volatility-scaled sizing (backtester sizing_method=volatility_scaled): target 15-20% annualized portfolio vol. When gk_vol is elevated (>80th percentile of trailing 90-day distribution), reduce size to 50% of normal. This prevents oversizing into volatile divergence setups that have wide stops.",
+    "max_size": "Hard cap at 25% of equity per trade (max_position_pct=0.25). Given the low win-rate expected from divergence patterns, full-kelly sizing is inappropriate. 25% cap combined with vol-targeting creates a practical ceiling.",
+    "cooldown": "Minimum 24-hour cooldown after any trade (win or loss) to prevent re-entering an identical divergence setup on the same price structure. Implement via risk_manager min_time_between_trades_hours=24.",
+    "risk_off": "Three-layer risk-off gate: (1) regime must be in [lateral, mean_reversion] \u2014 not trend (reduces breakout false signals); (2) bmsb_bullish=True gate prevents shorting against macro uptrend context when long-only (only enter if in macro bull context or re-testing BMSB); (3) circuit-breaker: if drawdown exceeds 15% from equity peak, halt new entries until recovery above 90% of peak \u2014 already supported by backtester/risk_manager circuit breaker logic."
+  },
+  "metrics": [
+    "CAGR \u2014 primary return metric; target >15% annualized on OOS 2024-2026 period",
+    "Sharpe ratio \u2014 target >0.8 on OOS; the strategy is low-frequency so a Sharpe below 0.6 is unacceptable given transaction costs",
+    "Sortino ratio \u2014 more relevant than Sharpe for long-only since upside variance is desirable; target >1.0",
+    "Max drawdown % \u2014 hard limit 20%; divergence strategies can string together many consecutive losses in trending markets",
+    "Calmar ratio (CAGR / MaxDD) \u2014 target >0.5; quantifies return-per-unit-drawdown",
+    "Hit rate (win%) \u2014 expected ~45-55% for a proper mean-reversion divergence; if below 40% in walk-forward OOS the signal has no edge",
+    "Average trade PnL net of costs \u2014 must be positive net of commission (0.04%) + slippage (5bps); divergence setups have wide ATR stops so the raw R:R must compensate",
+    "Turnover / trades per month \u2014 expect 2-6 trades/month given the rarity of valid divergence + all filters; below 2 means insufficient data for robust metrics",
+    "Market exposure % \u2014 time-in-market; divergence strategies should be <30% exposed (mostly in cash), which is correct for spot long-only",
+    "Cost sensitivity test \u2014 degrade commission by 2x and slippage by 2x; if Sharpe drops below 0 the strategy has no true edge beyond cost assumptions",
+    "Bootstrap/MC confidence intervals \u2014 run 500 equity-curve bootstrap samples on the OOS period; report 5th percentile Sharpe and maxDD to bound the luck component",
+    "Per-year Sharpe stability \u2014 decompose OOS into 2024 and 2025 annual Sharpes; a strategy that is positive in one year and negative in the other is not stable enough to deploy",
+    "OOS degradation % \u2014 walk-forward train vs OOS Sharpe degradation; target <30% degradation; the Round 1 pruning result (0% positive fitness) suggests severe degradation historically"
+  ],
+  "sweep_changes": [
+    "1. DROP the entire bearish-divergence branch (lines 91-115 in rsi_divergence.py): delete the block that creates Signal(side='short',...). Replace with a comment: 'Bearish divergence branch removed \u2014 Phase-3 SPOT LONG-ONLY, short signals forbidden.'",
+    "2. RESTRICT allowed_regimes to ['lateral', 'mean_reversion'] only \u2014 remove 'trend' from PARAMS and hard-code it, do not sweep this set.",
+    "3. ADD require_obv_confirm parameter to PARAMS (default False) and implement: if require_obv_confirm and current.get('obv_divergence', 0) <= 0: return None. This adds OBV co-confirmation as a genome-sweepable filter.",
+    "4. ADD require_bmsb parameter to PARAMS (default False) and implement: if require_bmsb and not current.get('bmsb_bullish', True): return None. Macro long-only context gate.",
+    "5. ADD bb_pct_b_max parameter to PARAMS (default 1.0, i.e., inactive) and implement: if current.get('bb_pct_b', 0.5) > bb_pct_b_max: return None. Forces entries near lower Bollinger band for support-proximity confirmation.",
+    "6. ADD rsi_divergence entry to STRATEGY_REGISTRY in auto_evolve.py with the genome param_space defined above (divergence_lookback, rsi_extreme_low, min_price_delta_pct, min_rsi_delta, adx_max, stop_loss_atr_mult, take_profit_atr_mult, time_stop_hours, require_volume_decline, volume_decline_ratio, require_obv_confirm, require_bmsb, bb_pct_b_max).",
+    "7. FIX strength calculation: the current `min(abs(rsi_delta) / 20, 1.0)` is reasonable but should also factor in bb_pct_b (lower bb_pct_b = higher conviction). Replace with: strength = min((abs(rsi_delta) / 20) * (1.0 - max(0, current.get('bb_pct_b', 0.5) - 0.2)), 1.0). This reduces position size when price is not near the lower band.",
+    "8. CHANGE the divergence window split from symmetric half-halves to a 1/3 \u2014 2/3 split so the 'first low' is drawn from an older period and the 'second low' is from a more recent compressed window (prices[-lookback//3:]), reducing contamination between the two periods.",
+    "9. ADD a minimum regime-stability check: require that the regime string has been 'lateral' or 'mean_reversion' for at least 3 consecutive bars before entry (a simple rolling check prevents regime transitions from triggering stale signals).",
+    "10. SET rsi_period to 14 in PARAMS and exclude it from the genome param_space entirely (see do_not_optimize). The rsi_col fallback to rsi_7 in the code should be removed and rsi_14 required explicitly."
+  ],
+  "methodological_risks": [
+    "1. Round-1 evolutionary null result: the strategy produced 0% positive fitness across 29,000 parameter evaluations. This is the strongest possible signal that no parameter combination within a generous search space produced a viable strategy. Re-adding it to the registry without substantial structural changes (not just parameter tightening) risks wasting evolutionary budget.",
+    "2. Split-window divergence is not swing-pivot divergence: comparing half-window min/max values is not the same as comparing confirmed price pivots. The method fires on any transient dip/peak, producing many spurious divergence detections. A proper pivot-based implementation (e.g., zigzag or local extrema detection) would be more robust but requires structural code changes.",
+    "3. Low trade count fragility: with all filters active (ADX cap, regime gate, RSI extreme, volume decline, BMSB, OBV), expected trade frequency is 2-4 per month at most. Across the 2-year OOS window this yields ~50-100 trades \u2014 too few for statistically robust Sharpe estimation. Bootstrap CI will be very wide.",
+    "4. Regime label dependency: the strategy gates on a regime string passed in from outside. The regime classifier's own accuracy and lag are not tested in isolation. A misclassified regime (e.g., labelling a trending market as 'lateral') will trigger entries into adverse conditions with no safety net.",
+    "5. ATR stop in mean-reversion context: a 1.5-4x ATR stop on a mean-reversion trade places the stop far below recent lows, meaning a normal counter-trend continuation takes out the stop before the bounce occurs. This is the core risk-reward problem for divergence strategies in volatile crypto assets.",
+    "6. Lookback window leakage risk at walk-forward boundaries: the divergence_lookback of 8-30 bars combined with the rsi_period of 14 creates a minimum warmup requirement. The embargo of 120 bars in WalkForwardValidator covers this, but the rsi EWM uses infinite history (min_periods=14 only sets the cutoff, not the actual lookback of the exponential kernel), meaning RSI values near train/test boundaries are still partially influenced by train data.",
+    "7. 1-bar execution lag is necessary but compounds slippage risk: divergence signals are inherently backward-looking and the bounce often happens within the same divergence bar. With a 1-bar entry lag (required by the backtester), the fill is at next bar's open \u2014 the best entry price is typically already gone. Slippage plus the 1-bar lag could eliminate the thin mean-reversion edge entirely.",
+    "8. Overfitting risk from boolean filter combinations: with 3 new boolean filters (require_obv_confirm, require_bmsb, require_volume_decline) plus bb_pct_b_max, the genome sweeps a space of 8 filter combinations on top of 9 continuous parameters. Each additional boolean doubles the combinatorial space and creates a curse-of-dimensionality problem for the genetic algorithm."
+  ]
+}

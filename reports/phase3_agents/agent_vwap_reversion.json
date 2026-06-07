@@ -1,0 +1,177 @@
+{
+  "strategy": "vwap_reversion",
+  "classification": "doubtful",
+  "diagnosis": "vwap_reversion is a symmetric mean-reversion strategy that fires when price deviates more than vwap_deviation_pct (default 1.5%) from a 20-bar volume-weighted average price, confirmed by RSI overbought/oversold and optionally a volume spike and wick-rejection filter. It emits BOTH long (price below VWAP + RSI < 30) and short (price above VWAP + RSI > 70) signals. The ADX filter (adx_max=30) correctly limits entries to low-trend / ranging environments. The take-profit target is set exactly at VWAP itself, so the expected move per trade is exactly the VWAP deviation at entry \u2014 mechanically ~1.5-3% per trade. The stop is ATR-based (2x ATR below/above entry). The strategy was pruned from the Phase-2 STRATEGY_REGISTRY in Round 1 after 10 hours / 29K evaluations with 0% positive fitness. It has NO active param_space entry. The failure in Phase 2 is almost certainly because: (a) the symmetric short branch was useful only when perp-funding shorts could offset carry, and without that edge the short side in a spot-long environment bleeds on crypto's secular upward bias; (b) a 1.5% VWAP deviation on a 20-bar rolling VWAP is a very low threshold that triggers frequently during volatile crypto moves, leading to catching falling knives on the long side and chasing false reversions on the short side; (c) the RSI-30 oversold threshold combined with ADX-30 maximum creates a regime that perfectly coincides with sharp directional sell-offs where mean reversion does NOT reliably occur. The long-only edge is structurally possible \u2014 oversold bounces in ranging/lateral regimes are real \u2014 but requires substantial refactoring to suppress the short branch and add stronger quality filters.",
+  "long_only_hypothesis": "In crypto spot markets, prices that temporarily trade well below their rolling VWAP (~20 bars) during a regime of compressed volatility and lateral price action tend to revert toward VWAP within 12-48 hours. This reversion is driven by passive market-making and algorithmic orders anchored to VWAP, combined with panic-selling exhaustion measured by RSI and buying-pressure microstructure. The edge is long-or-cash: go long only when price is oversold relative to VWAP in a non-trending regime; exit to cash when price reaches VWAP or the trade degrades. The short branch is fully dropped. A higher VWAP-deviation threshold (2.0-4.0%) combined with confirming OBV divergence and a bb_bw_percentile compression gate should improve trade quality and reduce false signals in directional downtrends. Regime gate using bmsb_bullish or price above 20-week SMA ensures we only enter longs when the macro structure is constructive.",
+  "market_techniques": [
+    "Mean-reversion entry off rolling VWAP in lateral/compressed-vol regimes",
+    "Dual confirmation: RSI oversold + volume spike (panic selling exhaustion)",
+    "Microstructure filter: buying_pressure (lower wick rejection) as entry quality gate",
+    "ADX ceiling filter to avoid catching falling knives in trending downturns",
+    "OBV divergence as secondary confirmation that sellers are exhausting",
+    "Bollinger Band compression (bb_bw_percentile) to identify range-bound regimes suitable for mean reversion",
+    "Bull Market Support Band (bmsb_bullish) as a macro regime gate \u2014 longs only when price is above the long-period SMA/EMA band",
+    "Volatility-scaled position sizing (ATR-normalized) to reduce size in high-volatility environments",
+    "Time-stop (24-48h) to prevent dead-money trades in unresponsive ranges",
+    "Trailing stop once price approaches VWAP to lock in partial gains"
+  ],
+  "useful_features": [
+    "mean-reversion: vwap_20 (primary anchor \u2014 already used)",
+    "mean-reversion: dist_from_low_20 (confirms depth of retracement)",
+    "mean-reversion: bb_pct_b (price position within Bollinger Band; entry when bb_pct_b < 0.2)",
+    "volatility: bb_bw_percentile (regime gate \u2014 prefer entries when percentile < 40, i.e., volatility is compressed)",
+    "volatility: atr_14 (stop placement and position sizing)",
+    "volatility: gk_vol (secondary vol regime filter; low gk_vol favors reversion)",
+    "momentum: rsi_14 (oversold filter, primary \u2014 already used)",
+    "momentum: rsi_7 (faster RSI for sharper signal; look for divergence between rsi_7 and rsi_14)",
+    "momentum: ret_zscore_20 (z-score of recent 1-bar return; deep negative z-score confirms oversold)",
+    "momentum: price_acceleration (negative acceleration helps confirm exhaustion)",
+    "volume: volume_ratio (spike filter \u2014 already used)",
+    "volume: volume_zscore (complementary volume abnormality measure; >2.0 sigma spike on down bars signals capitulation)",
+    "volume: obv_divergence (OBV rising while price falls = demand absorption)",
+    "microstructure: buying_pressure (wick rejection filter \u2014 already used)",
+    "microstructure: pressure_imbalance (combined buy/sell balance; positive imbalance at low prices confirms bounce)",
+    "trend: adx_14 (regime filter \u2014 ADX < 25 to confirm ranging/lateral)",
+    "trend: bmsb_bullish (macro long filter \u2014 only enter longs when price is above 20-SMA and 21-EMA band)",
+    "market regime (informative only): ret_1 rolling z-score as crypto risk-on/off proxy"
+  ],
+  "genome_params": [
+    {
+      "name": "vwap_deviation_pct",
+      "type": "float",
+      "low": 1.5,
+      "high": 5,
+      "note": "Minimum deviation below VWAP to qualify as oversold. Wider deviation = rarer but higher quality signals. Current 1.5% generates too many false signals."
+    },
+    {
+      "name": "rsi_oversold",
+      "type": "float",
+      "low": 20,
+      "high": 38,
+      "note": "RSI threshold for oversold. Tighter (20-25) = fewer but stronger signals; looser (30-38) = more trades."
+    },
+    {
+      "name": "adx_max",
+      "type": "float",
+      "low": 18,
+      "high": 35,
+      "note": "Maximum ADX to allow entry. Below this = lateral/range regime. Too low = too rare; too high = catches trending markets."
+    },
+    {
+      "name": "volume_spike_threshold",
+      "type": "float",
+      "low": 1.2,
+      "high": 3,
+      "note": "Volume ratio needed to confirm panic selling. Higher threshold selects higher-quality capitulation events."
+    },
+    {
+      "name": "wick_ratio_min",
+      "type": "float",
+      "low": 0.3,
+      "high": 0.7,
+      "note": "Minimum buying_pressure (lower-wick size relative to bar range) for entry. Confirms buyers absorbing at lows."
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 4,
+      "note": "ATR multiple for stop-loss below entry price. Wider stop survives noise but increases loss magnitude."
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 1,
+      "high": 3.5,
+      "note": "Used to set a hard TP ceiling above entry in addition to VWAP reversion target. Prevents leaving gains when VWAP is far."
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 12,
+      "high": 72,
+      "note": "Maximum hours to hold a non-moving reversion trade before exiting to preserve capital for next opportunity."
+    },
+    {
+      "name": "require_volume_spike",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Toggle volume-spike requirement. Genome can evolve to drop the filter if data shows it does not add value."
+    },
+    {
+      "name": "require_wick_rejection",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Toggle wick-rejection requirement. Allows evolution to evaluate whether microstructure filter improves results."
+    },
+    {
+      "name": "bb_bw_pct_gate",
+      "type": "float",
+      "low": 20,
+      "high": 60,
+      "note": "Maximum bb_bw_percentile allowed at entry. Below this threshold = volatility is compressed = favorable for reversion. New param not in original."
+    },
+    {
+      "name": "require_bmsb_bullish",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Macro regime gate: only enter if bmsb_bullish = True (price above both 20-SMA and 21-EMA). Filters out bear markets."
+    }
+  ],
+  "do_not_optimize": [
+    "rsi_overbought (short branch is removed; this param becomes irrelevant)",
+    "allowed_regimes (string list \u2014 optimize regime logic through quantitative feature gates, not string label matching which is regime-label-dependent)",
+    "require_regime boolean (replace with quantitative gates like adx_max and bb_bw_pct_gate that are directly testable)",
+    "Signal.strength formula (min(abs(deviation_pct)/3, 1.0) \u2014 linear scaling of a single threshold ratio; optimizing the divisor (3) and cap (1.0) independently creates false precision)"
+  ],
+  "risk_management": {
+    "stop": "ATR-based stop below entry: stop_loss = entry_price - stop_loss_atr_mult * atr_14; default 2.0x ATR. Genome range 1.5-4.0x ATR. Hard minimum: close below prior 20-bar low also triggers stop.",
+    "take_profit": "Primary TP at vwap_20 (reversion target as coded). Secondary hard TP ceiling at entry + take_profit_atr_mult * atr_14 to avoid overshoot. If VWAP is >3x ATR above entry, use ATR-based TP instead.",
+    "trailing": "Optional trailing stop once unrealized gain exceeds 0.5x ATR: trail at entry + 0.3x ATR (locks minimum profit). This prevents the common failure mode of a full reversion followed by re-breakdown.",
+    "vol_target": "Volatility-scaled sizing: target 15% annualized vol contribution per trade. Size = equity * (vol_target / max(annual_vol_estimate, 0.05)). Cap at max_position_pct. Reduces size in high-vol regimes where reversion trades fail most.",
+    "max_size": "Maximum 20% of equity per trade (config.max_position_pct = 0.20). Mean reversion has negative-skew risk; smaller size limits ruin from a sustained directional move against the position.",
+    "cooldown": "Minimum 4 hours between trades (risk_manager min_interval). After a stop-loss event, mandatory 12-hour cooldown to avoid re-entering during a continued drawdown. Prevents the classic mean-reversion cascade failure.",
+    "risk_off": "Composite risk-off gate: (1) adx_14 > adx_max [trending market filter]; (2) bb_bw_percentile > bb_bw_pct_gate [volatility expansion filter]; (3) bmsb_bullish == False when require_bmsb_bullish is True [macro bear market filter]; (4) circuit breaker from RiskManager if equity drawdown exceeds max_drawdown_pct. All conditions must clear for a new long entry."
+  },
+  "metrics": [
+    "CAGR (annualized): primary return metric; target >15% for a meaningful edge over BTC buy-and-hold on pre-lockbox data",
+    "Sharpe ratio (annualized, risk-free=0): target >1.0 walk-forward; the strategy's mean-reversion nature means frequent small gains offset by occasional large losses \u2014 Sharpe separates true edge from noise",
+    "Sortino ratio: more relevant than Sharpe here because mean-reversion has asymmetric loss distribution; target >1.5",
+    "Maximum drawdown (%): critical for mean-reversion strategies that can suffer correlated stops in trending markets; target <25%",
+    "Calmar ratio (CAGR / maxDD): target >0.6 for a viable strategy given crypto volatility",
+    "Hit rate (%): mean-reversion strategies should have >55% win rate for positive expectancy; below 50% indicates the edge is gone",
+    "Average trade duration (hours): should cluster around 12-36 hours for VWAP reversion; excessive duration (>72h) indicates failed reversions held too long by time-stop",
+    "Turnover / trade frequency: count of trades per month; too low (<2/month) risks insufficient statistical significance in walk-forward windows; too high (>30/month) risks cost sensitivity",
+    "Exposure time (%): fraction of time in a position; for a mean-reversion strategy expect 10-30%; higher suggests the regime filter is too loose",
+    "Cost sensitivity: compute net Sharpe at 0bp, 5bp, 10bp, 20bp commission+slippage to verify edge survives realistic costs (crypto CEX ~5-10bps round-trip)",
+    "Walk-forward OOS degradation: target <50% Sharpe degradation from IS to OOS across folds; the Round 1 0% fitness suggests very high degradation currently",
+    "Bootstrap / Monte Carlo on trade returns: resample 1000x to get 95th-percentile Sharpe distribution; confirms whether observed IS Sharpe is statistically significant or a small-N artifact",
+    "Per-year stability: compute annual Sharpe for each calendar year 2019-2023 (pre-lockbox); strategy must show positive Sharpe in majority of years, especially in ranging years (2019, 2020 pre-rally, 2022-2023)"
+  ],
+  "sweep_changes": [
+    "Remove the short branch entirely: delete the elif block (lines 78-95 of vwap_reversion.py). All short signals must be suppressed; treat the overbought condition as a flat/cash signal only.",
+    "Add bb_bw_pct_gate parameter: gate entries on current[bb_bw_percentile] < bb_bw_pct_gate (new param, range 20-60). This ensures VWAP reversion is only traded when volatility is compressed, filtering out trending environments more precisely than ADX alone.",
+    "Add require_bmsb_bullish parameter: when True, only enter if current[bmsb_bullish] is True. This implements a macro regime gate preventing long entries during prolonged bear markets.",
+    "Widen vwap_deviation_pct range to 1.5-5.0 in the genome param_space (current default 1.5% is too tight for crypto; most valid capitulation events occur at 2.5-4% deviations).",
+    "Add obv_divergence_check: optional filter requiring obv_divergence > 0 (OBV above its 20-period SMA) even as price is below VWAP \u2014 this confirms demand absorption is occurring.",
+    "Add ret_zscore_gate: require ret_zscore_20 < -1.0 at entry to confirm the bar is a statistically unusual down move, reducing noise signals from routine 1.5% fluctuations.",
+    "Add take_profit_atr_mult to param_space (range 1.0-3.5) as an ATR-based ceiling TP in addition to the VWAP target, preventing the strategy from holding through a full overshoot.",
+    "Add the vwap_reversion entry to STRATEGY_REGISTRY with the new param_space after the above changes are implemented. Key params: vwap_deviation_pct (float, 1.5, 5.0), rsi_oversold (float, 20.0, 38.0), adx_max (float, 18.0, 35.0), volume_spike_threshold (float, 1.2, 3.0), wick_ratio_min (float, 0.3, 0.7), stop_loss_atr_mult (float, 1.5, 4.0), take_profit_atr_mult (float, 1.0, 3.5), time_stop_hours (int, 12, 72), require_volume_spike (bool), require_wick_rejection (bool), bb_bw_pct_gate (float, 20.0, 60.0), require_bmsb_bullish (bool).",
+    "Increase the minimum warm-up check from bar_idx < 50 to bar_idx < 120 to match the embargo_bars=120 used by WalkForwardValidator and ensure bb_bw_percentile (100-bar lookback) is fully populated.",
+    "Validate that body_wick_ratio (used in original code line 44) is available in the feature set \u2014 it IS computed in microstructure_features() as body_wick_ratio, but the long-branch currently filters on buying_pressure not body_wick_ratio, creating a naming inconsistency. Standardize to buying_pressure throughout."
+  ],
+  "methodological_risks": [
+    "Round-1 0% positive fitness is a strong prior against this strategy: even with long-only conversion, the core mean-reversion edge on short-duration VWAP deviations may simply not exist in crypto at hourly granularity. The Phase-3 rework should be treated as hypothesis testing, not tuning.",
+    "VWAP computed over 20 bars is sensitive to timeframe: on 1h data it is a 20-hour rolling VWAP; on 4h it is an 80-hour VWAP. A 1.5% deviation threshold that is oversold on 4h may be trivial noise on 1h. The sweep must document the target timeframe and fix it.",
+    "Regime-label dependency risk: the original allowed_regimes=['lateral','mean_reversion'] depends on an external regime-classifier whose labels may not be stable across walk-forward folds. Converting to quantitative gates (ADX, bb_bw_percentile, bmsb_bullish) eliminates this hidden dependency.",
+    "Mean-reversion in crypto has structural asymmetry: prices revert from oversold more reliably during bull markets and fail catastrophically during bear-market capitulation events. Without the bmsb_bullish or similar macro filter, the strategy will accumulate its worst losses in exactly the worst market conditions.",
+    "Small-N problem: the RSI-30 + 1.5% VWAP deviation + volume spike triple filter produces very few signals, especially in trending markets. Walk-forward windows of 15 days may see 0-5 trades, making fold-level Sharpe estimates statistically meaningless. Minimum of 30 trades per fold should be enforced as a validity gate.",
+    "Take-profit at exactly VWAP creates a perverse incentive: if VWAP has drifted significantly during a downtrend, the TP may be 5-8% above entry while the stop is only 2 ATR below \u2014 this inverted R-multiple structure destroys expected value. The ATR-based secondary TP ceiling is essential.",
+    "Overfitting risk in the vwap_deviation_pct parameter: a sweep over 1.5-5.0% across many folds will find a value that maximizes IS Sharpe by selecting specific capitulation events that happened to recover. The OOS lockbox test (2024-2026) is the only honest evaluation of whether that threshold generalizes.",
+    "Correlation with regime detector: if the regime labels are generated from the same price data as the strategy features, there is a correlation-leakage risk when optimizing regime filters alongside VWAP parameters. Each parameter should be validated independently before combining in the genome.",
+    "Cost sensitivity is high for this strategy type: with an average expected move of 1.5-3% and round-trip costs of 10-20bps, the gross edge is thin (30-60x cost ratio). A small increase in slippage assumption from 5bps to 15bps could eliminate net profitability entirely. Must stress-test at 20bps round-trip."
+  ]
+}

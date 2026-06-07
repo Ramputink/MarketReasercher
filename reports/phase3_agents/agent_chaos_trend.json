@@ -1,0 +1,196 @@
+{
+  "strategy": "chaos_trend",
+  "classification": "candidate",
+  "diagnosis": "chaos_trend is a Hurst-exponent-based adaptive trend-following strategy. At each bar it: (1) refuses to act if a position is already open (no pyramiding); (2) gates on regime label (must be \"trend\" or \"breakout\"); (3) estimates the Hurst exponent via multi-scale R/S analysis over `hurst_window` closes using chunk sizes 16/32/64 \u2014 falling back to full-series R/S when fewer than 2 scales fit; (4) requires H in [hurst_min, hurst_max] \u2014 i.e., a persistent but not extreme trending regime; (5) optionally enforces fractal dimension D = 2-H < fractal_max (redundant with H filter but adds calibration flexibility); (6) confirms direction via precomputed fast/slow EMA crossover; (7) validates with a linear-regression slope over momentum_period closes, requiring slope sign to match EMA direction and |slope|/ATR > min_momentum_strength; (8) optionally requires volume_ratio >= volume_threshold; then emits long or SHORT depending on EMA direction. The SHORT branch is live and structurally symmetric \u2014 bearish EMA + negative slope produces a short Signal. Stop is close \u00b1 atr_14 * stop_loss_atr_mult (3 ATR default); take-profit is close \u00b1 atr_14 * take_profit_atr_mult (5.5 ATR default); time stop defaults to 48 hours. The core edge is regime-adaptive: the H filter correctly excludes random-walk and mean-reverting markets, which is a meaningful filter for crypto. The EMA+slope combo is a clean, non-redundant directional confirmation once H is satisfied. Key weaknesses: (a) the R/S Hurst estimator is noisy with only 3 chunk sizes over 100 bars \u2014 the small sample produces wide confidence intervals; (b) min_momentum_strength defaults to 0.0 (i.e., inactive), meaning any non-zero slope passes; (c) the volume_threshold of 1.2\u00d7 SMA is relatively mild; (d) the SHORT branch must be dropped for Phase-3; (e) the 48h time stop is too short for the 3-ATR entry in a trend context.",
+  "long_only_hypothesis": "When BTC/ETH spot price exhibits statistically significant persistence (Hurst H > 0.55) AND the fast EMA is above the slow EMA AND the 14-bar linear regression slope is positive AND volume is elevated relative to its 20-bar mean, the spot asset is in a self-reinforcing momentum regime where trend continuation substantially exceeds reversal probability. In this regime, holding a long spot position from entry to a 4-6 ATR take-profit (or until the trend regime breaks down) captures a skewed payoff: losers are capped at 2-3 ATR by the stop while winners ride persistent momentum. The fractal dimension filter (D < 1.45) provides an orthogonal confirmation that price is behaving more like a smooth trend than a noisy random walk at the current scale. When none of these conditions hold \u2014 bearish EMA, negative slope, H below threshold, or no-trend/unknown regime \u2014 the strategy holds cash. This long-or-cash structure is well-suited to crypto's strong secular uptrend bias and the fact that short spot requires borrow that erodes returns.",
+  "market_techniques": [
+    "Multi-scale Rescaled Range (R/S) Hurst exponent estimation to distinguish trending from random/mean-reverting price series",
+    "EMA crossover (fast vs slow) as a zero-lag directional filter",
+    "Linear regression slope over a rolling window as a momentum strength and direction validator",
+    "ATR-based dynamic stop-loss and take-profit placement (volatility-adapted risk management)",
+    "Fractal dimension (D = 2 - H) as an orthogonal textural confirmation that price is not excessively noisy",
+    "Regime gate (trend/breakout labels from external regime classifier) to avoid entering during consolidation or ranging markets",
+    "Volume ratio filter (spot volume vs 20-bar SMA) to confirm participation and institutional interest",
+    "Time stop (48h) to cap dead-trade duration and free capital for higher-probability setups"
+  ],
+  "useful_features": [
+    "trend: adx_14 \u2014 confirms ADX strength gate; already used in strategy",
+    "trend: ema_fast / ema_slow (precomputed inline) \u2014 directional filter",
+    "trend: roc_12 \u2014 independent momentum confirmation at 12-bar horizon",
+    "momentum: rsi_14 \u2014 add as long-only filter: only enter when rsi_14 > 45 (not deeply oversold, confirming bullish momentum)",
+    "momentum: ret_zscore_20 \u2014 if z-score is strongly positive (>1.0) near entry, trend is fresh; if strongly negative it may be exhausted",
+    "momentum: price_acceleration \u2014 second derivative of close; positive acceleration supports entry in persistence regime",
+    "volatility: atr_14 \u2014 used for stop/TP sizing; already available",
+    "volatility: gk_vol \u2014 Garman-Klass estimator; use as a regime filter \u2014 avoid entering when gk_vol is extreme (parabolic blow-off)",
+    "volatility: bb_bandwidth \u2014 Bollinger Band squeeze before entry confirms volatility compression before expansion",
+    "volatility: bb_bw_percentile \u2014 low percentile (< 30) signals compression; elevated entry likelihood",
+    "volume: volume_ratio \u2014 already used; tighten threshold to 1.3-1.5 for stronger confirmation",
+    "volume: volume_zscore \u2014 use z > 1.0 as additional surge filter to complement volume_ratio",
+    "volume: obv_divergence \u2014 OBV diverging positively (OBV > OBV SMA) confirms accumulation before entry",
+    "volume: buying_pressure \u2014 if close_location > 0.6 and buying_pressure high, bar closed in upper range (bullish bar structure)",
+    "price/return: dist_from_low_20 \u2014 positive distance from 20-bar low confirms price is in upper portion of recent range",
+    "price/return: dist_from_high_20 \u2014 near 0 (close to 20-bar high) is a breakout confirmation filter",
+    "market regime: bmsb_bullish \u2014 BMSB flag: price above both 20-SMA and 21-EMA of the longer-term band; informative long-only gate",
+    "market regime: regime label (trend/breakout) \u2014 already used as gate; can be extended to weight signal strength by regime confidence",
+    "funding/sentiment (informative only): funding/sentiment as external risk-off indicator \u2014 if perpetual funding is extremely negative (panic), can serve as a risk-off gate; NOT traded as PnL"
+  ],
+  "genome_params": [
+    {
+      "name": "hurst_window",
+      "type": "int",
+      "low": 50,
+      "high": 150,
+      "note": "Rolling window for R/S Hurst estimation; shorter = noisier but more responsive; longer = smoother but lagging"
+    },
+    {
+      "name": "hurst_min",
+      "type": "float",
+      "low": 0.52,
+      "high": 0.7,
+      "note": "Minimum H for persistent regime; below 0.55 is barely distinguishable from random walk"
+    },
+    {
+      "name": "hurst_max",
+      "type": "float",
+      "low": 0.75,
+      "high": 0.95,
+      "note": "Upper cap; very high H sometimes indicates regime shift or model artifact \u2014 keep above 0.80 to not exclude strong trends"
+    },
+    {
+      "name": "ema_fast",
+      "type": "int",
+      "low": 8,
+      "high": 20,
+      "note": "Fast EMA period for directional filter"
+    },
+    {
+      "name": "ema_slow",
+      "type": "int",
+      "low": 20,
+      "high": 50,
+      "note": "Slow EMA period; must stay above ema_fast \u2014 enforce constraint in genome"
+    },
+    {
+      "name": "adx_min",
+      "type": "float",
+      "low": 15,
+      "high": 35,
+      "note": "Minimum ADX for trend strength confirmation; low values generate noisy signals"
+    },
+    {
+      "name": "momentum_period",
+      "type": "int",
+      "low": 8,
+      "high": 24,
+      "note": "Linear regression slope lookback for momentum direction and strength"
+    },
+    {
+      "name": "min_momentum_strength",
+      "type": "float",
+      "low": 0.01,
+      "high": 0.15,
+      "note": "Minimum |slope|/ATR ratio; default 0.0 is inactive \u2014 raise to 0.02+ to filter weak trends"
+    },
+    {
+      "name": "volume_threshold",
+      "type": "float",
+      "low": 0.9,
+      "high": 2,
+      "note": "Minimum volume_ratio vs 20-bar SMA; 1.0 = at-average volume acceptable"
+    },
+    {
+      "name": "fractal_max",
+      "type": "float",
+      "low": 1.35,
+      "high": 1.55,
+      "note": "Maximum fractal dimension D = 2-H; lower = stricter trend quality requirement"
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 4,
+      "note": "ATR multiplier for stop-loss below entry; too tight = excessive stops, too wide = large drawdowns"
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 3,
+      "high": 8,
+      "note": "ATR multiplier for take-profit target; must exceed stop_loss_atr_mult (enforce TP > SL constraint)"
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 24,
+      "high": 120,
+      "note": "Maximum hours to hold a position; 48h default is short for a 3-ATR stop \u2014 consider 72-96h"
+    },
+    {
+      "name": "use_fractal_filter",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Toggle whether fractal dimension D filter is applied; evolution decides if it adds value"
+    }
+  ],
+  "do_not_optimize": [
+    "require_ema_alignment \u2014 must always be True in long-only mode; removing it would allow entries on misaligned EMAs which have no directional logic",
+    "require_regime \u2014 must always be True; disabling the regime gate would allow entries during ranging/unknown regimes which erodes edge",
+    "allowed_regimes \u2014 fixing to [trend, breakout] is structurally correct; adding unknown/ranging would nullify the regime filter and invite overfitting to noise periods",
+    "require_volume_surge \u2014 the bool toggle; sweeping this creates a branch where volume confirmation is absent, which opens up to false breakouts and data-mined signals",
+    "hurst_max upper bound \u2014 pushing above 0.95 in the genome is meaningless since R/S Hurst rarely exceeds 0.90 in real data; the genome can explore up to 0.95 but anything above is fitting to estimation noise"
+  ],
+  "risk_management": {
+    "stop": "ATR-based hard stop below entry: stop_loss = entry_price - atr_14 * stop_loss_atr_mult. Sweep stop_loss_atr_mult in [1.5, 4.0]. Floor at 1.5 ATR to prevent excessive stop-outs on normal volatility. Cap at 4.0 ATR to bound per-trade drawdown. Stop is placed at Signal time and honored by the backtester when current bar low <= stop price.",
+    "take_profit": "ATR-based take-profit: take_profit = entry_price + atr_14 * take_profit_atr_mult. Sweep in [3.0, 8.0], enforcing take_profit_atr_mult > stop_loss_atr_mult + 0.5. Asymmetry ratio (TP/SL) should be >= 1.5 to maintain positive expectancy at typical hit-rates of 35-45%.",
+    "trailing": "Optional trailing stop: once trade is in profit by 1.5 ATR, trail the stop to breakeven + 0.5 ATR. This is not natively in the backtester Signal interface but can be approximated by lowering time_stop_hours and re-entering if trend persists. Alternatively, add a trailing_atr_mult param (sweep 1.0-2.5) and implement in a modified signal that re-evaluates the stop each bar while in position.",
+    "vol_target": "Volatility targeting via the backtester's volatility_scaled sizing method: target annualized vol = 0.25 (25%), scaling position so that 1-ATR move = target_vol_fraction * equity. This naturally reduces size when crypto vol spikes and increases it in calm persistent trends. Pair with max_position_pct = 0.80 as a hard cap.",
+    "max_size": "max_position_pct = 0.80 of equity (long spot only, no leverage). For high-vol regimes (gk_vol > 1.5x baseline), reduce to 0.50 of equity. Signal strength = clip(mom_strength * 5, 0, 1) already scales size proportionally.",
+    "cooldown": "Minimum 4 bars (4h on 1h data) between successive entries after a stop-loss exit, to prevent whipsaw re-entry into the same failed trend. Can extend to 8-12 bars when the exit was triggered by stop rather than TP or time stop.",
+    "risk_off": "Block new longs when: (1) regime is not 'trend' or 'breakout' (already implemented via require_regime gate); (2) adx_14 < adx_min (already implemented); (3) gk_vol is in the top 5% of its 60-day rolling history (parabolic vol \u2014 avoid chasing); (4) bmsb_bullish is False for 3+ consecutive bars (price below long-term support band signals macro downtrend); (5) optional: if external funding rate data available and funding is deeply negative (< -0.05% per 8h), treat as sentiment risk-off and reduce size by 50%."
+  },
+  "metrics": [
+    "CAGR (annualized compound growth rate over the OOS lockbox window 2024-06-07 to 2026-06-07)",
+    "Sharpe ratio (annualized, using hourly equity curve; target > 1.0 for candidate qualification)",
+    "Sortino ratio (penalizes only downside deviation; more relevant for long-only with asymmetric return distribution)",
+    "Maximum drawdown % (peak-to-trough on full equity curve; hard cap at 25% for spot long-only)",
+    "Calmar ratio (CAGR / maxDD; target > 0.5)",
+    "Hit rate (% of trades that are profitable; expected 35-50% given wide TP/SL ratios)",
+    "Profit factor (gross profits / gross losses; target > 1.3)",
+    "Average trade PnL net of costs (commission + slippage; ensure avg trade >> 2x round-trip cost)",
+    "Turnover (trades per month; expected low \u2014 5-15/month \u2014 due to high Hurst window and strict filters)",
+    "Market exposure % (fraction of bars with open position; target 20-45% for crypto trend-following)",
+    "OOS degradation % (Sharpe_train vs Sharpe_OOS across walk-forward folds; target < 40%)",
+    "Per-year Sharpe stability (compute Sharpe for each calendar year in training window; SD of annual Sharpes should be < 0.5 to flag curve-fitting)",
+    "Cost sensitivity (rerun with 2x slippage + 2x commission; Sharpe should not drop by more than 30%)",
+    "Bootstrap/Monte Carlo 95th percentile drawdown (200 simulations of resampled trade sequence; ruin probability < 5%)",
+    "Deflated Sharpe Ratio (DSR) on in-sample trade returns, deflated by cumulative trial count from auto_evolve"
+  ],
+  "sweep_changes": [
+    "DROP the short branch: remove the elif bearish block (lines 235-242) entirely; when bearish=True and all other conditions pass, return None (cash) rather than emitting a short Signal \u2014 the strategy becomes pure long-or-cash",
+    "ENFORCE ema_fast < ema_slow constraint in genome generation and mutation: add post-mutation check in auto_evolve mutate_genome for chaos_trend (analogous to the existing TP>SL check)",
+    "ACTIVATE min_momentum_strength: change the default from 0.0 to 0.02 and sweep in [0.01, 0.15]; this is currently a dead filter that lets any non-zero slope through",
+    "ADD rsi_14 > 45 long-only filter: after volume check, add `if current.get('rsi_14', 50) < p.get('rsi_long_min', 45): return None` with rsi_long_min swept in [35, 55]",
+    "ADD rsi_long_min to PARAMS and STRATEGY_REGISTRY param_space with range (35.0, 55.0, float)",
+    "ADD gk_vol risk-off gate: read gk_vol from current row; if gk_vol > rolling 95th percentile (precomputed over hurst_window bars), skip entry \u2014 prevents chasing parabolic vol spikes",
+    "EXTEND time_stop_hours default to 72 and sweep range from (24, 120); the current default of 48h is too short for a 3-ATR stop in a Hurst-confirmed trend",
+    "ADD bmsb_bullish macro gate: add `if p.get('require_bmsb', False) and not current.get('bmsb_bullish', True): return None` with require_bmsb as a bool genome param; allows evolution to discover if the long-term support band adds value",
+    "ADD obv_divergence filter option: `if p.get('require_obv_confirm', False) and current.get('obv_divergence', 0) < 0: return None` \u2014 OBV below its SMA signals distribution rather than accumulation; sweep require_obv_confirm as bool",
+    "ADD dist_from_low_20 filter: require close > 20-bar low by at least X% (sweep dist_from_low_min in [0.01, 0.05]) to avoid buying into a falling knife that happens to have a positive EMA cross",
+    "UPDATE STRATEGY_REGISTRY in auto_evolve.py: add rsi_long_min, time_stop_hours, require_bmsb, require_obv_confirm, dist_from_low_min to the chaos_trend param_space with appropriate ranges",
+    "REMOVE require_ema_alignment from the sweep (fix it to True) since in long-only mode direction must always be confirmed by EMA; keeping it as an evolvable bool wastes compute budget on a structurally broken configuration"
+  ],
+  "methodological_risks": [
+    "Hurst estimation noise: the multi-scale R/S estimator uses only 3 chunk sizes (16, 32, 64) over 100 bars, yielding at most 3 data points for the log-log regression. This produces H estimates with very wide confidence intervals \u2014 two bars apart can yield H values differing by 0.15+, causing unstable entry signals that look deterministic but are essentially noisy regime labels. Consider adding more chunk sizes (8, 16, 32, 64, 96) or using a Detrended Fluctuation Analysis (DFA) fallback for more robust estimation.",
+    "H filter acting as a look-back leakage proxy: the hurst_window (50-150 bars) that is swept in the genome is also the effective 'regime lookback'. If the evolution discovers that a specific hurst_window perfectly segments the in-sample data into profitable and unprofitable periods, this is pure in-sample overfit \u2014 the H filter is just memorizing historical regime transitions at a specific lag.",
+    "EMA cache stale-state bug: the module-level _cache_id/_cache_params relies on Python's id(df) which can be recycled across walk-forward folds if prior DataFrames are garbage-collected. During the WalkForwardValidator's per-fold backtests with .copy().reset_index(drop=True), the cached EMA columns from a prior fold may be incorrectly reused on a different fold's df \u2014 producing wrong EMA values without any error. This is a silent correctness bug that can inflate in-sample fit and depress OOS performance, making the strategy appear more degradation-prone than it actually is.",
+    "Volume_ratio vs volume_zscore mismatch: the strategy reads volume_ratio from features.py which normalizes by 20-bar SMA, but the volume_zscore uses a 50-bar rolling window. If volume_threshold is calibrated on volume_ratio behavior, the genome cannot directly compare the two. Adding volume_zscore as an alternative requires care about which normalization is appropriate for the signal type.",
+    "time_stop vs trend duration mismatch: the default 48h time stop combined with a 3-ATR stop makes this a very short-duration trade structure, but Hurst-confirmed trends in crypto can persist for days to weeks. An aggressive time stop will exit winning trades prematurely, leaving most of the trend's alpha on the table. Sweeping time_stop_hours without also sweeping take_profit_atr_mult jointly risks overfitting their interaction.",
+    "Regime label dependency: the strategy fully blocks entry when regime is not in [trend, breakout]. If the external regime classifier (not in the strategy file) has its own lookahead or calibration bias, this becomes a hidden leakage path. The regime labels must be verified as strictly computed from past data only.",
+    "Low trade count in walk-forward folds: the strict filter stack (Hurst + ADX + EMA + slope + volume + regime) will produce very few trades in short fold windows (15-30 days). The per-fold trade count may fall below the MIN_TRADES_FOR_POSITIVE_FITNESS=30 threshold, causing the genome to receive a large low_trade_penalty regardless of signal quality, biasing evolution away from high-selectivity configurations that are actually robust.",
+    "EMA leakage across folds (related to cache bug): even without the cache bug, the EMA is computed via ewm(span=fast, adjust=False, min_periods=fast) on the FULL df passed to each fold. If the fold is a copy of a sub-window, the EMA warmup correctly starts from the beginning of that window. But if the full df is passed and bar_idx slices it, the EMA is computed on the full history \u2014 this is correct behavior but means features technically use data before the fold start, which is not OOS leakage per se but means the features at the start of each fold have different quality than mid-fold.",
+    "Fractal dimension filter redundancy: D = 2 - H is a monotone transformation of H. The fractal_max filter (D < 1.45 \u2194 H > 0.55) is therefore perfectly redundant with hurst_min when hurst_min = 0.55. Evolving both hurst_min and fractal_max together creates a two-dimensional constraint on a single quantity \u2014 the genome may find arbitrary combinations that appear distinct but are mathematically equivalent, inflating the apparent solution diversity.",
+    "Overfitting via interaction of many binary filters: with 6+ binary or threshold conditions (Hurst, ADX, EMA, slope, volume, regime, and the proposed additions), the combined filter is extremely selective. On a 2019-2026 dataset with ~60k hourly bars, the number of triggering bars may be so small that walk-forward stability is mathematically unachievable. Each added filter reduces the effective sample size \u2014 the strategy risks finding configurations that trigger only on the 20 best trending days of history."
+  ]
+}

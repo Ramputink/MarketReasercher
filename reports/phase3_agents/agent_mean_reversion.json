@@ -1,0 +1,174 @@
+{
+  "strategy": "mean_reversion",
+  "classification": "doubtful",
+  "diagnosis": "The strategy (mean_reversion_strategy in strategies/mean_reversion.py) is a post-spike counter-trend system. Entry logic: (1) detect a violent price move of >= spike_min_move_pct% over spike_lookback_candles bars; (2) confirm overextension via ret_zscore_20 >= zscore_entry_threshold; (3) BB pct_b filter (price outside bands); (4) optional exhaustion filters: volume declining, wick rejection; (5) RSI filter (>= rsi_overbought for spike-up, <= rsi_oversold for spike-down); (6) ADX filter (adx_14 < max_adx_for_entry to avoid strong trends); (7) regime gate (allowed_regimes: [mean_reversion, lateral]). Exit: z-score reverts to abs < 0.3, stop-loss ATR-mult, take-profit ATR-mult, or 18-hour time stop.\n\nSHORTS: Yes, extensively. The primary trade is 'side = short if is_spike_up else long'. In practice most crypto large spikes are upside (bull market), so the strategy is predominantly short. The position-management early-exit also emits 'exit_side = short if position.side == long' which opens a reverse short. Both are forbidden in Phase 3.\n\nCRITICAL CODE BUG: The wick rejection block (lines 144-155) is entirely inert. Both the is_spike_up and is_spike_down branches end with 'pass' instead of 'return None', so require_wick_rejection=True has zero effect on signal generation.\n\nROUND 1 PRUNING: auto_evolve.py line 64 explicitly records that mean_reversion was pruned in Round 1 with 0% positive fitness across 29K evaluations. It does not appear in the active STRATEGY_REGISTRY. This is the most important signal: the strategy was validated on live walk-forward and failed completely.\n\nLIKELY WEAKNESS: Crypto is a structurally trending asset class. Shorting into upside spikes (the dominant signal) loses money in trending bull markets. The spike-down long branch (the only Phase-3-compatible direction) fires rarely, and when it does, the signal arrives after the move has happened - chasing crashes that often continue lower (continuation, not reversion). The mean-reversion regime label only fires when BB bandwidth is high and z-score is extreme - which in crypto often marks the start of a new trend leg, not a reversion. 0% fitness in 29K evals confirms this is not an edge problem, it is a regime-fit problem.",
+  "long_only_hypothesis": "The strategy's only Phase-3-compatible branch is: buy the spot asset after a violent downside spike (>= spike_min_move_pct% decline in spike_lookback_candles bars) that is simultaneously (a) statistically overextended (ret_zscore_20 <= -threshold), (b) below the lower Bollinger Band (bb_pct_b <= 0.05), and (c) showing RSI oversold. The hypothesis is that panic-driven flash crashes in liquid crypto markets (BTC, ETH) create short-lived mispricings that partially recover within 12-24 hours, especially when the broader market regime is lateral/mean-reverting rather than in a sustained downtrend. The spot long captures this recovery. The strategy should be long-or-cash: enter long on confirmed downside spike exhaustion, exit when z-score reverts toward zero or the time stop fires, hold cash during all other conditions. Given the Round 1 pruning evidence, the hypothesis is weak for general operation but may have residual value as a crash-recovery scalp filter applied only after confirmed flush events (e.g., volume_zscore spike > 3 combined with buying_pressure recovery).",
+  "market_techniques": [
+    "Post-crash mean reversion: buy dips that show exhaustion (volume climax + wick rejection) in the spot market only",
+    "Oversold bounce entry: combine RSI-7 oversold (<20) with bb_pct_b < 0 (below lower band) as dual confirmation to reduce false entries",
+    "Volatility regime gating: only enter when bb_bandwidth_percentile is in the 30th-70th percentile range (not compressing, not exploding into a new trend) indicating a ranging environment",
+    "Time-stop discipline: 12-24 hour max hold forces realized outcomes rather than riding losers into further drawdowns",
+    "Exhaustion candle detection: require close_location > 0.6 on the spike bar (hammer reversal) as the sole meaningful wick filter replacing the broken inert code block",
+    "Trend context filter: require price above bmsb_sma and bmsb_ema (bull market support band) so that the long is being placed in a macro-bullish structure and not into a structural downtrend",
+    "Volume climax identification: require volume_zscore > 2.0 on the spike bar to confirm genuine panic selling rather than low-liquidity drift down"
+  ],
+  "useful_features": [
+    "mean-reversion: ret_zscore_20 \u2014 primary entry trigger, must be <= -zscore_entry_threshold (spike-down only)",
+    "mean-reversion: bb_pct_b \u2014 price must be below lower Bollinger Band (< 0.05) to confirm overextension",
+    "mean-reversion: dist_from_low_20 \u2014 proximity to 20-bar low as additional stretch confirmation",
+    "momentum: rsi_7 \u2014 fast RSI for oversold detection (< 20 more selective than rsi_14 < 25 for short-term bounce)",
+    "momentum: rsi_14 \u2014 secondary RSI confirmation and exit signal (reversion back above 40)",
+    "volatility: atr_14 \u2014 stop placement (close - N * atr_14) and take-profit calculation",
+    "volatility: bb_bandwidth \u2014 regime filter; avoid entries when bandwidth is extreme high (trending) or extreme low (pre-breakout compression)",
+    "volatility: gk_vol \u2014 Garman-Klass realized vol for volatility-targeting position sizing",
+    "volatility: vol_ratio \u2014 short-term vs long-term vol ratio to detect vol expansion after the spike",
+    "volume: volume_zscore \u2014 confirm panic volume climax (> 2.0) on the spike candle",
+    "volume: volume_ratio \u2014 confirm volume is declining on the entry bar (exhaustion)",
+    "volume: buying_pressure \u2014 (close - low)/(high - low), should be recovering (> 0.5) on entry bar to confirm reversal",
+    "microstructure: close_location \u2014 must be > 0.55 on entry bar (hammer/dragonfly pattern) replacing the broken wick_rejection_ratio filter",
+    "microstructure: pressure_imbalance \u2014 buying_pressure - selling_pressure, should be positive (recovering) on entry bar",
+    "trend: adx_14 \u2014 regime filter, must be < max_adx_for_entry to avoid entering during strong downtrends",
+    "trend: bmsb_sma and bmsb_ema \u2014 macro bullish structure filter: price must be within 15% of BMSB to confirm this is a dip-buy, not capitulation",
+    "market regime: _regime column \u2014 only enter in mean_reversion or lateral regime (already in code, keep as-is)",
+    "return: ret_1 and ret_3 \u2014 momentum of recovery bars after spike, useful for z-score exit trigger",
+    "price: price_acceleration \u2014 second derivative of price, should be turning positive (decelerating decline) on entry bar"
+  ],
+  "genome_params": [
+    {
+      "name": "zscore_entry_threshold",
+      "type": "float",
+      "low": 1.5,
+      "high": 3.5,
+      "note": "How extreme the return z-score must be for a spike-down long entry. Higher = fewer but cleaner signals."
+    },
+    {
+      "name": "zscore_exit_threshold",
+      "type": "float",
+      "low": 0.1,
+      "high": 0.8,
+      "note": "Exit when z-score reverts to within this band. Tighter = faster exits."
+    },
+    {
+      "name": "spike_lookback_candles",
+      "type": "int",
+      "low": 3,
+      "high": 10,
+      "note": "Window over which the spike % move is measured."
+    },
+    {
+      "name": "spike_min_move_pct",
+      "type": "float",
+      "low": 1,
+      "high": 4,
+      "note": "Minimum % decline required to qualify as a spike. Higher = rarer, cleaner setups."
+    },
+    {
+      "name": "rsi_oversold",
+      "type": "float",
+      "low": 15,
+      "high": 35,
+      "note": "RSI-14 threshold for oversold confirmation. Wider allows more trades."
+    },
+    {
+      "name": "max_adx_for_entry",
+      "type": "float",
+      "low": 15,
+      "high": 35,
+      "note": "Block entries when ADX exceeds this (strong trend = no reversion)."
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 4,
+      "note": "ATR multiplier for stop below entry. Wider gives trade room but increases loss per trade."
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 1,
+      "high": 4,
+      "note": "ATR multiplier for take-profit above entry. Should be tested at risk:reward > 1."
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 6,
+      "high": 36,
+      "note": "Max trade duration. Mean reversion should resolve quickly; long holds imply failed trade."
+    },
+    {
+      "name": "min_volume_zscore",
+      "type": "float",
+      "low": 0.5,
+      "high": 3,
+      "note": "NEW: require volume spike (panic volume) on the spike bar as exhaustion signal."
+    },
+    {
+      "name": "min_close_location",
+      "type": "float",
+      "low": 0.4,
+      "high": 0.75,
+      "note": "NEW: replace broken wick_rejection_ratio; require close_location > this on spike bar (hammer pattern)."
+    }
+  ],
+  "do_not_optimize": [
+    "bb_period (fix at 20 \u2014 standard; sweeping creates massive parameter space with minimal marginal information)",
+    "bb_std (fix at 2.0 \u2014 standard Bollinger definition; 2.5 in current PARAMS is already curve-fit to historical data)",
+    "zscore_lookback (fix at 20 \u2014 matches the ret_zscore_20 feature already computed by the pipeline; changing this would require recomputing features per trial which is not supported)",
+    "require_reversion_regime (fix at True \u2014 regime filter is core to the hypothesis; disabling it would allow trades in breakout/trend regimes which have poor reversion odds)",
+    "allowed_regimes (fix as [mean_reversion, lateral] \u2014 these are the two appropriate regimes; sweeping regime membership creates combinatorial explosion and overfitting to historical regime distribution)",
+    "volume_decline_threshold (fix at 0.7 \u2014 this ratio is already embedded in a bar-to-bar comparison; sweeping it produces negligible signal differentiation)",
+    "require_volume_decline (fix at True \u2014 volume decline after spike is a necessary exhaustion condition; allowing False removes a structurally sound filter)",
+    "spike_min_move_pct and zscore_entry_threshold should NOT both be swept simultaneously (collinear; fix spike_min_move_pct and sweep zscore, or vice versa, not both)"
+  ],
+  "risk_management": {
+    "stop": "Hard stop at entry_price - stop_loss_atr_mult * atr_14. For spike-down longs the spike bar's low is a natural reference; stop must be placed below that low, which typically requires stop_loss_atr_mult >= 2.0 given atr_14 sizing. Do NOT use percentage stops \u2014 use ATR to adapt to regime volatility.",
+    "take_profit": "ATR-based take-profit at entry_price + take_profit_atr_mult * atr_14. Minimum risk:reward of 1.0 enforced. Given the typical reversion distance (z-score of -2 implies ~1.5-2 ATR extension), take_profit_atr_mult=2.0 is a reasonable baseline. Z-score exit (abs(ret_zscore_20) < zscore_exit_threshold) provides an alternative early exit.",
+    "trailing": "No trailing stop recommended. Mean reversion targets are short, defined, and discrete. A trailing stop that follows a reversion would give back most of the gain. Instead, use a partial-exit rule: take 50% off at 1.5 * atr_14, let remainder run to full take-profit or time stop.",
+    "vol_target": "Volatility-targeted sizing via the backtester's volatility_scaled method: target_size = equity * (vol_target_annualized / realized_vol). Use gk_vol (20-bar Garman-Klass) as the realized vol input. Cap position at max_position_pct regardless. Recommended vol_target_annualized = 0.15-0.25 for crypto spot.",
+    "max_size": "Maximum 20% of equity per trade (max_position_pct = 0.20). This is a high-risk counter-trend strategy; aggressive sizing amplifies sequence-of-losses risk. Further scale by signal strength (z-score magnitude / 4.0, already in code).",
+    "cooldown": "Mandatory 6-hour cooldown after any exit (regardless of reason) to prevent re-entry into the same spike event. Crypto spikes can have multiple echoes; the cooldown prevents chasing follow-on retests.",
+    "risk_off": "Regime gate (already coded): block all entries when _regime is not in [mean_reversion, lateral]. Additionally: block entries when adx_14 > max_adx_for_entry (strong trend active), when bmsb_sma and bmsb_ema are both above close by more than 15% (structural bear market, not a dip-buy), and when the rolling 10-day max drawdown on the equity curve exceeds 10% (circuit breaker \u2014 use the backtester's RiskManager circuit_breaker which is already wired in)."
+  },
+  "metrics": [
+    "CAGR: target > 15% annualized for spot long-only given the strategy fires rarely (< 5 trades/month expected)",
+    "Sharpe ratio: minimum 0.8 on walk-forward OOS; strategy's counter-trend nature in a trending asset class makes >1.2 difficult",
+    "Sortino ratio: more relevant than Sharpe for this strategy given asymmetric returns; target > 1.0",
+    "Max drawdown: must stay < 20% on the full 2019-2026 pre-lockbox history; spike-down longs that fail become large drawdowns",
+    "Calmar ratio: CAGR / max_DD; target > 0.8",
+    "Hit rate: counter-trend strategies need > 55% hit rate since individual winners are bounded by take-profit while losers can run to full ATR stop",
+    "Average trade duration: track mean hours held; if >> time_stop_hours the time stop is too permissive or exits are not triggering",
+    "Turnover: count trades per month; < 2 trades/month makes CAGR targets unreachable, > 10/month increases friction cost sensitivity",
+    "Market exposure %: fraction of bars in a long position; target 5-20% for a rare-event strategy; > 40% indicates regime gate is too permissive",
+    "Cost sensitivity: run backtest with 0 bps vs 5 bps commission + 3 bps slippage; if Sharpe drops > 30% from frictionless to realistic, edge is not durable",
+    "OOS degradation %: walk-forward train Sharpe vs test Sharpe degradation; must be < 50% per the backtester config max_oos_degradation_pct",
+    "Bootstrap/MC: run 1000 random-resampled equity path simulations; report 5th-percentile CAGR and max drawdown to bound downside",
+    "Per-year stability: report CAGR and Sharpe by calendar year; a strategy that only works in 2019-2020 bear markets is not a general edge",
+    "Profit factor: sum(winning trade PnL) / sum(losing trade PnL); must be > 1.3 after costs for this trade frequency to be viable",
+    "Signal frequency: trades per 1000 bars; if the combined entry filter (spike + zscore + RSI + ADX + regime) produces < 1 trade per 500 bars, the strategy cannot achieve target CAGR"
+  ],
+  "sweep_changes": [
+    "DROP the short branch entirely: remove 'side = short if is_spike_up else long' and replace with 'if is_spike_up: return None' \u2014 the strategy is now long-or-flat only",
+    "DROP the short-emitting exit: replace 'exit_side = short if position.side == long else long' with a direct return of a zero-strength exit signal or None \u2014 the backtester interprets signal.side != position.side as an exit; emit a long Signal with strength=0 as the exit marker OR restructure to return a sentinel (check if backtester handles None as hold)",
+    "FIX the inert wick rejection filter: lines 148-154 both end with 'pass' and do nothing. Replace with: if is_spike_down and close_loc < min_close_location_param: return None (require hammer candle on spike-down bar)",
+    "ADD volume_zscore gate: require current.get('volume_zscore', 0) >= min_volume_zscore on the spike bar to confirm panic selling climax",
+    "ADD bmsb macro filter: require current.get('bmsb_sma') is not None and close >= current['bmsb_sma'] * 0.85 (within 15% of bull market support band) to block entries in structural bear markets",
+    "ADD min_close_location as a sweepable genome param replacing the broken wick_rejection_ratio param",
+    "ADD min_volume_zscore as a new sweepable genome param",
+    "REMOVE max_bb_pct_b_short from genome (spike-up short path is eliminated; this param is now dead code)",
+    "ADD the strategy back to STRATEGY_REGISTRY in auto_evolve.py with the new long-only param_space (zscore_entry_threshold, zscore_exit_threshold, spike_lookback_candles, spike_min_move_pct, rsi_oversold, max_adx_for_entry, stop_loss_atr_mult, take_profit_atr_mult, time_stop_hours, min_volume_zscore, min_close_location)",
+    "SET spike direction to downside-only: replace 'is_spike_up = move_pct >= ...' with only the is_spike_down branch; delete all is_spike_up logic paths",
+    "ADD rsi_7 oversold as an alternative or secondary filter to rsi_14 to allow sweeping which RSI period is more predictive for short-term bounce detection"
+  ],
+  "methodological_risks": [
+    "Survivor bias in regime labels: the _regime column is classified bar-by-bar using quantitative features (ADX, BB bandwidth, z-score) that are themselves computed from rolling windows. During walk-forward, if regime classification uses future data indirectly via EMA smoothing, there is a subtle leakage. The embargo_bars=120 gap in WalkForwardValidator should contain this but must be verified against the longest feature window used by classify_regime_quantitative.",
+    "Spike detection window stationarity: spike_min_move_pct=1.5% may be a relevant spike in low-vol regimes but noise in high-vol regimes. A fixed % threshold applied across 2019 (high vol) and 2025 (potentially different vol) creates non-stationary signal frequency. Should normalize by ATR (e.g., require move_pct >= N * atr_14/close * 100) rather than raw %.",
+    "Round 1 0% fitness is a hard prior against this strategy: with 29K evaluations covering diverse param combinations, zero positive fitness is strong evidence the edge does not exist under the current structure. Conversion to long-only removes the dominant short branch, potentially leaving only a thin residual signal. The probability of Phase 3 success is low without fundamental restructuring.",
+    "Crash continuation vs reversion: spike-down longs risk catching falling knives in genuine downtrends. The adx_14 and bmsb filters help but cannot distinguish a corrective flush from the start of a bear market in real time. The 2022 BTC crash from $65K to $16K had many -5% daily bars that all looked like oversold entries and all continued lower.",
+    "Low trade count statistical fragility: after all filters (regime, zscore, RSI, ADX, volume, wick), expected trade frequency is < 2-3 per month. Over a 2-year OOS window this gives approximately 50-70 trades \u2014 too few for stable Sharpe estimation. Bootstrap confidence intervals will be very wide. Any performance metric will be dominated by 2-3 outlier trades.",
+    "Collinearity of entry filters: ret_zscore_20 and bb_pct_b are both computed from price deviation from a 20-bar mean. RSI captures a similar concept over a different lookback. The three filters may be providing ~1 independent bit of information but penalizing signal frequency as if they were 3 independent filters, resulting in very rare entries without proportional quality improvement.",
+    "Parameter instability between market eras: 2019-2021 (bull), 2022 (bear), 2023-2024 (recovery), 2025-2026 (unknown). Mean reversion parameters that worked in the 2019-2021 volatile bull may not transfer. Walk-forward must be evaluated with per-year breakdown, not just aggregate fold metrics.",
+    "Exit logic ambiguity in the backtester: the position-management early exit (lines 82-93) returns a Signal with exit_side opposite to the current position. The backtester checks 'signal.side != position.side' to trigger an exit. After the long-only fix, if we hold a long and return a 'short' signal to exit, the backtester WILL exit the long correctly, but only if no new position is opened. The code must be carefully audited to ensure the exit signal is not misinterpreted as a new short entry by the pending_entry queue."
+  ]
+}

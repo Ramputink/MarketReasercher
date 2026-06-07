@@ -1,0 +1,189 @@
+{
+  "strategy": "williams_cci",
+  "classification": "doubtful",
+  "diagnosis": "The williams_cci strategy is a short-duration mean-reversion system that fires when Williams %R and CCI are simultaneously deep in oversold territory (long signal) or overbought territory (short signal). It targets a very narrow setup: low-ADX (max 35) conditions indicating weak trend, a BB squeeze (bandwidth percentile below 30), and a volume spike (volume_ratio >= 1.76). Entry lag is 1 bar (correct). Stops and take-profits are ATR-scaled. Time stop is 24 hours.\n\nThe strategy currently emits both \"long\" and \"short\" signals. The short branch fires when WR >= -21.7 and CCI >= 148.9 simultaneously, which is the overbought-reversal condition. In Phase-3 spot-long-only the short branch must be dropped entirely \u2014 not converted to a short. This eliminates roughly half of all potential signal events.\n\nThe evolved PARAMS are highly specific (wr_oversold=-89.53, cci_long_threshold=-92.62, stop_loss_atr_mult=1.32, take_profit_atr_mult=2.63) and were produced by ~1,061 genetic evaluations that yielded only 19 trades in-sample and a walk-forward Sharpe of 1.50. The strategy was pruned from the STRATEGY_REGISTRY in Round 2 for sub-1.5% positive fitness rate across the 36K-eval evolution run. It is NOT currently in the active STRATEGY_REGISTRY.\n\nEdge/Weakness: The long-side edge hypothesis is that an extreme dual-oscillator oversold reading during a low-volatility (BB squeeze) period with a simultaneous volume spike marks a local capitulation bottom that tends to revert quickly within 24 hours. The weakness is extreme filter stacking \u2014 the conjunction of four Boolean conditions (ADX < 35, volume_ratio > 1.76, bb_bw_percentile < 30, WR <= -89.5, CCI <= -92.6) produces very few bars per year, causing sample fragility. 19 trades over an evolution window signals severe under-trading. The evolved thresholds are suspiciously precise (four significant figures), consistent with overfitting to a short in-sample window.",
+  "long_only_hypothesis": "In spot crypto markets, extreme dual-oscillator oversold conditions (Williams %R near -100 AND CCI near -100) occurring within a Bollinger Band squeeze (low relative bandwidth) and coinciding with an above-average volume spike identify high-probability short-term capitulation events. Buyers step in aggressively during the volume-spike bar while the asset is already deeply compressed. The spot long-only edge is: buy the capitulation, hold for a mean-reversion bounce toward the BB midline within 24-48 hours, and exit via ATR-scaled take-profit or time stop. The long-or-cash framing is strict: when the overbought condition fires, do nothing (stay in cash) rather than shorting. A secondary long-only filter: only enter long when close is above the BMSB (20-SMA / 21-EMA band), ensuring the capitulation is a pullback within a macro bull structure rather than a continuation of a bear. RSI_7 < 35 at entry adds a fast confirming oversold filter. OBV divergence (rising OBV despite falling price) can further gate entries where smart money accumulation is visible.",
+  "market_techniques": [
+    "Mean-reversion with capitulation trigger: dual WR+CCI extreme oversold as entry catalyst",
+    "Volatility regime filtering: BB squeeze percentile gates entries to low-volatility compression phases where post-spike rebounds are sharper",
+    "Volume-spike confirmation: above-average volume on the signal bar confirms genuine panic selling rather than slow drift",
+    "ATR-normalized stop/target placement: SL below recent low adjusted by ATR multiple, TP toward BB midline or fixed ATR multiple",
+    "Macro trend filter via BMSB: only take long entries when price is above the 20-SMA/21-EMA support band to avoid catching falling knives in bear markets",
+    "Time stop discipline: 24-48h maximum hold avoids position decay in mean-reversion that fails to snap back",
+    "Regime gate: restrict entries to lateral and mean_reversion regimes (exclude strong-trend regimes where mean-reversion fails systematically)",
+    "Volatility targeting for position sizing: scale notional inversely to realized GK vol to maintain constant risk per trade rather than fixed-fraction sizing"
+  ],
+  "useful_features": [
+    "momentum: williams_r (wr_period 7-15) \u2014 primary oversold detector",
+    "momentum: cci (cci_period 10-20) \u2014 confirming momentum oscillator",
+    "trend: adx_14 \u2014 low-ADX filter ensuring mean-reversion regime",
+    "volatility: bb_bw_percentile \u2014 BB bandwidth squeeze gate (compression precedes expansion)",
+    "volume: volume_ratio \u2014 volume spike confirmation of capitulation bar",
+    "volume: volume_zscore \u2014 z-score normalizes volume spike across volatility regimes",
+    "volume: obv_divergence \u2014 OBV rising while price falling signals accumulation",
+    "momentum: rsi_7 \u2014 fast RSI oversold confirmation below 35",
+    "trend: bmsb_bullish \u2014 macro bull-market support band filter for long-only gate",
+    "volatility: gk_vol \u2014 Garman-Klass vol for volatility targeting and regime detection",
+    "price: dist_from_high_20 \u2014 distance from 20-bar high; deep negative values confirm oversold",
+    "price: bb_pct_b \u2014 position within BB bands; low pct_b (near lower band) confirms oversold",
+    "microstructure: buying_pressure \u2014 intrabar buying pressure on signal candle (should be recovering)",
+    "microstructure: pressure_imbalance \u2014 pressure_imbalance turning positive on signal bar",
+    "regime: regime label (lateral / mean_reversion) \u2014 categorical regime gate"
+  ],
+  "genome_params": [
+    {
+      "name": "wr_period",
+      "type": "int",
+      "low": 7,
+      "high": 20,
+      "note": "Williams %R lookback; shorter = more reactive, longer = smoother"
+    },
+    {
+      "name": "wr_oversold",
+      "type": "float",
+      "low": -100,
+      "high": -75,
+      "note": "WR entry threshold for long; evolved value -89.5 is a reasonable interior"
+    },
+    {
+      "name": "cci_period",
+      "type": "int",
+      "low": 10,
+      "high": 25,
+      "note": "CCI lookback; 14-20 is the standard range"
+    },
+    {
+      "name": "cci_long_threshold",
+      "type": "float",
+      "low": -150,
+      "high": -50,
+      "note": "CCI must be below this for long entry; allow wider range than evolved -92.6"
+    },
+    {
+      "name": "bb_squeeze_percentile",
+      "type": "float",
+      "low": 15,
+      "high": 50,
+      "note": "Max BB bandwidth percentile allowed; lower = stricter compression requirement"
+    },
+    {
+      "name": "adx_max",
+      "type": "float",
+      "low": 20,
+      "high": 45,
+      "note": "Max ADX allowed; above this the market is trending and mean-reversion fails"
+    },
+    {
+      "name": "volume_spike_threshold",
+      "type": "float",
+      "low": 1.2,
+      "high": 3,
+      "note": "Min volume_ratio required; too high = too few trades"
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 0.8,
+      "high": 2.5,
+      "note": "ATR multiplier for stop below entry; tight SL needed for short holds"
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 4,
+      "note": "ATR multiplier for take-profit above entry; must exceed SL"
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 12,
+      "high": 72,
+      "note": "Max trade duration; mean-reversion either works quickly or fails"
+    },
+    {
+      "name": "require_bb_squeeze",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Toggle BB squeeze filter on/off; allows evolution to test without it"
+    },
+    {
+      "name": "require_volume_spike",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Toggle volume spike filter on/off"
+    },
+    {
+      "name": "rsi_oversold_max",
+      "type": "float",
+      "low": 25,
+      "high": 45,
+      "note": "Max RSI_7 at entry; adds fast oscillator confirmation"
+    },
+    {
+      "name": "require_bmsb_bullish",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Toggle macro BMSB filter; when True only enters in bull-market structure"
+    }
+  ],
+  "do_not_optimize": [
+    "wr_overbought (entire short branch is dropped in Phase-3; this param is unused)",
+    "cci_short_threshold (same \u2014 short signal entirely removed)",
+    "allowed_regimes (hardcode to [lateral, mean_reversion]; fixing avoids regime label snooping)",
+    "require_trend_regime (keep True; toggling this off removes a principled safeguard against trend-following regime contamination)"
+  ],
+  "risk_management": {
+    "stop": "ATR-based hard stop: entry_price - stop_loss_atr_mult * atr_14. Evolved mult = 1.32 ATR is tight and appropriate for a 24h mean-reversion trade; allow sweep 0.8-2.5x. Stop is intrabar-checked (low <= stop_loss triggers exit at stop price per backtester logic).",
+    "take_profit": "ATR-based TP: entry_price + take_profit_atr_mult * atr_14. Evolved 2.63x ATR gives RR ~2:1 vs 1.32x SL. Sweep range 1.5-4.0x. Alternatively target the BB midline (bb_middle column) as a dynamic TP anchor.",
+    "trailing": "No trailing stop recommended for this strategy \u2014 the mean-reversion bounce is expected to reach TP within 24h or fail. Adding a trailing stop introduces extra parameter complexity that likely overfits given the thin trade count.",
+    "vol_target": "Apply Garman-Klass volatility targeting for position sizing: scale notional so 1-ATR move = 1% of equity. Cap at max_position_pct. This automatically reduces size in high-vol regimes (bear markets, flash crashes) where mean-reversion fails most often.",
+    "max_size": "Cap at 20% of equity per trade (BacktestConfig.max_position_pct = 0.20). With vol-targeting active the realized size will typically be smaller than the cap in normal market conditions.",
+    "cooldown": "Minimum 12-hour cooldown after any trade exit before the next entry is considered. This prevents re-entry into a continuing slide and reduces turnover-driven cost drag.",
+    "risk_off": "Gate all long entries on bmsb_bullish = True (price above both 20-SMA and 21-EMA). When bmsb_bullish is False the market is in a structurally bearish posture and mean-reversion longs frequently become knife-catches. Additionally, if ADX > adx_max the trend is too strong for mean-reversion \u2014 this filter is already in the code."
+  },
+  "metrics": [
+    "CAGR (target > 15% annualized in OOS period 2024-2026)",
+    "Sharpe ratio (target >= 1.0 WF-OOS; evolved IS Sharpe 1.59 must survive OOS)",
+    "Sortino ratio (downside-only denominator; especially relevant for a strategy that should avoid sharp drawdowns)",
+    "Max drawdown % (full-sample peak-to-trough; ruin gate: equity never <= 0)",
+    "Calmar ratio (CAGR / maxDD; target > 0.5)",
+    "Hit rate (% winning trades; mean-reversion should achieve > 55%; evolved strategy had 19 trades \u2014 too thin)",
+    "Number of trades (minimum 30 per year to be statistically meaningful; evolved 19 total is a red flag)",
+    "Average trade PnL net of all costs (commission + slippage; must be positive after 2x slippage stress test)",
+    "Turnover / exposure fraction (% of time in position; low expected for this strategy)",
+    "Cost sensitivity test: double slippage_bps and re-run \u2014 alpha should survive given ATR-based TP is wide enough",
+    "Walk-forward OOS Sharpe vs IS Sharpe degradation (target OOS degradation < 30%)",
+    "Per-year Sharpe stability across 2019-2023 (pre-lockbox): no single year should drive all returns",
+    "Bootstrap / Monte Carlo ruin probability (target prob_ruin < 5% across 1000 simulations)",
+    "Profit factor (gross wins / gross losses; target > 1.3 OOS)",
+    "DSR (Deflated Sharpe Ratio deflated by cumulative trial count; must pass dsr_min >= 0.95)"
+  ],
+  "sweep_changes": [
+    "Re-add williams_cci to STRATEGY_REGISTRY with the revised long-only param_space (remove wr_overbought and cci_short_threshold entirely; add rsi_oversold_max and require_bmsb_bullish)",
+    "Remove the short branch from williams_cci_strategy: delete the elif block (lines 117-118) so only side='long' is ever returned; if side is None after the long check, return None",
+    "Add RSI_7 oversold filter: require current['rsi_7'] <= rsi_oversold_max (sweep 25-45) as an additional confirmation gate",
+    "Add BMSB macro filter: when require_bmsb_bullish=True, return None if current['bmsb_bullish'] is False or NaN",
+    "Widen param ranges for sweep: wr_period 7-20, cci_period 10-25, cci_long_threshold -150 to -50, volume_spike_threshold 1.2-3.0, bb_squeeze_percentile 15-50",
+    "Change strength calculation: remove the 'else' (short) branch from strength computation; compute strength purely from long-side WR depth and volume ratio",
+    "Update stop/TP construction: remove short-side stop_loss/take_profit lines; only long-side SL/TP needed",
+    "Add BMSB feature columns to the bar read (bmsb_bullish is already produced by build_all_features)",
+    "Set min_trades target >= 50 in fitness evaluation (raise from the 19-trade evolved baseline) via low_trade_penalty in fitness function; current threshold is 30 \u2014 increase to 40 for this strategy",
+    "Run pre-lockbox walk-forward on 2019-01-01 to 2024-06-07 only; lockbox 2024-06-07 to 2026-06-07 remains sealed throughout all sweeps"
+  ],
+  "methodological_risks": [
+    "Extreme filter stacking: the conjunction of five simultaneous conditions (ADX, volume, BB squeeze, WR extreme, CCI extreme) produces very few bars \u2014 19 trades in the evolved version is statistically negligible and cannot distinguish edge from noise",
+    "Evolved threshold precision (e.g., wr_oversold=-89.5301 to 4 decimal places) is a strong overfitting signal; these values should be treated as starting points for a wider sweep, not as discovered truth",
+    "Williams %R is computed fresh bar-by-bar using raw numpy arrays in _williams_r() \u2014 this is correct but creates a subtle O(n*period) bottleneck at scale; not a leakage risk but a speed concern for large sweeps",
+    "CCI computed identically bar-by-bar (_cci function) \u2014 no leakage, but the strategy does not use the precomputed feature pipeline columns (bb_bw_percentile uses 'bb_bw_percentile' but WR/CCI are recomputed inline); this inconsistency means the genome's wr_period and cci_period diverge from any pipeline-cached values",
+    "bb_bw_percentile uses a 100-bar rolling window; the WalkForwardValidator embargo must remain >= 120 bars to prevent the percentile feature from bridging train/test windows \u2014 this is already handled in the engine (embargo_bars=120) but any future feature additions must respect this constraint",
+    "Regime label leakage risk: the _regime column used by the strategy gate (regime not in allowed_regimes) must be computed without future data; verify the regime classifier uses only past bars and that the same regime column is reproduced identically in OOS evaluation",
+    "Short removal impact: dropping the short branch reduces signal frequency by approximately half on any given asset, further worsening the thin-trade problem; the long-only version will likely produce even fewer signals than the 19 trades observed in evolution",
+    "Bitcoin/crypto bull-bias survivorship: mean-reversion strategies in crypto 2019-2023 benefited from a structurally upward trending market; OOS 2024-2026 includes a more mature market cycle and different vol regime; the BMSB filter partially mitigates this but does not eliminate it",
+    "Cross-asset generalization: the strategy was penalized in Round 2 for working on XRP but not generalizing across assets (cross_asset_xrp_only_penalty); in the long-only version this risk persists \u2014 add cross-asset sweep across BTC, ETH, SOL during in-sample calibration",
+    "Monte Carlo ruin risk: with only ~19 trades and a tight 24-hour time stop, a single streak of 5-6 consecutive losses at 1.32x ATR SL can cause a meaningful equity drawdown; vol-targeting sizing is essential to prevent compounding of consecutive losers"
+  ]
+}

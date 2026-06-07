@@ -1,0 +1,154 @@
+{
+  "strategy": "fisher_transform",
+  "classification": "doubtful",
+  "diagnosis": "The Fisher Transform strategy converts the midpoint of a rolling high-low range into a Gaussian-distributed oscillator using Ehlers' formula. The computation is done inline per bar on a 150-bar trailing slice (not a precomputed column), with a 0.5-weighted smoothing pass before the log transform and another 0.5-weighted recursive blend of the Fisher value itself. Two signal branches exist: (1) bearish reversal when Fisher crosses downward from above +threshold, producing side=\"short\"; (2) bullish reversal when Fisher crosses upward from below -threshold, producing side=\"long\". The short branch is fully live \u2014 the strategy emits short signals with an inverted stop-loss (close + ATR_mult) and inverted take-profit (close - ATR_mult), and the backtester executes them as short positions. This means roughly half of all signals are short-side and the strategy is currently bi-directional. The ADX filter caps at adx_max=35 (adx_filter=True), blocking entries during extreme-trend regimes. An optional divergence filter exists (currently disabled). The evolved PARAMS (gen 190, 1104 evals) report WF_Sharpe=2.19 and only 34 trades, indicating extreme sparsity \u2014 approximately one trade per month over the training window, making Sharpe estimates highly noise-driven at this sample size. The core Fisher edge is mean-reversion at extremes: the oscillator is expected to revert sharply when price reaches an unusually high or low position within its recent range. In a spot long-only context the short branch must be dropped entirely. The residual long branch fires only on confirmed downward exhaustion (Fisher < -threshold crossing up), which is a legitimate oversold-bounce entry concept. Weakness: with only the long branch active, trade frequency will roughly halve, exacerbating the sparse-signal problem. The recursive Fisher blend (each bar's Fisher = 0.5*new + 0.5*prev) introduces substantial lag, meaning crossings occur well after the actual turning point. The ADX cap further restricts entries to non-trending environments, which is appropriate for mean-reversion but limits the strategy's participation in crypto's dominant trending regimes.",
+  "long_only_hypothesis": "In spot crypto markets, after a sustained decline that pushes the Fisher Transform below a deeply negative threshold (e.g., -1.8 to -2.2), the exhaustion of selling pressure combined with a Fisher crossover of its signal line marks a probabilistic turning point. The long entry at that crossover, confirmed by the asset being in a non-extreme-trend environment (ADX cap), captures the mean-reversion bounce from oversold range extremes. The position is held with a hard ATR-based stop below entry and an ATR-based take-profit, with a 24-hour time stop as a fallback. The hypothesis is that Fisher values below -threshold identify periods where price has spent an unusual proportion of recent bars near the range low, and the crossover signals that this pressure is abating \u2014 consistent with a bounce. In cash during all other periods (no short, no position). Edge is regime-conditional: works in consolidation/mean-reversion regimes, fails in persistent downtrends where Fisher stays pinned negative for extended periods.",
+  "market_techniques": [
+    "Mean-reversion entry at oscillator extremes (Fisher < -threshold crossover)",
+    "ATR-normalized stop-loss and take-profit for volatility-adaptive risk management",
+    "Regime gating via ADX cap to avoid entering mean-reversion trades in strong trends",
+    "Optional bullish divergence filter (price lower low + Fisher higher low) to reduce false positives",
+    "Time stop as secondary exit mechanism to cap exposure when price stalls after entry",
+    "Strength-weighted position sizing based on Fisher magnitude and crossover gap",
+    "Walk-forward validation with embargo gaps to calibrate threshold and ATR multipliers on pre-lockbox data only"
+  ],
+  "useful_features": [
+    "momentum: rsi_7 \u2014 secondary oversold confirmation; require RSI < 40 at Fisher long signal to avoid catching falling knives",
+    "momentum: rsi_14 \u2014 medium-term momentum alignment; RSI diverging upward while Fisher crosses supports entry",
+    "trend: adx_14 \u2014 existing gate; keep as filter but consider also gating on ADX direction (falling ADX signals trend exhaustion)",
+    "volatility: atr_14 \u2014 already used for stop and take-profit sizing; normalize Fisher threshold by recent ATR regime",
+    "volatility: bb_pct_b \u2014 Bollinger %B below 0.2 at Fisher signal strengthens the oversold-bounce hypothesis",
+    "volatility: gk_vol \u2014 Garman-Klass vol regime; avoid entries during extreme vol spikes (gap risk)",
+    "volume: volume_ratio \u2014 above-average volume on the crossover bar confirms buyer absorption at the low",
+    "volume: obv_divergence \u2014 positive OBV divergence (OBV rising while price falling) strengthens long signal",
+    "price/return: dist_from_low_20 \u2014 small negative value (price near 20-bar low) confirms the Fisher signal is at a genuine range extreme",
+    "price/return: ret_zscore_20 \u2014 very negative z-score corroborates oversold conditions",
+    "market regime: bmsb_bullish \u2014 macro long-only filter; only trade long when price is above BMSB (above bull market support band) to avoid catching falling knives in bear markets",
+    "market regime: bb_bw_percentile \u2014 low bandwidth percentile signals compression before expansion; avoid Fisher longs when volatility is in extreme compression (breakout risk)",
+    "drawdown: dist_from_high_20 \u2014 deeply negative values confirm the strategy is entering after a drawdown, consistent with the mean-reversion hypothesis"
+  ],
+  "genome_params": [
+    {
+      "name": "period",
+      "type": "int",
+      "low": 8,
+      "high": 24,
+      "note": "Rolling high-low window for Fisher computation; wider = smoother but more lag; 10-18 is sweet spot for hourly crypto"
+    },
+    {
+      "name": "signal_threshold",
+      "type": "float",
+      "low": 1.4,
+      "high": 2.6,
+      "note": "Absolute Fisher value required for a valid signal; higher = rarer but stronger; long-only version should test higher end to keep signal quality high"
+    },
+    {
+      "name": "adx_max",
+      "type": "float",
+      "low": 25,
+      "high": 45,
+      "note": "Maximum ADX allowed for entry; lower values enforce stronger mean-reversion regime gate"
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 3.5,
+      "note": "ATR multiplier for hard stop below entry; tighter stops cut losses but increase whipsaw exits"
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 2,
+      "high": 5.5,
+      "note": "ATR multiplier for take-profit; ratio to stop_loss_atr_mult drives R:R; keep TP/SL >= 1.5"
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 12,
+      "high": 72,
+      "note": "Maximum hours in trade before forced exit; 24h is reasonable for hourly bars but 48-72h allows more room for mean-reversion to play out"
+    },
+    {
+      "name": "require_divergence",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Whether to require price-Fisher bullish divergence confirmation; adds selectivity at cost of frequency"
+    },
+    {
+      "name": "divergence_lookback",
+      "type": "int",
+      "low": 8,
+      "high": 20,
+      "note": "Bars to look back for divergence check; only relevant when require_divergence=True"
+    },
+    {
+      "name": "rsi_oversold_threshold",
+      "type": "float",
+      "low": 25,
+      "high": 45,
+      "note": "NEW: RSI_14 must be below this value at Fisher long signal; adds momentum confirmation; 35 is a reasonable starting point"
+    },
+    {
+      "name": "require_bmsb_above",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "NEW: Only take Fisher long signals when price is above BMSB (bull-market regime gate); avoids catching falling knives in bear markets"
+    }
+  ],
+  "do_not_optimize": [
+    "allowed_regimes \u2014 hard-coding regime labels couples the strategy to the regime classifier's internal state; the ADX filter already provides a cleaner structural gate; evolving allowed_regimes overfits to the specific regime label distribution in the training data",
+    "volume_threshold \u2014 currently disabled (require_volume=False); adding it to the sweep with only 34 total trades risks fitting to volume noise in a handful of bars",
+    "divergence_lookback \u2014 extremely high risk of overfitting when require_divergence itself is a binary sweep parameter; if divergence is off, this param is irrelevant, creating a dimension of pure noise in the genome",
+    "the exact Fisher smoothing constant (0.5) \u2014 Ehlers' original constant; changing it transforms the indicator into something non-standard with unpredictable behavior and no theoretical grounding"
+  ],
+  "risk_management": {
+    "stop": "Hard ATR stop below entry: stop_loss = entry_price - stop_loss_atr_mult * atr_14; default mult 2.0-2.5; the stop level is set at signal time and must not be moved downward once the position is open",
+    "take_profit": "ATR-based take-profit: take_profit = entry_price + take_profit_atr_mult * atr_14; default mult 3.5-4.0; R:R target >= 1.5:1 to compensate for sub-50% hit rate typical of counter-trend entries",
+    "trailing": "No trailing stop recommended for mean-reversion trades; trailing stops tend to give back too much of short-lived bounce gains; rely instead on fixed TP or time stop",
+    "vol_target": "Volatility-scaled sizing using gk_vol or atr_14/close as a proxy for daily vol; target annualized vol fraction of 0.15-0.25 of equity per trade; cap max size at 30% of equity per position to prevent single-trade ruin",
+    "max_size": "Hard cap at 30% of equity per position regardless of vol-target formula output; with only 1 position allowed at a time (position is not None -> return None) this is effectively the maximum exposure",
+    "cooldown": "Minimum 24-hour cooldown between new long entries after a stop-loss exit; prevents rapid re-entry into a continuing downtrend (whipsaw protection); time_stop itself provides natural spacing for time-stop and TP exits",
+    "risk_off": "Regime gate: (1) ADX gate already implemented via adx_max \u2014 do not enter if adx_14 > threshold; (2) NEW macro gate: skip all Fisher long signals when price is below both bmsb_sma and bmsb_ema (bear market); (3) Circuit-breaker from RiskManager already halts new entries after sustained equity drawdown; (4) Optional: gate on gk_vol percentile \u2014 skip if current gk_vol is in top 10% of trailing 90-day distribution (extreme volatility = gap risk for mean-reversion entries)"
+  },
+  "metrics": [
+    "CAGR \u2014 primary return metric; target > 20% annualized in spot long-only; normalize by comparing to BTC buy-and-hold CAGR over same OOS window",
+    "Sharpe ratio (annualized) \u2014 target > 1.0 on 2-year OOS lockbox; WF-reported 2.19 is on a short in-sample window and will almost certainly not hold OOS",
+    "Sortino ratio \u2014 more relevant than Sharpe for long-only strategies since only downside deviation matters; target > 1.5",
+    "Max drawdown % \u2014 hard constraint <= 25% on full OOS equity curve; currently evolved PARAMS have only 34 trades so per-fold drawdowns are unreliable",
+    "Calmar ratio (CAGR / maxDD) \u2014 target > 0.8 for the strategy to be viable; mean-reversion strategies often have poor Calmar in trending markets",
+    "Hit rate (% winning trades) \u2014 counter-trend mean-reversion typically targets 45-55% hit rate; below 40% with current R:R of ~1.8:1 means negative EV",
+    "Number of trades \u2014 minimum 30 trades over 2-year OOS period required for any statistical inference; with the short branch removed this is a serious concern",
+    "Average trade duration (hours) \u2014 expected 12-48h for a mean-reversion bounce; longer durations suggest the time stop is doing heavy lifting",
+    "Turnover / exposure % \u2014 fraction of time with an open position; low exposure (< 20%) means the strategy is mostly in cash, which is structurally safe but reduces absolute return",
+    "Cost sensitivity \u2014 with wide stops (2.2 ATR) and few trades, commission/slippage sensitivity should be low; verify by running at 2x and 3x cost assumptions",
+    "Bootstrap / Monte Carlo on trade sequence \u2014 with only 34 trades, resample with replacement 1000x to get confidence intervals on Sharpe and maxDD; critical for a sparse strategy",
+    "Per-year Sharpe stability \u2014 compute rolling 365-day Sharpe to detect year-over-year regime dependency; a strategy that worked in 2021 bear and failed in 2023 bull is not robust"
+  ],
+  "sweep_changes": [
+    "DROP the short branch entirely: remove lines 119-121 (side='short' assignment) and the short-side stop_loss/take_profit calculation (lines 155-157); the strategy should only return a Signal when side='long' or return None",
+    "Remove 'short' from allowed_regimes and from any regime-gating logic; the allowed_regimes list is only relevant if require_trend_regime is True, and 'lateral' and 'mean_reversion' are the relevant long-only regimes",
+    "ADD rsi_oversold_threshold parameter: at signal bar require rsi_14 < rsi_oversold_threshold (suggested sweep range 25-45) as a secondary oversold confirmation gate; read rsi_14 from current bar (already in features)",
+    "ADD bmsb_bullish macro gate: read bmsb_bullish from current bar; if False (price below both BMSB SMA and EMA), return None \u2014 this prevents counter-trend longs in sustained bear markets",
+    "ADD volume confirmation option: add require_vol_confirm boolean; when True require volume_ratio > 1.0 at the crossover bar (buyer absorption), controlled by a separate bool sweep param",
+    "EXTEND time_stop_hours sweep range to (12, 72) from current (24, 24) fixed value \u2014 time stop is a critical exit for this sparse mean-reversion strategy and should be part of the genome",
+    "ADD dist_from_low_20 gate: require dist_from_low_20 > -0.15 (price within 15% of 20-bar low) to ensure Fisher signal coincides with a genuine range-bottom approach, not a mid-range false trigger",
+    "EXTEND period sweep upper bound to 24 (from 20) to allow testing of slower, more stable Fisher configurations appropriate for hourly crypto data",
+    "SCALE signal strength calculation to use only abs(ft) relative to threshold, not absolute: strength = min(1.0, 0.5 + (abs(ft) - threshold) / threshold) \u2014 this makes the sizing formula regime-agnostic rather than hardcoded to the Fisher scale",
+    "ADD obv_divergence as optional filter: if obv_divergence > 0 at signal bar (OBV above its 20-SMA while price is near lows), add 0.1 to strength; implement as a read-only informative adjustment, not a gate, to preserve trade frequency",
+    "ENSURE the strategy handles the long-only conversion cleanly: return None for any bar where the short condition would have fired, and confirm in unit tests that no Signal with side='short' is ever emitted after the change"
+  ],
+  "methodological_risks": [
+    "Extreme sparsity (34 trades in-sample, ~17 long-only after short removal): standard Sharpe and Calmar estimates have huge standard errors with N < 30; WF_Sharpe=2.19 could easily be 0.5 with a different random seed or slightly different window; bootstrap confidence intervals are mandatory before any promotion decision",
+    "Recursive Fisher smoothing creates lag that is period-dependent AND value-history-dependent; when the backtester slices only 150 bars per call and recomputes from scratch each time, the Fisher state at bar 0 of each slice initializes to 0.0 rather than the true running value \u2014 this introduces a systematic warm-up bias where early Fisher values in each slice are pulled toward zero, potentially generating spurious crossovers at slice boundaries",
+    "The evolved params (gen 190) were optimized including the short branch; signal_threshold=1.982 may have been tuned to balance both long and short signal frequencies; removing the short branch changes the effective signal distribution and the evolved threshold may no longer be optimal for long-only",
+    "ADX cap at 35.3 was co-evolved with the short branch; without shorts, the optimal ADX regime may differ \u2014 the current cap may be too permissive or too restrictive for long-only mean-reversion entries specifically",
+    "Time stop at 24 hours is currently fixed (not in the sweep); for hourly bars this means the position can only be held for 24 candles, which is extremely short for a mean-reversion trade that may take 2-5 days to play out; many valid bounces will be time-stopped before reaching TP, degrading the R:R assumption",
+    "Overfitting risk in the 2-year OOS lockbox: with only ~17 expected long-only trades in 2 years (roughly 1 per 6 weeks), the OOS evaluation has near-zero statistical power \u2014 a single large winning trade can make the strategy look excellent while it is structurally unprofitable",
+    "The 150-bar lookback slice cap means that for large bar_idx the Fisher is computed on a fixed 150-bar window regardless of the period parameter; for period=24 this is only 6.25x the period, which may be insufficient for the recursive smoothing to stabilize",
+    "Regime label dependency: the allowed_regimes gate includes 'trend' (currently enabled), which is inconsistent with the ADX cap designed to exclude trending environments; these two filters may cancel each other or create confusing regime combinations that overfit to the specific regime classifier's output distribution"
+  ]
+}

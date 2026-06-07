@@ -1,0 +1,166 @@
+{
+  "strategy": "volatility_squeeze",
+  "classification": "candidate",
+  "diagnosis": "The volatility_squeeze strategy implements a TTM Squeeze variant: it detects when Bollinger Bands (20-period, 2.0 std) are nested inside a Keltner Channel (20-period EMA, ATR x keltner_atr_mult), waits for the squeeze to hold for at least squeeze_min_bars, then enters when the squeeze releases. Direction is determined by a linear regression slope over the last momentum_lookback bars. Entry also requires a volume_ratio surge above volume_surge_threshold and an optional ADX floor (currently adx_min=0.0, effectively disabled). Regime gate: only enters in \"breakout\" or \"lateral\" regimes.\n\nThe strategy EMITS SHORTS (slope < 0 branch) and must be converted to long-or-flat. The short branch at lines 108-118 must be dropped; a negative slope at squeeze release becomes a cash/no-trade signal.\n\nThe evolved PARAMS (gen 472, 5375 evals) show a tight Keltner multiplier (1.1686) that catches narrow squeezes, a relatively high volume bar (1.9x), a wide stop (3.79 ATR) and modest TP (4.60 ATR), and a 36-hour time stop. The claim of Sharpe=3.31 WF=3.94 over 49 trades is suspicious\u201449 trades over any multi-year horizon is sparse, suggesting the edge is selective but plausible. The core edge is genuine: post-squeeze vol expansions in crypto tend to trend, and requiring volume confirmation reduces false releases. Weakness: (1) the slope direction is computed on pre-release bars, which can disagree with the actual expansion direction in choppy releases; (2) the short arm captures downside moves that in spot long-only would simply be missed\u2014converting to long-only reduces signal frequency by roughly half; (3) the volume_surge_threshold=1.9 is very high and will miss many legitimate releases; (4) the time_stop=36h is very short for a breakout that may run for days.",
+  "long_only_hypothesis": "After a verified volatility compression (BB inside Keltner for at least N bars) releases to the upside, crypto spot assets exhibit sustained directional momentum that lasts longer than the time_stop currently allows. The long-only hypothesis is: enter long when the squeeze releases AND the linear regression slope AND close-vs-recent-high confirm upward momentum AND volume surges, hold with a trailing stop or wider time stop, exit to cash otherwise. The informational asymmetry is that crypto spot has a positive drift bias (2019-2026 BTC/ETH compound ~+60% CAGR), so capturing the upside squeeze releases and sitting in cash on the downside releases should outperform the flat short arm net-net, especially after avoiding short-side funding and slippage costs.",
+  "market_techniques": [
+    "TTM Squeeze (Bollinger inside Keltner) for compression detection",
+    "Linear regression slope for directional momentum at release",
+    "Volume surge confirmation to filter false releases",
+    "ATR-based stop and take-profit placement",
+    "Regime gating to restrict entries to breakout and lateral markets",
+    "bb_bw_percentile rolling rank for squeeze depth scoring",
+    "Walk-forward validation with embargo gaps for parameter robustness",
+    "BMSB (Bull Market Support Band) as a macro trend regime filter",
+    "Trailing stop to let winning breakouts run beyond the current tight 36h time stop",
+    "ADX threshold as post-release trend strength gate"
+  ],
+  "useful_features": [
+    "volatility: bb_bw_percentile \u2014 core squeeze depth; low percentile = deep squeeze",
+    "volatility: bb_bandwidth \u2014 raw bandwidth to detect squeeze exit by expansion delta",
+    "volatility: atr_14 \u2014 stop and take-profit sizing, Keltner channel width",
+    "volatility: gk_vol \u2014 Garman-Klass for a cleaner realized vol estimate during compression",
+    "volatility: vol_ratio (short/long realized vol) \u2014 secondary compression indicator",
+    "trend: adx_14 \u2014 post-release trend strength gate to avoid whipsaw releases",
+    "trend: bmsb_bullish \u2014 macro bull-market filter; only enter longs when above BMSB",
+    "momentum: roc_12 \u2014 12-bar rate of change as supplementary directional signal",
+    "momentum: rsi_14 \u2014 avoid entries when overbought (rsi_14 > 70) at squeeze release",
+    "momentum: price_acceleration \u2014 second derivative of close, confirms momentum building",
+    "volume: volume_ratio \u2014 primary volume surge gate (already used)",
+    "volume: volume_zscore \u2014 z-score based volume spike detector (more robust than raw ratio)",
+    "volume: obv_divergence \u2014 OBV divergence from its SMA signals accumulation during squeeze",
+    "price/return: dist_from_high_20 \u2014 proximity to recent 20-bar high; breakout above confirms direction",
+    "price/return: close_location \u2014 high close_location (near high) at release bar confirms bullish push",
+    "market regime: regime label (breakout/lateral) \u2014 already used; keep as gate",
+    "sentiment/funding (informative only): funding rate direction as a filter \u2014 do NOT enter long when funding is extremely negative (capitulation signal); treat as warning flag, not PnL source"
+  ],
+  "genome_params": [
+    {
+      "name": "keltner_atr_mult",
+      "type": "float",
+      "low": 0.8,
+      "high": 2,
+      "note": "Controls how tight the Keltner must be to detect a squeeze. Current evolved value 1.1686 is on the tight end; allow evolution to explore looser definitions."
+    },
+    {
+      "name": "squeeze_min_bars",
+      "type": "int",
+      "low": 2,
+      "high": 12,
+      "note": "Minimum bars of compression before qualifying as a squeeze. Current=3; allow deeper search for sustained squeezes."
+    },
+    {
+      "name": "momentum_lookback",
+      "type": "int",
+      "low": 5,
+      "high": 30,
+      "note": "Linear regression window for slope direction. Current=13; let evolution find longer/shorter memory."
+    },
+    {
+      "name": "volume_surge_threshold",
+      "type": "float",
+      "low": 1,
+      "high": 3,
+      "note": "Volume ratio at release must exceed this. Current=1.9; range allows evolution to relax for rare-but-strong setups or tighten for higher precision."
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 5,
+      "note": "ATR multiplier for stop loss. Current=3.79; breakout strategies need wide stops."
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 2.5,
+      "high": 9,
+      "note": "ATR multiplier for take profit. Current=4.60; allow evolution to let winners run further in long-only context."
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 24,
+      "high": 120,
+      "note": "Maximum hold time. Current=36h is too short for multi-day breakouts; extend range to allow 5-day holds."
+    },
+    {
+      "name": "adx_min",
+      "type": "float",
+      "low": 0,
+      "high": 30,
+      "note": "ADX floor for trend confirmation post-release. Currently 0 (disabled); allow evolution to enable it as a quality filter."
+    },
+    {
+      "name": "squeeze_depth_pct_max",
+      "type": "float",
+      "low": 10,
+      "high": 30,
+      "note": "NEW: maximum bb_bw_percentile allowed during squeeze bars. Currently strategy uses hard < 20 threshold; make evolvable."
+    },
+    {
+      "name": "rsi_overbought_filter",
+      "type": "float",
+      "low": 65,
+      "high": 85,
+      "note": "NEW: skip long entry if rsi_14 > this at squeeze release (avoids buying exhausted moves). Not currently in strategy."
+    }
+  ],
+  "do_not_optimize": [
+    "bb_period (fixed at 20 \u2014 TTM Squeeze standard; changing it redefines the indicator)",
+    "bb_std (fixed at 2.0 \u2014 TTM Squeeze standard; deviating creates a non-standard indicator with arbitrary squeeze definition)",
+    "keltner_period (fixed at 20 \u2014 must match bb_period for the squeeze comparison to be meaningful)",
+    "require_volume_surge (keep True \u2014 the vol confirmation is the main noise filter; toggling it adds a free bool that invites overfitting)",
+    "allowed_regimes (keep ['breakout', 'lateral'] \u2014 changes regime list without a principled basis invite curve fitting to regime labels)"
+  ],
+  "risk_management": {
+    "stop": "ATR-based hard stop: close - stop_loss_atr_mult * atr_14. Range 1.5-5.0x ATR. The backtester enforces intrabar stop via low < stop_loss price check. This is the primary capital protection.",
+    "take_profit": "ATR-based take profit: close + take_profit_atr_mult * atr_14. Range 2.5-9.0x ATR in long-only mode to let breakouts run. TP must always exceed stop (constraint enforced in genome mutation).",
+    "trailing": "Optional ATR-based trailing stop: once unrealized gain exceeds 2.0x ATR, move stop to breakeven; once gain exceeds 3.0x ATR, trail at 1.5x ATR from rolling high. This replaces the rigid 36h time stop as the primary exit for winning trades.",
+    "vol_target": "Volatility-targeted position sizing via backtester risk_config.sizing_method = 'volatility_scaled'. Target annualized vol of 15-20% per position. At typical crypto ATR/price ~2-4% per bar, this implies position sizes of 0.15-0.30 of equity per trade.",
+    "max_size": "Maximum 25% of equity per single trade (config.max_position_pct = 0.25). Prevents any single squeeze release from dominating the portfolio.",
+    "cooldown": "Minimum 12 hours between new entries (risk_manager min_time_between_trades). This prevents the strategy from re-entering immediately after a time-stop exit, which could cause rapid drawdown in a choppy market.",
+    "risk_off": "Regime gate: skip entries if regime is not in ['breakout', 'lateral']. Additional macro gate: skip long entries if close < bmsb_sma (below Bull Market Support Band). Optional: skip if gk_vol z-score (20-bar) > 2.5 (extreme realized vol suggests market dislocation, not a tradeable squeeze release)."
+  },
+  "metrics": [
+    "CAGR (annualized compound return on equity) \u2014 primary return metric",
+    "Sharpe ratio (annualized on hourly equity returns) \u2014 risk-adjusted return",
+    "Sortino ratio (downside deviation denominator) \u2014 relevant because distribution is right-skewed in breakout strategies",
+    "Maximum drawdown % (peak-to-trough on equity curve) \u2014 risk constraint; target < 20%",
+    "Calmar ratio (CAGR / maxDD) \u2014 combines return and tail risk in one scalar",
+    "Hit rate % (% trades with pnl_net > 0) \u2014 squeeze releases have directional bias; expect 45-60%",
+    "Profit factor (gross profit / gross loss) \u2014 should exceed 1.5 for viable breakout strategy",
+    "Average trade PnL net of all costs (commission + slippage) \u2014 must be clearly positive vs cost drag",
+    "Turnover (trades per month) \u2014 very low turnover (1-4/month) expected; verify costs are not killing the edge",
+    "Market exposure % (fraction of time in position) \u2014 target 15-35% for a selective breakout approach",
+    "Cost sensitivity: recompute Sharpe at 2x commission and 2x slippage to check robustness",
+    "Bootstrap/MC confidence interval on Sharpe (1000 iterations, trade-level resampling)",
+    "Per-calendar-year Sharpe and return \u2014 must show positive years across bull (2020-21, 2023-24) AND sideways (2022) markets",
+    "OOS degradation % (walk-forward test Sharpe vs train Sharpe) \u2014 target < 40% degradation",
+    "Deflated Sharpe Ratio (DSR) pass/fail \u2014 must clear dsr_min threshold after deflating by number of genome evaluations"
+  ],
+  "sweep_changes": [
+    "Remove the short branch (lines 108-118 in volatility_squeeze.py): replace 'elif slope < 0: signal = Signal(side=\"short\", ...)' with 'return None' to convert to long-or-flat. Only emit Signal(side=\"long\") when slope > 0.",
+    "Add rsi_overbought_filter parameter: before emitting long signal, check if current.get('rsi_14', 50) > p['rsi_overbought_filter']; if so, return None.",
+    "Add squeeze_depth_pct_max parameter: instead of hardcoding < 20 for bb_bw_percentile, use p['squeeze_depth_pct_max'] to make the squeeze threshold evolvable.",
+    "Add BMSB macro regime gate: add a check 'if p.get(\"require_bmsb_bullish\", True) and not current.get(\"bmsb_bullish\", True): return None' to restrict long entries to bull-market conditions.",
+    "Extend time_stop_hours range to [24, 120] in auto_evolve.py STRATEGY_REGISTRY param_space to allow multi-day breakout holds.",
+    "Add volume_zscore as secondary volume confirmation: 'if p.get(\"require_vol_zscore\", False) and current.get(\"volume_zscore\", 0) < p.get(\"vol_zscore_min\", 1.5): return None'",
+    "Add obv_divergence filter: skip entry if obv_divergence < 0 (OBV below its 20-SMA) to confirm accumulation during the squeeze.",
+    "Update param_space in STRATEGY_REGISTRY to add: rsi_overbought_filter (float, 65.0, 85.0), squeeze_depth_pct_max (float, 10.0, 30.0), time_stop_hours (int, 24, 120). Also extend take_profit_atr_mult high to 9.0.",
+    "Add trailing stop logic: after position entry, if unrealized_pnl > 2.0 * atr_14 * size_per_unit, raise stop to entry. If unrealized_pnl > 3.0 * atr_14 * size_per_unit, trail at max(current_stop, high_since_entry - 1.5 * atr_14). This requires passing high_since_entry through the Position object.",
+    "Add dist_from_high_20 confirmation: require current.get('dist_from_high_20', -0.1) > -0.03 (price within 3% of 20-bar high) as upward breakout confirmation before entering."
+  ],
+  "methodological_risks": [
+    "Sparse trade count risk: 49 trades over the evolved period yields high Sharpe uncertainty. The standard error of Sharpe ~ 1/sqrt(N) implies SE ~ 0.14 for 49 trades; a Sharpe of 3.31 \u00b1 0.28 at 95% CI. Bootstrap CI must confirm significance.",
+    "Short-removal signal frequency halving: removing the short arm roughly halves the number of entries. The 49 original trades may drop to ~25 long-only trades, further widening Sharpe uncertainty and risking too few trades for walk-forward folds to be meaningful.",
+    "Regime label leakage risk: the strategy gates on regime labels. If regime labels are computed on future data or have lookahead within their rolling window, every entry gated on regime carries a leakage artifact. Verify regime labeling is strictly lagged.",
+    "High volume threshold fragility: volume_surge_threshold=1.9 was evolved on a specific asset/period. On new assets or bear regimes, vol ratio distributions shift, and this threshold may be chronically unsatisfied, generating zero trades in OOS.",
+    "Linear regression slope collinearity: slope is computed on the same bars that precede the squeeze release. In choppy releases the slope may point up even as price immediately reverses; adding close > VWAP or dist_from_high_20 > threshold as confirmation would mitigate.",
+    "ATR-denominated stop on a high-volatility asset: atr_14 during the squeeze compression period is itself suppressed (that is the squeeze condition). The stop is set at close - 3.79 * suppressed_ATR, which may be tighter than intended when ATR reverts to normal post-release, causing premature stop-outs.",
+    "bb_bw_percentile lookahead: the percentile is computed over a 100-bar rolling window. The first 100 bars have incomplete percentile estimates (min_periods=20). If the backtester warm-up of 50 bars is shorter than this, early percentile values are computed on fewer than 100 bars and may be systematically biased low, creating phantom squeezes in the earliest data.",
+    "Overfitting to 2021 bull run: the strategy evolved from 2019-2026 data but crypto had extreme squeeze-then-rally setups in 2020-2021. If most of the 49 profitable trades cluster there, the OOS 2024-2026 period may not reproduce the pattern.",
+    "Time stop destroys long-term breakouts: the 36h time stop will forcibly exit multi-day moves. In the long-only context, the best squeeze releases run for 5-10 days. Extending time_stop_hours to 96-120 is critical but increases sensitivity to parameter choice.",
+    "Cross-asset generalization: if the genome was evolved primarily on BTC/ETH data, the keltner_atr_mult=1.1686 and volume_surge_threshold=1.9 may be asset-specific. The cross-asset generalization penalty in the fitness function helps but does not eliminate this risk."
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "strategy": "connors_rsi2",
+  "classification": "doubtful",
+  "diagnosis": "connors_rsi2_strategy implements Larry Connors' classic RSI(2) mean-reversion approach. The logic is: compute a 2-bar RSI on raw close prices using a simple-average (not Wilder-smoothed) method; apply an EMA(200) trend filter; require ADX >= 15; then BUY when RSI(2) < 10 in an uptrend and SHORT when RSI(2) > 90 in a downtrend. The strategy definitely emits short signals \u2014 the \"short\" branch is structurally symmetric with the long branch, with inverted stop/take-profit arithmetic (stop_loss = close + ATR_mult, take_profit = close - ATR_mult). Exits rely on ATR-based fixed TP/SL or a 24-hour time stop; there is no RSI mean-reversion exit (the original Connors rule exits when RSI(2) crosses above 65, coded as exit_threshold_long but never read at runtime because the position block returns None immediately). The RSI computation re-implements a simple-mean variant rather than the Wilder EWM used in features.py, creating an inconsistency. The strategy was pruned from auto_evolve STRATEGY_REGISTRY in Round 2 after 36K evaluations with only 1.2% positive-fitness rate \u2014 the lowest of the survivors but still above zero. Its principal weakness is that the short branch is its only real edge in crypto bear markets; the long branch buys dips inside uptrends, which has genuine mean-reversion logic, but the 24-hour time stop is too short for crypto pullbacks that may last 3-7 days, and the flat ATR exit ignores the asymmetric volatility of crypto. The RSI(2) period is extremely short, making signals very frequent and noisy on hourly crypto data, leading to high turnover and cost drag. The allowed_regimes list is overly permissive (\"trend\", \"lateral\", \"mean_reversion\" all allowed), which dilutes the regime-filtering benefit.",
+  "long_only_hypothesis": "The long-only edge hypothesis for connors_rsi2 in spot is: short-duration pullbacks (RSI(2) collapsing below 10) within a confirmed intermediate-term uptrend (price above EMA(200)) produce statistically higher-than-random next-N-bar returns in BTC/ETH, because crypto uptrends are punctuated by sharp but temporary oversold flushes driven by liquidation cascades. The edge is a dip-buying / mean-reversion-within-trend edge. The short branch is dropped entirely; when RSI(2) > 90 in a downtrend, the strategy emits nothing and stays in cash. Additional cash-preservation logic should gate entry on the BMSB (Bull Market Support Band) being bullish and on low-volatility-regime confirmation, since the RSI(2) flush signal is meaningless \u2014 or even a value trap \u2014 during structural bear markets (e.g., 2022). The time stop must be extended from 24h to 48-120h to allow the mean-reversion to complete. A secondary exit trigger using RSI(7) rising above 60 (substituting for the unimplemented exit_threshold_long = 65 that was already intended but not connected) makes the exit adaptive rather than purely time-bound.",
+  "market_techniques": [
+    "Mean-reversion within trend (RSI oversold dip-buy while price above EMA(200))",
+    "Multi-timeframe confirmation: require uptrend on daily-equivalent horizon (EMA(200) on hourly bars ~ 8-day MA, so extend to EMA(500) or add BMSB bullish check as longer-horizon filter)",
+    "ATR-normalized stop and take-profit to adapt to crypto volatility regimes",
+    "Regime-gated entry: restrict signals to 'trend' regime only (exclude 'lateral' and 'mean_reversion' to avoid whipsaws)",
+    "Volatility-scaled position sizing: reduce size when gk_vol is elevated, increase modestly when volatility is compressed and trend is strong",
+    "Time stop extension to 72-120 hours to allow multi-day oversold mean-reversion to complete",
+    "RSI exit: exit long when rsi_7 crosses above 60 (implements the intended exit_threshold_long that is coded but never reached)",
+    "Volume confirmation on entry: require volume_ratio < 1.5 (no exhaustion-volume paradox) or alternatively require volume_ratio > 1.2 on the flush bar as evidence of genuine capitulation flush"
+  ],
+  "useful_features": [
+    "trend: dist_from_high_20 (negative values confirm pullback depth within uptrend)",
+    "trend: bmsb_bullish (boolean \u2014 price above both 20-period SMA and 21-period EMA, acts as medium-term uptrend gate)",
+    "momentum: rsi_7 (available pre-computed; use as exit trigger when it crosses 60, and as entry confirmation that rsi_7 < 30 for stronger oversold)",
+    "momentum: ret_zscore_20 (z-score of 1-bar return; large negative values confirm flush candle, use as entry quality filter)",
+    "momentum: price_acceleration (second derivative of close; negative acceleration on entry bar confirms continued selling pressure to fade)",
+    "volatility: atr_14 (already used for stop/TP, keep)",
+    "volatility: gk_vol (Garman-Klass estimator; use as regime gate \u2014 avoid entries when gk_vol is in top decile, suggesting structural breakdown not dip)",
+    "volatility: bb_pct_b (below 0.2 = price near lower Bollinger band, corroborates oversold RSI(2) signal)",
+    "volatility: bb_bw_percentile (low percentile = volatility compression preceding directional move; avoid entries when bandwidth is extreme-high)",
+    "volume: volume_zscore (large positive spike on flush bar = capitulation, improves entry quality)",
+    "volume: buying_pressure (close-to-low ratio; low value on entry bar confirms bearish flush, then reversion expected)",
+    "volume: pressure_imbalance (buying_pressure - selling_pressure; reversal likely when pressure_imbalance starts recovering from extreme negative)"
+  ],
+  "genome_params": [
+    {
+      "name": "rsi_period",
+      "type": "int",
+      "low": 2,
+      "high": 5,
+      "note": "RSI look-back; 2 is Connors canonical but 3-4 may be less noisy on hourly crypto"
+    },
+    {
+      "name": "entry_threshold_long",
+      "type": "float",
+      "low": 5,
+      "high": 20,
+      "note": "RSI(2) oversold threshold for long entry; tighter = rarer but higher-quality signals"
+    },
+    {
+      "name": "exit_threshold_long",
+      "type": "float",
+      "low": 55,
+      "high": 80,
+      "note": "RSI(rsi_period) level that triggers signal-based exit from long; replaces unimplemented original exit logic"
+    },
+    {
+      "name": "trend_ema_period",
+      "type": "int",
+      "low": 100,
+      "high": 300,
+      "note": "EMA period for trend filter; 200 is canonical but 100-300 range allows adaptation"
+    },
+    {
+      "name": "adx_min",
+      "type": "float",
+      "low": 10,
+      "high": 30,
+      "note": "Minimum ADX to confirm trend is directional; higher values reduce false entries in choppy markets"
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1,
+      "high": 3.5,
+      "note": "ATR multiplier for hard stop; tighter stops cut losses faster but increase whipsaw"
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 6,
+      "note": "ATR multiplier for take-profit; mean-reversion targets tend to be shorter than trend-follow targets"
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 48,
+      "high": 168,
+      "note": "Maximum hold time in hours; 24h original is too short for crypto multi-day pullbacks"
+    },
+    {
+      "name": "require_volume",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Whether to require volume_ratio filter on entry"
+    },
+    {
+      "name": "volume_threshold",
+      "type": "float",
+      "low": 0.8,
+      "high": 2,
+      "note": "volume_ratio threshold; values >1.0 = require capitulation volume spike"
+    }
+  ],
+  "do_not_optimize": [
+    "allowed_regimes: hard-code to ['trend'] only for long-only phase; letting the genome expand this list leads to trivial overfitting because adding more regimes always increases trade count in-sample",
+    "entry_threshold_short and exit_threshold_short: the short branch is removed in Phase 3; these params have no function and must not enter the genome",
+    "require_adx: should be fixed True; making it a bool genome param always converges to False (more trades) which defeats the trend-filter purpose",
+    "require_trend_regime: hard-code True; removing the regime gate inflates in-sample trade count without improving OOS quality"
+  ],
+  "risk_management": {
+    "stop": "Hard ATR(14)-based stop at entry_price - stop_loss_atr_mult * atr_14; minimum floor at entry_price * 0.94 (6% hard cap) to protect against gap-risk on hourly bars",
+    "take_profit": "Fixed ATR-based TP at entry_price + take_profit_atr_mult * atr_14; recommended ratio TP/SL >= 1.5 to maintain positive expectancy given typical RSI(2) hit rate of ~55-60%",
+    "trailing": "Optional trailing stop: once unrealised gain exceeds 1.0 * atr_14, trail stop up to entry_price (breakeven) then continue trailing at 1.5 * atr_14 below rolling high of the trade; avoids giving back the mean-reversion bounce",
+    "vol_target": "Volatility-scaled sizing using gk_vol: target 1% daily portfolio vol per trade; scale position size down proportionally when gk_vol > 80th percentile of its own 90-day rolling history; cap at max_position_pct regardless",
+    "max_size": "Maximum 25% of equity per trade (reduce from engine default if higher); mean-reversion trades have fatter left tails during structural breaks, so limit concentration",
+    "cooldown": "Minimum 24-hour cooldown between closing a long and opening a new long, to avoid re-entering the same flush before it resolves; implement via timestamp check on last_exit_time",
+    "risk_off": "Hard regime gate: skip all entries unless bmsb_bullish is True AND regime == 'trend'; additionally block entries when dist_from_high_20 < -0.20 (>20% below 20-bar high suggests structural break not dip)"
+  },
+  "metrics": [
+    "CAGR (annualised compound return; target >= 15% net of costs on 2019-2024 IS)",
+    "Sharpe ratio (annualised, risk-free = 0; target >= 0.8; benchmark-adjusted vs BTC buy-and-hold)",
+    "Sortino ratio (target >= 1.2; more relevant than Sharpe for long-only because upside vol is not penalised)",
+    "Maximum drawdown (peak-to-trough on equity curve; hard filter: reject any genome with maxDD > 35%)",
+    "Calmar ratio (CAGR / maxDD; target >= 0.5)",
+    "Hit rate (percentage of trades closed at profit net of costs; expect 50-60% for RSI(2) mean-reversion; below 45% signals strategy failure)",
+    "Average trade return net of costs (must be positive after 2x commission + slippage; rule-out if avg trade < 0.3%)",
+    "Turnover (number of round-trips per year; high turnover = cost sensitivity risk; target < 100 round-trips/year on hourly data)",
+    "Exposure (percentage of bars in a position; for long-only mean-reversion expect 15-35%; very high exposure collapses into BTC buy-and-hold)",
+    "Cost sensitivity: re-run at 2x and 3x cost assumptions; edge must survive 2x costs with Sharpe >= 0.6",
+    "Walk-forward OOS degradation: track IS Sharpe vs OOS Sharpe ratio across expanding windows; flag if degradation > 40%",
+    "Bootstrap / Monte Carlo: shuffle trade order 1000x, report 5th-percentile Sharpe to bound luck contribution",
+    "Per-year stability: compute annual Sharpe for each calendar year 2019-2023; flag strategy if any year has Sharpe < -0.5 or if >= 2 years are negative",
+    "Regime breakdown: report hit rate and avg return separately for 'trend' vs 'lateral' vs 'mean_reversion' regime bars to confirm edge is concentrated in trend regime"
+  ],
+  "sweep_changes": [
+    "DROP the short signal branch entirely: remove the 'elif is_downtrend and rsi2 > p[entry_threshold_short]' block and all associated short-side arithmetic; set side = 'long' or return None",
+    "FIX the RSI exit that is coded but dead: implement a within-trade check \u2014 when position is not None, re-compute rsi_n and return a Signal(side='exit') or equivalent when rsi2 > exit_threshold_long; currently the 'if position is not None: return None' block on line 53-54 prevents any exit logic from firing via the strategy fn",
+    "Replace custom _rsi_n with the pre-computed rsi_7 or rsi_14 column from the feature pipeline, or at minimum use Wilder EWM smoothing for consistency with features.py; the current simple-mean RSI gives different values than the ewm RSI used everywhere else",
+    "Tighten allowed_regimes to ['trend'] only in PARAMS; remove 'lateral' and 'mean_reversion' from the default to reduce noise; make this a fixed non-genome parameter",
+    "Extend time_stop_hours default from 24 to 72 and sweep range from 48-168 hours",
+    "Add bmsb_bullish check as a hard gate before emitting any long signal: if not current.get('bmsb_bullish', False): return None",
+    "Add gk_vol regime filter: compute 90-day rolling 80th percentile of gk_vol and skip entries when current gk_vol exceeds that threshold",
+    "Add to genome: exit_threshold_long (55-80), time_stop_hours (48-168), and volume_threshold as a genome sweep parameter",
+    "Wire up the exit_threshold_long param: when a position is open, compute RSI on the current close array and return an exit signal when rsi >= exit_threshold_long, to replace the pure ATR/time exit with an adaptive mean-reversion exit",
+    "Remove entry_threshold_short, exit_threshold_short, and require_trend_regime from the param_space since the short branch is eliminated and require_trend_regime is fixed True",
+    "Re-add connors_rsi2 to STRATEGY_REGISTRY with the cleaned long-only param_space; the original pruning was done on the bi-directional version which wasted half its trades on losing crypto shorts"
+  ],
+  "methodological_risks": [
+    "RSI(2) generates extremely frequent signals on hourly crypto bars \u2014 expect hundreds of signals per year; even small per-trade cost assumptions (0.05% commission + 0.05% slippage = 0.10% round-trip) can entirely consume the gross edge if avg gross return per trade is below 0.3%",
+    "The EMA(200) trend filter on hourly bars corresponds to approximately an 8-day moving average, not the weekly trend most practitioners associate with the 200-period MA; this is a conceptual mismatch that may not provide the intended regime filtering and may simply delay entries by a few bars rather than filtering bear markets",
+    "The pruning data (1.2% positive fitness in 36K evaluations) was collected on the bi-directional version; the long-only version has a fundamentally different distribution of trades and may have meaningfully different (better or worse) fitness \u2014 the pruning decision cannot be directly applied to the reformulated strategy",
+    "The unimplemented exit_threshold_long is a latent bug: exit logic is intended (param exists at 65.0) but the 'if position is not None: return None' guard on line 53-54 means the strategy never evaluates its own exit RSI condition; all exits are driven by ATR-stop, TP, or time-stop only; this means the original strategy was never behaving as Connors intended",
+    "Mean-reversion in crypto is highly regime-dependent: RSI(2) dip-buying works well in 2019-2021 and 2023-2024 bull markets but is catastrophic in 2022 structural bear; any walk-forward window that excludes 2022 will dramatically overestimate expected CAGR",
+    "The simple-mean RSI computation (_rsi_n) uses the last (period+1) bars with np.mean of gains/losses, not Wilder EWM smoothing; this produces different RSI values than the features.py rsi() function which uses ewm(alpha=1/period); if the strategy is ever backtested with the feature-pipeline RSI as a proxy, results will diverge",
+    "Strength calculation maps RSI distance to [0.5, 1.0] linearly; for RSI(2)=0 the strength is only 1.0, and for RSI(2)=10 it is 0.5; this means position sizing never goes to zero for borderline entries and never far exceeds half-size, essentially neutralising the strength signal as a risk management tool",
+    "The time_stop_hours = 24 default and sweep minimum of 24h creates an in-sample selection pressure to keep time stops short (more frequent re-entry opportunities); extending the sweep to 168h is necessary but introduces a longer parameter range that may overfit to specific crypto cycle lengths"
+  ]
+}

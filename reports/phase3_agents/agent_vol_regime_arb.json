@@ -1,0 +1,174 @@
+{
+  "strategy": "vol_regime_arb",
+  "classification": "candidate",
+  "diagnosis": "vol_regime_arb uses a two-mode GK (Garman-Klass) volatility z-score framework. Mode 1 (VOL_EXPANSION): when the fast GK vol z-score falls below `expansion_zscore_threshold` (default -1.2) for at least `expansion_min_bars_compressed` bars and ADX confirms trend presence, it infers an imminent breakout and uses the sign of a linear-regression slope over the last `expansion_momentum_period` bars to pick direction \u2014 emitting either a LONG or a SHORT. Mode 2 (VOL_CONTRACTION): when the z-score exceeds `contraction_zscore_threshold` (default 2.0), it fades the extreme move using RSI: RSI < 30 \u2192 long (buy the crash), RSI > 70 \u2192 short (fade the rip). The strategy definitively emits SHORT signals in both modes (slope < 0 in expansion, overbought RSI in contraction). It therefore violates Phase-3 SPOT LONG-ONLY constraints and must be converted. The core underlying edge \u2014 vol compression predicts imminent breakout, extreme vol tends to mean-revert \u2014 is well-established in the literature and empirically present in crypto. The weakness is that in trending crypto markets, slopes are upward-biased, so the short branches of both modes will fire on corrections inside bull regimes, which are precisely the times one should be long. Dropping shorts and keeping only the long branches is likely to improve rather than harm the risk-adjusted profile in a long-biased spot context. The module-level GK precomputation cache is a sound performance optimization but uses mutable module globals; this can cause cross-genome contamination in the multiprocessing worker unless the cache is invalidated by params \u2014 the current key (id(df), fast, slow, baseline) partially handles this but is fragile when the same df object is reused with different params across back-to-back evaluations in the same process. Additionally, the inner for-loop scanning `expansion_min_bars_compressed` previous bars is O(k) per signal bar, small but worth noting.",
+  "long_only_hypothesis": "In spot-only long-or-cash trading, the vol-compression-to-expansion edge simplifies cleanly: after a statistically significant low-vol compression period (GK z-score below threshold for N bars), the market has coiled energy with no directional bias imposed externally. In crypto, where the multi-year drift is strongly positive, breakouts from compression resolve to the upside with higher frequency than breakdowns. Long signal therefore: enter when compression is confirmed AND momentum slope is positive (uptrend bias). Discard the slope-down short branch entirely; treat it as \"no trade / stay in cash.\" In Mode 2, extreme high-vol events that coincide with RSI oversold conditions represent capitulation dumps where recovery bounces are common in spot BTC/ETH. Keeping only the long (oversold + extreme vol) branch of contraction mode is a valid mean-reversion buy-the-dip edge. The RSI-overbought short branch is dropped; treat it as \"wait for better entry.\" Combined: the strategy becomes a pure long-or-cash regime filter that deploys capital only into the highest-conviction asymmetric setups: post-compression upside breakouts and post-crash capitulation recoveries.",
+  "market_techniques": [
+    "Volatility regime filtering (GK z-score) as primary entry gate",
+    "Momentum slope confirmation (linear regression on close) for breakout direction \u2014 long-only branch only",
+    "RSI mean-reversion confirmation for contraction-mode longs (capitulation bounce)",
+    "ATR-based stop loss and take profit for adaptive risk sizing",
+    "ADX trend-strength filter to avoid false breakouts in ranging compressed markets",
+    "Volume ratio filter to require liquidity confirmation on entry",
+    "Walk-forward / expanding-window cross-validation on pre-lockbox data (2019\u20132024) for parameter selection",
+    "Regime label gate (lateral / breakout allowed; downtrend suppressed) as macro risk filter",
+    "BMSB (Bull Market Support Band) as a long-term regime gate \u2014 only trade when price is above BMSB to suppress entering during bear cycles",
+    "Bollinger Band width percentile as a corroborating compression signal alongside GK z-score"
+  ],
+  "useful_features": [
+    "volatility: gk_vol (pre-engineered 20-bar GK), _gk_fast/_gk_slow/_gk_zscore/_gk_ratio (strategy-internal precomputed multi-scale GK)",
+    "volatility: vol_ratio (5-bar / 50-bar realized vol ratio from features.py) as secondary compression confirmation",
+    "volatility: bb_bandwidth and bb_bw_percentile (BB squeeze corroboration of GK compression)",
+    "trend: adx_14 (trend-strength gate on both modes)",
+    "momentum: rsi_14 and rsi_7 (contraction-mode oversold gate; divergence check)",
+    "momentum: roc_12 and price_acceleration (slope confirmation on breakout direction)",
+    "volume: volume_ratio and volume_zscore (volume confirmation of breakout energy)",
+    "volume: obv_divergence (bullish OBV divergence adds conviction for long on contraction-mode bounce)",
+    "price/return: ret_zscore_20 (extreme return z-score corroborates extreme vol regime)",
+    "trend: bmsb_bullish (macro regime gate \u2014 only long when close above BMSB SMA and EMA)",
+    "drawdown: dist_from_high_20 (avoid buying already-extended moves above 20-bar high)",
+    "market regime: close_location and pressure_imbalance (intra-bar buying pressure confirmation on entry bar)",
+    "market regime: buying_pressure as final bar-level confirmation before long entry"
+  ],
+  "genome_params": [
+    {
+      "name": "gk_fast_period",
+      "type": "int",
+      "low": 5,
+      "high": 20,
+      "note": "Fast GK vol lookback in bars; controls responsiveness of vol reading"
+    },
+    {
+      "name": "gk_slow_period",
+      "type": "int",
+      "low": 30,
+      "high": 80,
+      "note": "Slow GK vol lookback; numerator of fast/slow ratio"
+    },
+    {
+      "name": "gk_baseline_period",
+      "type": "int",
+      "low": 60,
+      "high": 150,
+      "note": "Rolling window for z-score mean/std; drives statistical sensitivity"
+    },
+    {
+      "name": "expansion_zscore_threshold",
+      "type": "float",
+      "low": -2.5,
+      "high": -0.8,
+      "note": "How compressed vol must be to signal breakout potential; more negative = tighter filter"
+    },
+    {
+      "name": "expansion_min_bars_compressed",
+      "type": "int",
+      "low": 3,
+      "high": 10,
+      "note": "Consecutive bars below threshold required; prevents triggering on brief dips in z-score"
+    },
+    {
+      "name": "expansion_adx_min",
+      "type": "float",
+      "low": 10,
+      "high": 28,
+      "note": "Minimum ADX on expansion signal; prevents false breakouts in directionless markets"
+    },
+    {
+      "name": "contraction_zscore_threshold",
+      "type": "float",
+      "low": 1.5,
+      "high": 3.5,
+      "note": "Extreme-vol threshold for capitulation-bounce longs; raised ceiling vs current to reduce false triggers"
+    },
+    {
+      "name": "contraction_rsi_oversold",
+      "type": "float",
+      "low": 20,
+      "high": 40,
+      "note": "RSI below this signals crash exhaustion; only the long branch is kept in Phase 3"
+    },
+    {
+      "name": "enable_contraction_mode",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Toggle for extreme-vol capitulation-bounce mode; let evolution decide"
+    },
+    {
+      "name": "volume_threshold",
+      "type": "float",
+      "low": 0.8,
+      "high": 2,
+      "note": "Volume ratio floor for trade confirmation"
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 4.5,
+      "note": "ATR multiplier for stop loss; also implicitly controls R-ratio when TP is fixed"
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 2.5,
+      "high": 7,
+      "note": "ATR multiplier for take profit; must be enforced > stop_loss_atr_mult in genome"
+    }
+  ],
+  "do_not_optimize": [
+    "expansion_momentum_period \u2014 the linear regression period is best left at 10 or a narrow band (8-12); sweeping it independently from gk_fast_period creates redundant degrees of freedom and risks curve-fitting the slope lookback to historical patterns",
+    "contraction_rsi_overbought \u2014 this param is irrelevant in Phase 3 since the short branch is dropped; it should be hard-coded or removed from the genome to avoid wasting genome budget on a dead code path",
+    "vol_ratio_min and vol_ratio_max \u2014 these bounds on fast/slow GK ratio add two continuous params that jointly create a 2D filter box; with few trades the box can be fitted to noise; leave vol_ratio_min=0.0 and vol_ratio_max=3.0 (effectively off) and let the z-score thresholds do the heavy lifting",
+    "require_volume boolean \u2014 with require_regime and enable_contraction_mode already in the bool genome space, adding a third boolean multiplies discrete combinations; keep require_volume=True as a fixed sanity check",
+    "time_stop_hours \u2014 36h is reasonable for hourly data; sweeping this adds an exit-timing dimension that interacts badly with stop/TP params and encourages look-ahead contamination in short walk-forward folds",
+    "allowed_regimes list \u2014 this is a categorical multi-select that cannot be meaningfully interpolated by the genetic operator; regime gating is better handled by a BMSB or ADX hard filter inside the strategy rather than an evolvable string list"
+  ],
+  "risk_management": {
+    "stop": "ATR-based stop: close - atr_14 * stop_loss_atr_mult. Enforced on bar LOW (backtester checks current_bar['low'] <= stop_loss for longs). Default 2.5x ATR; genome range 1.5\u20134.5x. Never use fixed-pip stops \u2014 crypto vol is regime-dependent.",
+    "take_profit": "ATR-based TP: close + atr_14 * take_profit_atr_mult. Enforced on bar HIGH. Default 4.5x ATR; genome range 2.5\u20137.0x. Constraint: TP mult must exceed SL mult by at least 0.5 (enforced in genome mutation/crossover, already present in auto_evolve.py).",
+    "trailing": "Optional volatility-adaptive trailing stop: once unrealized PnL exceeds 1.5x ATR, trail stop to entry + 0.5x ATR (locking in partial profit while giving room to run). Implemented as a post-entry stop update per bar. Do not trail too tightly \u2014 GK expansion breakouts often have initial retracements before continuation.",
+    "vol_target": "Volatility-scaled position sizing (sizing_method='volatility_scaled' in RiskConfig): target annualized vol fraction of 0.15\u20130.20. This automatically reduces size during high-vol contraction-mode trades (where gk_zscore > 2) and increases it during compressed-vol expansion entries, which is counter-intuitive but correct \u2014 compressed vol means smaller ATR, so the vol-target formula automatically sizes up to compensate, which is appropriate for a breakout strategy.",
+    "max_size": "Hard cap at 80% of equity per trade (max_position_pct=0.80 in BacktestConfig); Kelly fraction \u2264 0.25 if kelly sizing is used. Spot-only: no leverage, so max 100% of available capital but prudence cap at 80%.",
+    "cooldown": "Minimum 4 bars (4 hours on hourly data) between trades to prevent re-entry into the same compressed-vol false-start. The RiskManager min_time_between_trades param handles this. Additionally, after a stop-loss exit, impose a 12-bar cooldown before re-entering the same mode (expansion or contraction) to avoid whipsawing into the same setup.",
+    "risk_off": "Macro risk-off gate: (1) BMSB gate \u2014 no long entries if close is below both bmsb_sma and bmsb_ema (price in bear regime); (2) Regime gate \u2014 require regime in ['lateral','breakout'] for expansion mode; suppress all entries during 'downtrend' regime; (3) Circuit breaker from RiskManager \u2014 halt new entries if rolling drawdown exceeds max_drawdown_pct threshold; (4) Volume filter \u2014 require volume_ratio > threshold to ensure the breakout has participation."
+  },
+  "metrics": [
+    "CAGR (annualized): primary return metric on 2-year OOS lockbox (2024-06-07 to 2026-06-07); target > 30% net of costs",
+    "Sharpe ratio (annualized, risk-free = 0): target > 1.2 on OOS; computed on hourly equity curve",
+    "Sortino ratio: target > 1.5; more relevant than Sharpe for a long-only strategy with positive skew objective",
+    "Maximum drawdown (peak-to-trough %): hard cap 25% on full-sample; WalkForwardValidator full-sample DD check already enforced",
+    "Calmar ratio (CAGR / max-DD): target > 1.0; measures return per unit of realized pain",
+    "Hit rate (% winning trades): expect 40\u201355%; the strategy is a trend-following breakout so win rate < 50% is acceptable if avg-win / avg-loss > 2.0",
+    "Profit factor (gross profits / gross losses): target > 1.5; sanity check that the R-ratio compensates for hit rate",
+    "Average trade duration (hours): should cluster around time_stop_hours (36h) for time-stopped trades and be shorter for TP/SL exits; if most exits are time-stopped, the R-ratio is likely marginal",
+    "Turnover (trades per month): target 8\u201320 trades/month on hourly data; too few trades means poor statistical significance; too many means cost drag is dominant",
+    "Exposure (% of time in market): expect 15\u201340%; the dual-gate (compression + ADX + volume) is selective",
+    "Cost sensitivity: re-run with 2x slippage and 2x commission; Sharpe should degrade < 30% \u2014 validates that the edge is not purely a cost-assumption artifact",
+    "Bootstrap / Monte Carlo confidence: resample trade P&L 1000 times; report 5th-percentile Sharpe and probability of positive Sharpe over 2-year window; already computed in auto_evolve.py for fitness > 1.5",
+    "Per-year stability: separate equity curves for 2024 H1, H2, 2025 H1, H2; Sharpe should be positive in at least 3 of 4 half-years to qualify as OOS stable",
+    "OOS degradation (WF test Sharpe / train Sharpe): target < 50% degradation; already computed by WalkForwardValidator"
+  ],
+  "sweep_changes": [
+    "Remove the short-signal branches: in VOL_EXPANSION mode, drop the `elif slope < 0` branch entirely (return None instead of Signal(side='short')). In VOL_CONTRACTION mode, drop the `elif rsi > contraction_rsi_overbought` branch entirely. The strategy becomes long-or-None only.",
+    "Remove contraction_rsi_overbought from PARAMS and from the STRATEGY_REGISTRY param_space entirely \u2014 it is dead code post-conversion and wastes a genome degree of freedom.",
+    "Add a BMSB macro regime gate immediately after the existing regime check: if not (current.get('bmsb_bullish', True)): return None. This suppresses all long entries during bear-market regimes using the precomputed bmsb_bullish boolean from features.py.",
+    "Add bb_bw_percentile as a secondary compression corroboration: require bb_bw_percentile < 40 (or make it an evolvable threshold bb_bw_pct_max in the genome with range 20\u201360) to only enter vol-expansion longs when both GK z-score AND BB bandwidth percentile confirm compression. This dramatically reduces false positives.",
+    "Replace the linear-regression slope with a composite momentum score: slope > 0 AND ret_zscore_20 > 0 AND roc_12 > 0 (all three must agree for the long to fire). This three-way momentum confirmation aligns multiple timeframes and reduces false breakout entries.",
+    "In contraction mode (capitulation-bounce long), add OBV confirmation: require obv_divergence > 0 (OBV above its 20-bar SMA) as a sign that buying pressure accompanies the RSI oversold reading. This filters out dead-cat bounces with no volume support.",
+    "Fix the module-level GK cache to be params-keyed: change the cache check to use (id(df), fast, slow, baseline) as cache_key AND also store cache_key in _cache_params as a tuple, then compare strictly. This prevents cross-genome cache poisoning in multiprocessing workers where the same df object id may be reused between genomes with different gk period params.",
+    "Add time_stop_hours=48 as a fixed constant (not genome param) and remove it from the sweep to avoid the exit-timing curve-fitting trap. Keep it in PARAMS but exclude it from STRATEGY_REGISTRY param_space.",
+    "Add a post-stop cooldown counter in PARAMS: after_stop_cooldown_bars=12, and check it in the strategy by looking back at recent exit history \u2014 implement via a module-level last_stop_bar variable reset per backtest run. This prevents re-entering the same false-breakout setup repeatedly within a session.",
+    "Raise contraction_zscore_threshold upper bound in the genome from 3.0 to 3.5 to allow the GA to explore more extreme-vol thresholds for the capitulation-bounce long, since genuine crypto crash bounces often correspond to z-scores of 2.5\u20133.5."
+  ],
+  "methodological_risks": [
+    "Short-branch removal changes the trade distribution: the original strategy had symmetric longs and shorts; removing shorts reduces trade count by ~50%, which shrinks the statistical sample. In walk-forward folds of 15 days, there may be fewer than 5 trades, causing the validator to assign -5.0 fitness. Mitigation: widen the val_days / test_days windows or lower the min_trades threshold for vol_regime_arb specifically.",
+    "GK vol z-score is computed over a rolling baseline window (60\u2013150 bars); in the early portion of each walk-forward fold the z-score is unreliable (NaN or high-noise). The 50-bar warmup in the backtester partially covers this but does not guarantee baseline_period bars of clean GK data at fold start. Mitigation: enforce min_bars_required = gk_baseline_period + gk_fast_period + expansion_min_bars_compressed at fold initialization.",
+    "Module-level mutable state (_cache_id, _cache_params) is shared across all calls in a single process. In multiprocessing 'spawn' mode (used by auto_evolve.py) each worker gets a fresh process, so cross-genome contamination is avoided. However, if the backtester is called sequentially within a single process (e.g., in the WalkForwardValidator loop), the cache key comparison using id(df) is unreliable because Python can reuse the same memory address for different df.copy() objects. This can cause stale GK columns from a previous fold to be silently used.",
+    "The expansion_momentum_period linear regression slope is computed on raw close prices, not returns; this makes slope magnitude non-stationary (larger in dollar terms during bull markets). A slope threshold of 0 (just checking sign) is robust to this, but if any downstream filtering ever uses slope magnitude, it would be look-ahead contaminated by the price level.",
+    "Contraction-mode longs (buy-the-crash) have negative expected holding-period return during sustained bear markets (e.g., 2022 crypto winter). If the BMSB gate is not enforced, the strategy will take repeated long entries during protracted downtrends, each stopped out, producing a serial correlation of losses that Monte Carlo bootstrap (which resamples i.i.d.) will underestimate. The full-sample drawdown check in WalkForwardValidator is the primary safeguard but it operates post-hoc.",
+    "The volume_threshold filter (require volume_ratio > threshold) shares the same volume_sma_20 denominator computed in features.py. During periods of systematically lower volume (e.g., holiday weeks, exchange outages), this threshold can become impossible to meet for many consecutive bars, causing effective trading blackouts that are not captured in per-fold metrics and may create favorable-looking gaps in the equity curve.",
+    "The GK vol formula uses high, low, open, close from hourly bars. On many exchanges, hourly OHLCV data has known artifacts at the hour boundary (particularly low = open \u2248 close during low-liquidity periods), which inflates log_hl and artificially spikes the GK estimator. This can create spurious high-vol z-score readings that incorrectly trigger contraction-mode longs. A minimum bar-range filter (bar_range / close > some_threshold) should guard against this.",
+    "Walk-forward folds of 15-day test windows on hourly data yield ~360 bars; after accounting for the 100+ bar GK baseline warmup, only ~250 actionable bars per fold exist. With a typical trade frequency of 1\u20133 trades per week, each fold may yield 5\u201310 trades \u2014 far too few for meaningful Sharpe estimation (standard error of Sharpe \u2248 1/sqrt(N) \u2248 0.3\u20130.45 per fold). The aggregate across many folds mitigates this but the per-fold noise is high."
+  ]
+}

@@ -1,0 +1,170 @@
+{
+  "strategy": "heikin_ashi_ema",
+  "classification": "doubtful",
+  "diagnosis": "The strategy combines Heikin Ashi (HA) candle smoothing with a dual-EMA crossover and several confirmation filters (ADX threshold, volume ratio, regime gate, consecutive HA color bars). It computes HA candles on-the-fly from a rolling lookback window (not from a standing HA series), which is technically valid but resets HA state every bar \u2014 that means the HA open values do not carry continuous smoothing over long histories and may understate candle persistence.\n\nThe strategy emits BOTH long and short signals. Lines 118\u2013136 explicitly set side = \"short\" when bearish EMA alignment coincides with bearish HA color, with short-side stop_loss = close + atr_mult * atr and take_profit = close - atr_mult * atr. In spot-only Phase 3 this short branch is forbidden and must be fully removed.\n\nThe evolved PARAMS (from generation ~300, 1073 evaluations) reflect a wide-stop/wide-TP regime: stop_loss_atr_mult=3.56, take_profit_atr_mult=5.64, and a 48-hour time stop. The fast EMA (21) is unusually close to the slow EMA (45), reducing the cross signal frequency. ADX minimum of 24.97 is a moderate trend gate. The require_ha_color_flip is evolved to False, meaning ANY green HA bar is sufficient for a long \u2014 this is a permissive filter.\n\nHistorical evolution result: heikin_ashi_ema was pruned in Round 2 with only 0.4% positive-fitness rate across 36K evaluations (line 66 of auto_evolve.py). That is the primary concern: the strategy did not survive competitive evolution when short trades were available. In a long-only context the already weak short-side alpha is stripped, leaving only the long branch, which may perform comparably to a simple EMA-cross long filter \u2014 but no direct evidence of standalone long-side alpha exists in the recorded evolution history. The HA smoothing adds noise reduction that in principle helps avoid whipsaw, but re-computing HA from a short lookback window limits this benefit.",
+  "long_only_hypothesis": "Heikin Ashi candles suppress intra-bar noise and give a persistent \"green\" signal only when bullish order flow dominates over multiple sequential bars. When this persistence coincides with a fast EMA above a slow EMA (confirmed trend direction), the crypto asset is likely in a momentum regime where price continuation probability exceeds reversal probability on a 12\u201372 hour horizon. The long-or-cash version captures only these upside continuation windows, staying in cash during confirmed bearish HA sequences (where short used to fire) and during choppy/ranging regimes (ADX gate). The edge is momentum continuation in trending markets, not mean reversion. This is a plausible spot long-only thesis for BTC/ETH, where asymmetric upside runs are historically long and drawdown episodes are handled by the ATR stop. However, with only 53 trades across the full backtest period and a 0.4% positive fitness rate in the prior symmetric evolution, the actual signal frequency in the long-only branch may be too low to generate statistically robust OOS evidence.",
+  "market_techniques": [
+    "Heikin Ashi candle smoothing for noise reduction and trend persistence detection",
+    "Dual EMA crossover (fast/slow) for trend direction and freshness of cross signal",
+    "ADX minimum threshold as a regime gate to avoid low-trend environments",
+    "Volume ratio confirmation to ensure institutional participation backs the move",
+    "ATR-based dynamic stop-loss and take-profit to adapt to current volatility",
+    "Time stop (hours) as a maximum holding-period cap preventing dead-weight exposure",
+    "Regime filter (trend/breakout allowed_regimes) as a macro gate against choppy/ranging markets",
+    "Consecutive HA bars requirement for signal quality without requiring a color flip",
+    "Signal strength scaling using cross freshness and ADX level for position sizing",
+    "Bull Market Support Band (bmsb) as an additional macro regime indicator"
+  ],
+  "useful_features": [
+    "trend: adx_14 \u2014 existing trend gate, keep as primary filter",
+    "trend: bmsb_bullish \u2014 macro bull regime filter, price above 20-SMA and 21-EMA band; reject longs when false",
+    "trend: bmsb_spread \u2014 spread between BMSB lines signals trend health; negative spread = caution",
+    "momentum: rsi_14 \u2014 avoid entering longs when RSI > 75 (exhaustion) or < 45 (weak momentum)",
+    "momentum: roc_12 \u2014 rate of change over 12 bars as secondary momentum confirmation",
+    "momentum: dist_from_high_20 \u2014 avoid chasing entries when close is near 20-bar high (overextended)",
+    "volatility: atr_14 \u2014 existing stop/TP sizing input, retain",
+    "volatility: bb_bw_percentile \u2014 low percentile (compression) before entry suggests imminent breakout",
+    "volatility: gk_vol \u2014 Garman-Klass volatility for volatility targeting in position sizing",
+    "volume: volume_ratio \u2014 existing confirmation filter; keep",
+    "volume: obv_divergence \u2014 OBV above its 20-SMA as additional demand confirmation",
+    "volume: volume_zscore \u2014 detect abnormal volume spikes that validate breakouts",
+    "microstructure: buying_pressure \u2014 (close - low) / range; high value confirms bullish intra-bar flow",
+    "microstructure: pressure_imbalance \u2014 net buying vs selling pressure as entry quality filter",
+    "price/return: ret_zscore_20 \u2014 avoid entries during anomalous return spikes (fat-tail filtering)",
+    "market regime: bb_pct_b \u2014 position within Bollinger Bands; entries near midline or lower half are higher-quality long setups"
+  ],
+  "genome_params": [
+    {
+      "name": "ema_fast",
+      "type": "int",
+      "low": 8,
+      "high": 30,
+      "note": "Fast EMA period; range broadened from evolved value of 21 to capture faster signal variations"
+    },
+    {
+      "name": "ema_slow",
+      "type": "int",
+      "low": 25,
+      "high": 80,
+      "note": "Slow EMA period; must stay > ema_fast + 10 enforced at runtime"
+    },
+    {
+      "name": "require_consecutive_ha",
+      "type": "int",
+      "low": 1,
+      "high": 5,
+      "note": "Number of consecutive bullish HA bars required for long entry; higher = fewer false positives but fewer trades"
+    },
+    {
+      "name": "adx_min",
+      "type": "float",
+      "low": 15,
+      "high": 40,
+      "note": "Minimum ADX for a valid trend environment; below 15 is noise, above 40 is rare"
+    },
+    {
+      "name": "volume_threshold",
+      "type": "float",
+      "low": 0.7,
+      "high": 2,
+      "note": "Minimum volume_ratio relative to 20-bar average; filters low-participation moves"
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 5,
+      "note": "ATR multiplier for stop-loss; evolved wide value (3.56) is inside this range"
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 2,
+      "high": 8,
+      "note": "ATR multiplier for take-profit; reward/risk must remain >= 1.2 enforced at runtime"
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 24,
+      "high": 120,
+      "note": "Maximum hours to hold a position before forced flat; limits dead exposure"
+    },
+    {
+      "name": "require_volume",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Toggle volume confirmation gate on/off"
+    },
+    {
+      "name": "rsi_max_entry",
+      "type": "float",
+      "low": 65,
+      "high": 85,
+      "note": "New param: reject long entries when rsi_14 exceeds this level (overbought guard)"
+    },
+    {
+      "name": "bmsb_require_bullish",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "New param: require bmsb_bullish == True as macro regime filter for long entries"
+    }
+  ],
+  "do_not_optimize": [
+    "require_ha_color_flip \u2014 evolved to False after 1073 evaluations; flipping it on/off risks curve-fitting the entry style to a specific regime in the training window",
+    "allowed_regimes \u2014 list of regime strings; optimizing which regimes to allow has only 4-6 discrete combinations and will overfit to regime labeling artifacts",
+    "require_trend_regime \u2014 Boolean that determines whether the regime gate fires at all; toggling this to False defeats the primary choppy-market filter and will overfit in trending periods",
+    "ha lookback window (currently hardcoded to n_consec + 2) \u2014 increasing this changes the HA open initialization and subtly alters every entry; it is a hidden global param best left fixed",
+    "strength formula weights (0.5 base, +0.2 for cross, +0.15 for ADX > 30) \u2014 these scale position size; optimizing them is equivalent to curve-fitting leverage to past volatility regimes"
+  ],
+  "risk_management": {
+    "stop": "ATR-based hard stop: close - stop_loss_atr_mult * atr_14. Default multiplier 2.5x ATR for Phase 3 (tighter than evolved 3.56x to reduce drawdown in spot). Stop is placed at signal time and must not be moved adversely (no stop widening). Backtester checks bar low vs stop_loss for long positions.",
+    "take_profit": "ATR-based take-profit: close + take_profit_atr_mult * atr_14. Default 4.0x ATR. Minimum reward/risk ratio of 1.3 enforced (TP_mult / SL_mult >= 1.3). Backtester checks bar high vs take_profit for long exits.",
+    "trailing": "Optional: after unrealized gain exceeds 1.5x ATR, trail stop to breakeven + 0.5x ATR. Not currently in code \u2014 would need to be added as a post-entry position management feature. Prevents full stop-out after a significant favorable move.",
+    "vol_target": "Volatility-targeted sizing using gk_vol or realized_vol_5: target 20% annualized portfolio volatility. Use backtester's volatility_scaled sizing method (RiskConfig.sizing_method = 'volatility_scaled', vol_target_annualized = 0.20). When gk_vol is high (crypto spike regime), size is automatically reduced.",
+    "max_size": "Maximum 25% of equity per trade (config.max_position_pct = 0.25). With strength scaling (0.5\u20131.0), effective size is 12.5%\u201325%. In Phase 3 spot, no leverage; full position = notional equal to size in USDC.",
+    "cooldown": "Minimum 6 hours between new entry signals (RiskConfig min_time_between_trades). After a stop-loss exit, enforce 12-hour cooldown to prevent immediate re-entry into continuing adverse move. Currently the strategy blocks re-entry while a position is open (position is not None check at bar 54) but has no post-loss cooldown.",
+    "risk_off": "Gate: require bmsb_bullish == True (price above both BMSB lines) or disable via bmsb_require_bullish=False param. Gate: regime must be 'trend' or 'breakout' (existing require_trend_regime param). Gate: rsi_14 must be below rsi_max_entry (overbought guard). Circuit breaker in backtester halts new entries if drawdown exceeds max_drawdown_pct threshold."
+  },
+  "metrics": [
+    "CAGR (annualized, compound): primary return metric; target >= 15% for Phase 3 long-only spot",
+    "Sharpe ratio (annualized, risk-free = 0 for crypto): target >= 1.0; was 1.36 IS / 1.07 WF in evolution (long+short combined)",
+    "Sortino ratio: penalizes only downside deviation; more relevant for asymmetric long-only; target >= 1.2",
+    "Maximum drawdown (peak-to-trough on equity curve): target <= 25% for spot long-only; backtester computes full-sample DD explicitly",
+    "Calmar ratio (CAGR / maxDD): target >= 0.5; normalizes return for drawdown risk",
+    "Hit rate (% profitable trades): with TP_mult/SL_mult ~ 1.6, breakeven hit rate is ~38%; actual target > 45%",
+    "Turnover (average trades per month): with 53 trades over ~7 years that is ~0.6/month \u2014 extremely low; Phase 3 target >= 2 trades/month for statistical significance",
+    "Market exposure (% of time in long position): target 20%\u201350% for long-only trend strategy; too low = opportunity cost, too high = undifferentiated from buy-hold",
+    "Average trade duration (hours): current 48-hour time stop; measure actual average; target 12\u201396 hours for hourly-bar trend strategy",
+    "Cost sensitivity: re-run with 2x commission and 2x slippage to verify edge survives; evolved with standard costs but crypto spread can widen in volatile periods",
+    "Per-year Sharpe stability: compute rolling 12-month Sharpe on OOS equity to detect regime dependence; strategy was pruned at 0.4% fitness suggesting multi-year instability",
+    "Bootstrap/Monte Carlo: resample trade sequence 1000x to compute 5th-percentile Sharpe and maxDD distributions; critical given only 53 evolved trades \u2014 small sample makes point estimates unreliable",
+    "OOS degradation: WF_Sharpe / IS_Sharpe ratio; evolved showed 1.07/1.36 = 79% retention \u2014 acceptable; target >= 70% in Phase 3 walk-forward",
+    "Profit factor (gross profit / gross loss): target > 1.3; weak signal from 0.4% fitness in prior evolution"
+  ],
+  "sweep_changes": [
+    "REMOVE the short branch entirely: delete lines 122 (side = 'short'), 126 (elif bearish_cross ... side = 'short'), and the short stop_loss/take_profit calculation block (lines 151\u2013153). Replace with: if side == 'short': return None \u2014 exit to cash only.",
+    "ADD rsi_max_entry filter: after ADX check, add 'if float(current.get(\"rsi_14\", 50)) > p.get(\"rsi_max_entry\", 75): return None' to prevent entering long positions in overbought conditions.",
+    "ADD bmsb_require_bullish filter: after regime check, add 'if p.get(\"bmsb_require_bullish\", False) and not current.get(\"bmsb_bullish\", True): return None' as a macro bull-market gate.",
+    "ADD genome params to STRATEGY_REGISTRY in auto_evolve.py: re-register heikin_ashi_ema as a new long-only entry with param_space covering ema_fast (int, 8\u201330), ema_slow (int, 25\u201380), require_consecutive_ha (int, 1\u20135), adx_min (float, 15\u201340), volume_threshold (float, 0.7\u20132.0), stop_loss_atr_mult (float, 1.5\u20135.0), take_profit_atr_mult (float, 2.0\u20138.0), time_stop_hours (int, 24\u2013120), require_volume (bool), rsi_max_entry (float, 65\u201385), bmsb_require_bullish (bool).",
+    "FIX the HA window initialization bug: the current _compute_heikin_ashi function resets ha_open[0] every call, so HA smoothing has no memory across bars. For Phase 3, pre-compute a standing HA series on the full df in the strategy function body (cached via a module-level dict keyed by df id) and read from it at bar_idx. This ensures HA open truly reflects prior bar history.",
+    "ADD obv_divergence confirmation: after the HA check, add optional filter 'if p.get(\"require_obv_confirm\", False) and float(current.get(\"obv_divergence\", 0)) < 0: return None' to require OBV above its 20-bar SMA before entry.",
+    "CHANGE volatility sizing: set RiskConfig.sizing_method = 'volatility_scaled' and target 20% annualized vol; this replaces the flat signal-strength-based sizing and naturally reduces size during high-volatility periods.",
+    "ADD post-loss cooldown: track last_loss_time in strategy metadata or via a module-level variable; if current timestamp is within 12 hours of last stop-loss exit, return None.",
+    "ADD strength calculation for bmsb: if bmsb_bullish is True, add 0.1 to strength (capped at 1.0) to increase sizing during confirmed macro bull regimes.",
+    "VALIDATE trade count constraint: add assertion in the sweep runner that long-only simulation produces >= 20 trades over the pre-lockbox window; below this threshold the Sharpe estimate is too noisy to trust and the genome should be discarded regardless of numeric score."
+  ],
+  "methodological_risks": [
+    "HA window reset per call: _compute_heikin_ashi computes ha_open[0] = (open[0] + close[0]) / 2 from a fresh lookback slice every bar. This means HA open is not a true running average and the 'green' signal is computed from a truncated window, potentially generating different colors than a proper standing HA series. This is a logic flaw that could cause spurious entries that would not exist with correct HA computation.",
+    "Extremely low trade count: 53 trades over ~7 years is ~7.6 trades per year. In Phase 3 long-only (removing the short branch), the trade count drops further. Sharpe estimates from <30 long-only trades have confidence intervals exceeding +-0.5, making any optimization result untrustworthy without bootstrapping.",
+    "Prior pruning at 0.4% positive fitness: the strategy was removed from the active registry in Round 2 after 36K evaluations produced near-zero fitness. Re-admitting it to Phase 3 requires genuine evidence that the long branch alone has edge \u2014 none currently exists in the recorded evolution history. The prior result is a strong prior against.",
+    "Overfit ADX threshold: adx_min = 24.9722 is an extremely precise value evolved over ~300 generations. The 4-decimal precision is a hallmark of optimization overfitting. In Phase 3 this should be rounded to 25.0 and treated as a wide sweep range, not a precise fixed value.",
+    "EMA computed on rolling slice not full series: lines 73\u201376 compute EMA on df['close'].iloc[max(0, bar_idx - ema_slow - 10):bar_idx + 1]. EMA initialization (adjust=False) on a short window means the effective span is established from a partial history. A 45-bar slow EMA computed from a 55-bar window has a different effective value than one computed from the full series. This creates subtle inconsistencies in crossover detection near the start of the slice.",
+    "Regime label leakage risk: the regime parameter passed to the strategy is computed externally. If the regime classifier uses future data or has a lookahead in its rolling features, the regime gate becomes a leakage vector. The actual regime computation must be verified to be strictly causal before relying on it as a filter.",
+    "OOS lockbox contamination risk: the evolved PARAMS (including adx_min=24.9722, stop_loss_atr_mult=3.5641) were produced by evolution that may have included bars from the 2024\u20132026 OOS window depending on how the evolution data split was configured. If the lockbox was not sealed before Round 2 evolution, these params carry OOS contamination.",
+    "Small TP/SL multiplier gap risk: with SL=3.56 ATR and TP=5.64 ATR the reward/risk is 1.58x \u2014 adequate, but the wide ATR multiples mean the strategy rarely hits take-profit on hourly BTC/ETH (which typically reverts within 3\u20135 ATR). The TP hit rate may be very low and most exits are time-stop or stop-loss, negating the TP feature.",
+    "Single-bar entry lag adequacy: the backtester uses entry_lag_bars=1 by default, filling at next bar's open. For hourly data this is a 1-hour lag which is realistic. However, the HA computation and EMA slices are evaluated at bar_idx and the fill is at bar_idx+1 open. If the regime or ADX shifts adversely in that 1-hour window, the strategy may still enter a deteriorating setup."
+  ]
+}

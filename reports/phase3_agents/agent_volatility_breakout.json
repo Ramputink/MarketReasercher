@@ -1,0 +1,188 @@
+{
+  "strategy": "volatility_breakout",
+  "classification": "doubtful",
+  "diagnosis": "The strategy detects Bollinger Band bandwidth compression (bb_bw_percentile below a threshold for a minimum number of consecutive bars) then fires a directional breakout signal when price closes above bb_upper (long) or below bb_lower (short). Confirmation filters include: volume_ratio >= volume_surge_threshold, optional ATR expansion vs 5 bars ago (require_atr_expansion, currently ON at ratio 1.15), optional pressure_imbalance microstructure gate (currently OFF), and a regime gate requiring regime in [\"breakout\",\"trend\"]. Signal strength is additive from 0.5 base + vol bonus + extreme-compression bonus + pressure_imbalance magnitude bonus. Stop and take-profit are set symmetrically in ATR multiples from entry close price, with a 24-hour time stop. Critically, the strategy DOES emit short signals: when close < bb_lower after compression, side=\"short\" is returned and stop/TP are inverted. This is a hard Phase-3 violation. The strategy was PRUNED in Round 1 of the evolutionary optimizer (noted in auto_evolve.py line 64: \"0% positive fitness\"), meaning it did not appear in STRATEGY_REGISTRY and yielded no genomes with positive fitness across 29K evaluations on the full long+short param space. The core edge hypothesis (compression -> directional breakout) is structurally sound for crypto but the symmetric long/short design and the regime filter's tight allowed_regimes set likely caused many bars to be filtered out in ranging markets. The 24-hour time stop is very short for a strategy that waits for multi-bar compression setups to resolve.",
+  "long_only_hypothesis": "After a multi-bar Bollinger Band bandwidth compression (volatility squeeze), price tends to break out explosively. In crypto spot markets, upside breakouts from compression are systematically larger and more sustained than downside ones during bull-market regimes, because spot holders cannot be margin-called out and short-side pressure from perp liquidation cascades amplifies upward moves. The long-only version fires ONLY on close > bb_upper after confirmed compression, with volume surge and ATR expansion confirmation, but goes to cash (returns None) when the breakout direction is downward. An additional BMSB (bull-market support band) or adx_14 gate can further restrict entries to macro uptrend environments where compression breakouts resolve upward with significantly higher frequency. The regime gate is kept but relaxed to also include \"unknown\" regime when BMSB is bullish, recovering trades that were discarded by the regime filter in the pruned version.",
+  "market_techniques": [
+    "Bollinger Band squeeze / NR7 compression detection using bb_bw_percentile rolling rank",
+    "ATR-expansion breakout confirmation (current ATR vs lagged ATR ratio)",
+    "Volume surge confirmation at breakout bar (volume_ratio vs SMA-20 baseline)",
+    "Bull-market support band (BMSB) macro regime gate to restrict entries to uptrend phases",
+    "ADX trend-strength filter to prefer breakouts in already-trending markets",
+    "OBV divergence check to detect when price breakout has volume backing (OBV also making new highs)",
+    "Garman-Klass volatility (gk_vol) as a secondary vol-expansion confirmation signal",
+    "Pressure imbalance (buying_pressure - selling_pressure) as a microstructure long-filter at the breakout bar",
+    "Walk-forward optimization restricted to pre-lockbox data (2019-2024); OOS lockbox is 2024-06-07 to 2026-06-07",
+    "ATR-based position sizing with volatility targeting to normalize risk across compression/expansion regimes"
+  ],
+  "useful_features": [
+    "volatility: bb_bw_percentile \u2014 primary compression signal; lower is more compressed",
+    "volatility: bb_bandwidth \u2014 raw bandwidth; used to compute percentile",
+    "volatility: atr_14 \u2014 breakout expansion confirmation and stop/TP sizing",
+    "volatility: atr_7 \u2014 short-window ATR for faster expansion detection",
+    "volatility: gk_vol \u2014 Garman-Klass realized vol; secondary confirmation that true vol is expanding",
+    "volume: volume_ratio \u2014 volume_ratio = volume / SMA20_volume; breakout authenticity filter",
+    "volume: volume_zscore \u2014 z-score of volume vs 50-bar baseline; secondary surge confirmation",
+    "volume: obv_divergence \u2014 OBV minus OBV SMA; positive divergence supports long breakout",
+    "price/return: bb_upper \u2014 upper band; breakout threshold for long entry",
+    "price/return: bb_pct_b \u2014 where price sits in the band; near 1.0 after compression = strong long signal",
+    "price/return: dist_from_high_20 \u2014 distance from 20-bar high; near 0 = testing resistance before breakout",
+    "trend: adx_14 \u2014 trend strength; ADX > 20 at breakout bar suggests directional commitment",
+    "trend: bmsb_bullish \u2014 boolean macro regime gate (price above 20-period SMA and 21-period EMA)",
+    "momentum: rsi_14 \u2014 RSI; avoid longs when RSI > 80 (overbought) or < 40 (no momentum)",
+    "momentum: roc_12 \u2014 12-bar rate of change; positive ROC aligns with long breakout",
+    "momentum: price_acceleration \u2014 second derivative of close; accelerating price supports breakout",
+    "market regime: regime (external) \u2014 'breakout' or 'trend' allowed; 'unknown' allowed if bmsb_bullish",
+    "microstructure: pressure_imbalance \u2014 buying_pressure - selling_pressure; > 0 supports long entry",
+    "microstructure: close_location \u2014 close near bar high (> 0.7) confirms bullish bar structure at breakout"
+  ],
+  "genome_params": [
+    {
+      "name": "bandwidth_percentile_threshold",
+      "type": "float",
+      "low": 10,
+      "high": 30,
+      "note": "BB bandwidth percentile below which compression is declared; keep narrow to avoid false setups"
+    },
+    {
+      "name": "min_compression_bars",
+      "type": "int",
+      "low": 2,
+      "high": 6,
+      "note": "Consecutive bars below threshold required; too few = noise, too many = misses fast setups"
+    },
+    {
+      "name": "volume_surge_threshold",
+      "type": "float",
+      "low": 1.2,
+      "high": 2.5,
+      "note": "volume_ratio minimum at breakout bar; higher = more selective but fewer trades"
+    },
+    {
+      "name": "require_atr_expansion",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Whether ATR must be expanding vs 5 bars ago; current default ON is likely correct"
+    },
+    {
+      "name": "atr_expansion_ratio",
+      "type": "float",
+      "low": 1.05,
+      "high": 1.35,
+      "note": "Minimum ATR_now / ATR_5ago ratio for expansion confirmation"
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 4,
+      "note": "ATR multiples below entry for stop; wider required because compression entries have low initial volatility"
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 2,
+      "high": 6,
+      "note": "ATR multiples above entry for take-profit; post-compression targets should be generous"
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 12,
+      "high": 72,
+      "note": "Maximum trade duration; compression breakouts either resolve quickly or stall"
+    },
+    {
+      "name": "adx_min_at_entry",
+      "type": "float",
+      "low": 10,
+      "high": 30,
+      "note": "Minimum ADX required at breakout bar; filters breakouts in directionless chop"
+    },
+    {
+      "name": "require_bmsb_bullish",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Whether price must be above BMSB (20-SMA and 21-EMA) to allow long entries"
+    },
+    {
+      "name": "rsi_max_entry",
+      "type": "float",
+      "low": 65,
+      "high": 85,
+      "note": "Maximum RSI14 at entry to avoid chasing overbought breakouts"
+    },
+    {
+      "name": "use_pressure_imbalance",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Enable/disable microstructure pressure_imbalance filter at breakout bar"
+    },
+    {
+      "name": "pressure_imbalance_threshold",
+      "type": "float",
+      "low": 0.05,
+      "high": 0.3,
+      "note": "Minimum pressure_imbalance for long entry when use_pressure_imbalance=True"
+    }
+  ],
+  "do_not_optimize": [
+    "bb_period (fix at 20 \u2014 standard Bollinger convention; sweeping this against other params creates collinearity with bandwidth_percentile_threshold)",
+    "bb_std (fix at 2.0 \u2014 changing std changes what 'breakout' means and invalidates the percentile baseline)",
+    "breakout_confirmation_candles (current code has dead/relaxed logic in the confirmation branch \u2014 optimization would be spurious; fix at 1)",
+    "allowed_regimes list contents (binary regime labeling makes this a discrete search over 2^3 subsets \u2014 overfit risk is high with few regimes; fix at [breakout, trend] or add a BMSB boolean gate instead)"
+  ],
+  "risk_management": {
+    "stop": "ATR-based hard stop: stop_loss = entry_price - stop_loss_atr_mult * atr_14 (long only); suggested atr_mult range 1.5-4.0; stop is computed from the signal-bar ATR and applied immediately from the fill bar open (1-bar lag entry).",
+    "take_profit": "Fixed ATR take-profit: take_profit = entry_price + take_profit_atr_mult * atr_14; R:R ratio constrained to sweep range ensuring take_profit_atr_mult > stop_loss_atr_mult at all times (minimum 1.0 R:R enforced in genome).",
+    "trailing": "Optional: after price reaches 1.5x ATR in profit, trail stop to breakeven + 0.5 ATR to lock in gains on extended compression breakouts; implement as a post-entry trailing logic gate (not currently in backtester \u2014 would need strategy-side tracking via position metadata).",
+    "vol_target": "Volatility-targeted sizing via backtester's volatility_scaled method: target annualized vol = 40-60% (crypto-appropriate); position size = equity * (vol_target / realized_annual_vol), capped at max_position_pct; this normalizes sizing so compression periods (low vol) do not over-size entries.",
+    "max_size": "max_position_pct = 0.80 (spot long: no leverage, no margin; at most 80% of equity into any single breakout trade; remainder in cash as buffer for drawdown); signal strength scalar further reduces size below max.",
+    "cooldown": "min_bars_between_trades = 4 hours (4 bars on 1h data); prevents re-entry immediately after a stop-loss exit from a false breakout during the same compression episode; enforced via risk_manager min_interval.",
+    "risk_off": "Regime gate: skip entry if regime not in allowed set AND bmsb_bullish is False; additionally gate off if adx_14 < adx_min_at_entry; full trading halt (circuit breaker in RiskManager) if equity drawdown from peak exceeds 15% \u2014 consistent with backtester's existing circuit_breaker mechanism."
+  },
+  "metrics": [
+    "CAGR (annualized from equity curve over OOS lockbox 2024-06-07 to 2026-06-07)",
+    "Sharpe ratio (annualized; must exceed 1.0 net of costs to be considered for promotion)",
+    "Sortino ratio (penalizes only downside deviation; important because compression breakouts have skewed return distributions)",
+    "Maximum drawdown % (full-sample peak-to-trough from WalkForwardValidator full_sample_max_dd_pct \u2014 already implemented)",
+    "Calmar ratio (CAGR / maxDD; target > 0.5)",
+    "Hit rate / win rate (% of trades profitable; breakout strategies typically 40-55% hit rate; below 35% = edge is marginal)",
+    "Profit factor (gross wins / gross losses; must exceed 1.2 net of costs)",
+    "Average trade duration (hours; should be well under time_stop_hours for healthy trades; time-stopped trades indicate failed breakouts)",
+    "Turnover / trade frequency (trades per month; too few trades = insufficient statistical power in OOS window)",
+    "Exposure time (% of time in market; compression strategies should have low exposure ~10-25%, which is acceptable for spot)",
+    "Cost sensitivity test (re-run OOS with 2x and 3x commission+slippage; Sharpe should degrade gracefully not collapse)",
+    "Bootstrap / Monte Carlo on trade sequence (resample trade P&L 1000x, report 5th-percentile Sharpe and maxDD to quantify luck vs edge)",
+    "Per-year Sharpe stability (compute annual Sharpe for each calendar year in pre-lockbox data; flag if any year is strongly negative)",
+    "OOS degradation % (WalkForwardValidator's oos_degradation_pct; target < 40%)",
+    "Exit reason distribution (take_profit / stop_loss / time_stop split; healthy = TP > SL count, time_stop < 30% of exits)"
+  ],
+  "sweep_changes": [
+    "Remove the short branch entirely: delete breakout_short detection, the 'short' side assignment, and the short-side stop/TP calculation; replace with an early return None when close < bb_lower (treat downside breakout as flat/cash signal).",
+    "Add require_bmsb_bullish to PARAMS (default True) and to STRATEGY_REGISTRY param_space as ('bool',); gate long entries on bmsb_bullish == True when this param is enabled.",
+    "Add adx_min_at_entry to PARAMS (default 15.0) and to param_space as ('float', 10.0, 30.0); filter entries where adx_14 < adx_min_at_entry.",
+    "Add rsi_max_entry to PARAMS (default 75.0) and to param_space as ('float', 65.0, 85.0); skip long entry if rsi_14 > rsi_max_entry.",
+    "Add volatility_breakout back to STRATEGY_REGISTRY in auto_evolve.py (it was pruned in Round 1 as long+short; the long-only version has a structurally different edge hypothesis and must be re-evaluated from scratch).",
+    "Fix the dead breakout_confirmation_candles logic: either implement it properly (check all recent bars are above bb_upper for long) or remove the parameter entirely and fix at 1 \u2014 the current pass-through makes the parameter meaningless.",
+    "Relax allowed_regimes to include 'unknown' when require_bmsb_bullish is True and bmsb_bullish is True \u2014 this recovers valid breakout bars that the regime classifier misses, increasing statistical power.",
+    "Add obv_divergence as an optional entry filter: when use_obv_confirm is True (new param), require obv_divergence > 0 at breakout bar (OBV above its SMA, confirming volume trend supports price breakout).",
+    "Change the strength calculation to use close_location (> 0.7 adds 0.1) and pressure_imbalance consistently \u2014 currently the pressure_imbalance contribution to strength ignores the use_pressure_imbalance gate.",
+    "Add param_space entry for time_stop_hours as ('int', 12, 72) \u2014 currently hard-coded at 24 and not evolvable; this is a key driver of exposure and should be optimized."
+  ],
+  "methodological_risks": [
+    "Round 1 pruning survivorship: the strategy was removed after 29K evaluations in long+short mode with 0% positive fitness. The long-only version has a fundamentally different edge profile, but the prior evidence of poor performance under evolution is a meaningful base-rate signal \u2014 the probability of genuine edge is lower than for strategies that survived.",
+    "Dead confirmation logic: the breakout_confirmation_candles block has a relaxed pass-through (bare 'pass' statements) meaning the parameter has zero effect on actual behavior. Any sweep result attributed to this parameter is meaningless and any IS optimization that found a good value for it is purely noise.",
+    "ATR expansion check uses a fixed 5-bar lag (hard-coded as bar_idx - 5) that is not parameterized and was never swept; this lag choice is arbitrary and could be a source of in-sample fitting that does not generalize.",
+    "bb_bandwidth_percentile uses a 100-bar rolling window for the rank; the WalkForwardValidator embargo is set to 120 bars which is correct, but any custom fold split shorter than 100+warmup bars would contaminate the percentile baseline.",
+    "Signal strength scalar (0.5 to 1.0) influences position size through the backtester's signal_strength multiplier, but the individual bonus increments (0.2, 0.15, 0.15) were never swept and create an implicit overfit to whatever IS period rewarded larger sizes.",
+    "Short time_stop (24h default) combined with a 1-bar entry lag means the effective holding window is 23 bars; for hourly data this is very short for a compression-to-breakout strategy that may take multiple bars to resolve, creating an asymmetry where the strategy exits before the full breakout move completes.",
+    "Regime filter is computed externally (not shown here) and injected as a string; if the regime classifier was trained or calibrated on data overlapping the lockbox window, the filter introduces an indirect leakage channel.",
+    "Volume_ratio is computed as volume / SMA20_volume which normalizes intra-session patterns well but may be distorted in thin-liquidity hours; on hourly OHLCV data this introduces time-of-day autocorrelation in signal frequency that is not accounted for.",
+    "BMSB periods (sma=20, ema=21) in the feature pipeline are labeled as 'weekly' (docstring mentions 3360h/3528h) but are computed in whatever timeframe units the data provides \u2014 on hourly data these are 20-hour and 21-hour windows, not weekly; the macro regime gate would be meaningless unless the feature is recomputed on daily/weekly aggregates.",
+    "Bootstrap/MC on the trade sequence will be uninformative if trade count in the lockbox OOS window is too low (< 30 trades); given that compression + volume + ATR + regime + BMSB filters stack, the expected signal frequency is low and OOS statistical power may be insufficient to distinguish edge from noise."
+  ]
+}

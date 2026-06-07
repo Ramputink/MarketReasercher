@@ -55,3 +55,6 @@ benchmark/results/
 # Sweep snapshots: full-history parquet is large (~320MB). Rebuildable from the
 # committed manifest (hashes) via `python -m sweep.build_data`. Keep manifest, ignore parquet.
 sweep/snapshots/*.parquet
+
+# Phase 2/3 research panels: large parquet, rebuildable from manifest
+phase2/snapshots/*.parquet

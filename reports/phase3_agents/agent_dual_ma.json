@@ -1,0 +1,182 @@
+{
+  "strategy": "dual_ma",
+  "classification": "candidate",
+  "diagnosis": "The dual_ma strategy implements a classic fast/slow moving-average crossover with three filters: ADX trend-strength gate (adx_14 >= 26.5), volume confirmation (volume_ratio >= 1.07), and price-above-slow-MA confirmation. A golden cross (fast MA crosses above slow MA) emits a LONG signal; a death cross emits a SHORT signal. The evolved params use EMA(20)/EMA(46), regime gate restricted to [\"trend\",\"breakout\"], wide ATR stops (3.48x) and wide take-profits (5.64x), with a 36-hour time stop. The strategy DOES emit short signals (lines 89-99 in dual_ma.py). The short branch must be dropped for Phase-3 long-only compliance. The core edge is trend-following: capture sustained directional moves in crypto bull markets. The weakness is the classic MA crossover lag \u2014 entries occur after a move has already begun, producing whipsaw losses during choppy/ranging markets. The evolved regime filter (\"trend\",\"breakout\" only) partially mitigates ranging losses but also reduces trade count. With only 41 trades in the evolved in-sample run, the statistical base is thin and the strategy is at meaningful overfitting risk on the exact filter parameters.",
+  "long_only_hypothesis": "Crypto markets exhibit persistent, multi-week uptrends driven by adoption cycles, macro risk-on flows, and halving-related supply shocks. A golden-cross signal on EMA(fast)/EMA(slow) \u2014 conditioned on confirmed trend strength (ADX > threshold), elevated volume (confirming breakout participation), and price already above the slow MA \u2014 identifies the moment when momentum is both sustained and broadly participated. In long-only spot, the edge is: enter when trend is confirmed and step to cash (not short) when the trend inverts. The regime filter restricts entries to periods where trend-following historically outperforms buy-and-hold on a risk-adjusted basis, reducing drawdown during BTC bear/ranging phases without requiring leverage or shorting. This long-or-cash implementation captures the upside convexity of crypto while protecting capital during confirmed downtrends by simply sitting in USDC.",
+  "market_techniques": [
+    "EMA golden/death cross trend-following (long-or-flat only)",
+    "ADX trend-strength gating to filter choppy regimes",
+    "Volume-ratio confirmation to distinguish breakout from noise",
+    "Regime classification gate (trend/breakout) to restrict entries to high-probability environments",
+    "ATR-scaled stops and take-profits for volatility-adaptive risk management",
+    "Time stop to prevent indefinite capital lock-up in stalled trades",
+    "Bull Market Support Band (BMSB) as macro regime overlay to suppress entries during structural bear markets",
+    "RSI momentum filter to avoid overbought entries",
+    "OBV divergence as secondary volume trend confirmation",
+    "Volatility squeeze detection (BB bandwidth percentile) to avoid entering during pre-squeeze compression with ambiguous direction"
+  ],
+  "useful_features": [
+    "trend: adx_14 \u2014 primary trend-strength gate, already in use",
+    "trend: bmsb_bullish \u2014 macro regime overlay; restrict longs to bars where price > both BMSB SMA and EMA",
+    "trend: roc_12 \u2014 rate of change over 12 bars as momentum confirmation",
+    "momentum: rsi_14 \u2014 avoid entering above RSI 70 (overbought filter) to improve entry timing",
+    "momentum: price_acceleration \u2014 confirm that the crossover is backed by accelerating price movement",
+    "volume: volume_ratio \u2014 already in use; ratio of current volume to 20-bar SMA",
+    "volume: obv_divergence \u2014 secondary confirmation that OBV trend agrees with price trend",
+    "volume: volume_zscore \u2014 detect genuine volume spikes vs. noisy volume_ratio",
+    "volatility: atr_14 \u2014 already in use for stop/TP scaling",
+    "volatility: bb_bw_percentile \u2014 rolling percentile of BB bandwidth; avoid entries during volatility compression (percentile < 20) where direction is undetermined",
+    "volatility: gk_vol \u2014 Garman-Klass volatility for vol-targeting position sizing",
+    "mean-reversion: bb_pct_b \u2014 avoid entries at extreme bb_pct_b > 0.9 (already stretched)",
+    "market-regime: regime parameter passed by engine \u2014 existing trend/breakout filter",
+    "drawdown: dist_from_high_20 \u2014 as a secondary confirmation; entries near 20-bar highs are more valid breakouts",
+    "microstructure: pressure_imbalance \u2014 buying_pressure - selling_pressure; positive imbalance corroborates bullish crossover",
+    "market-regime: ret_zscore_20 \u2014 zscore of recent returns; filter out entries at extreme zscore (already overbought spike)"
+  ],
+  "genome_params": [
+    {
+      "name": "fast_period",
+      "type": "int",
+      "low": 5,
+      "high": 30,
+      "note": "Fast EMA/SMA period; extending upper bound slightly from current registry [5,25] to allow for slower fast MA"
+    },
+    {
+      "name": "slow_period",
+      "type": "int",
+      "low": 20,
+      "high": 80,
+      "note": "Slow EMA/SMA period; extended upper bound to explore wider separations; must enforce fast_period < slow_period in evaluation"
+    },
+    {
+      "name": "signal_type",
+      "type": "choice",
+      "low": 0,
+      "high": 1,
+      "note": "MA type: 'sma' or 'ema'; current evolved value is ema; sweep both"
+    },
+    {
+      "name": "adx_min",
+      "type": "float",
+      "low": 15,
+      "high": 35,
+      "note": "Minimum ADX for trend confirmation; current evolved value 26.5; range allows exploring sensitivity"
+    },
+    {
+      "name": "volume_threshold",
+      "type": "float",
+      "low": 0.8,
+      "high": 2,
+      "note": "Minimum volume_ratio to confirm breakout participation"
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 5,
+      "note": "ATR multiplier for stop; evolved value 3.48 is wide; explore tighter stops for long-only where asymmetry differs"
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 2,
+      "high": 8,
+      "note": "ATR multiplier for take-profit; evolved value 5.64; wide TP allows trends to run"
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 24,
+      "high": 120,
+      "note": "Maximum hours to hold a stalled position; current 36h may be too short for multi-day trend moves"
+    },
+    {
+      "name": "rsi_max_entry",
+      "type": "float",
+      "low": 60,
+      "high": 80,
+      "note": "NEW: upper RSI threshold to reject overbought entries; prevents chasing peaks"
+    },
+    {
+      "name": "bmsb_filter",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "NEW: require bmsb_bullish == True (price above both 20-SMA and 21-EMA macro bands) as macro regime gate"
+    },
+    {
+      "name": "bb_bw_percentile_min",
+      "type": "float",
+      "low": 10,
+      "high": 40,
+      "note": "NEW: minimum BB bandwidth percentile to avoid entering during volatility squeeze compression"
+    },
+    {
+      "name": "pullback_tolerance_pct",
+      "type": "float",
+      "low": 0.1,
+      "high": 1,
+      "note": "Pct tolerance for price-above-slow-MA check; small values tighten the filter"
+    }
+  ],
+  "do_not_optimize": [
+    "require_trend_regime \u2014 the boolean itself should stay True (always filter by regime); only the allowed_regimes list content matters and it should be fixed to ['trend','breakout'] not swept",
+    "allowed_regimes \u2014 the list of allowed regimes is a categorical with only 4 possible values across 2^4 subsets; sweeping it massively overfits to historical regime labels",
+    "require_adx \u2014 fixing to True removes one binary degree of freedom; ADX filtering is structurally sound and removing it risks adding noise trades",
+    "require_volume \u2014 fixing to True likewise; volume confirmation is a well-grounded structural filter",
+    "require_price_above_slow \u2014 fixing to True is a sound structural constraint (price must be above trend anchor); sweeping it invites mean-reversion entries disguised as trend entries",
+    "time_stop_hours at granular resolution \u2014 fix to a round number (48h or 72h) rather than letting the genome pick e.g. 37h, which is a curve-fitted artifact on specific historical bars"
+  ],
+  "risk_management": {
+    "stop": "ATR-scaled hard stop at entry_price - stop_loss_atr_mult * atr_14; current evolved multiplier 3.48 is reasonable for crypto volatility; floor at 1.5x ATR minimum to prevent hairline stops being gapped through",
+    "take_profit": "ATR-scaled take-profit at entry_price + take_profit_atr_mult * atr_14; evolved 5.64x lets trends run; for long-only spot where upside is unlimited, consider partial-take (50% at 3x ATR, trail remainder) rather than fixed TP",
+    "trailing": "Optional trailing stop: after price moves 2x ATR in favor, trail stop at entry_price + 1x ATR (breakeven + cushion); this captures extended trend moves that would otherwise be clipped by fixed TP at 5.64x",
+    "vol_target": "Volatility-targeted sizing via gk_vol or realized_vol_20: target 20% annualized portfolio volatility; position_size = equity * (vol_target / asset_annualized_vol) capped at max_position_pct; this dynamically reduces size during high-vol regimes (avoids oversizing into volatile breakouts)",
+    "max_size": "Max position size = 80% of equity (spot long-only; no leverage; keeping 20% as USDC buffer for costs and drawdown); risk_config.max_position_pct = 0.80",
+    "cooldown": "Minimum 12-hour cooldown after any trade exit before next entry; prevents rapid re-entry after stop-out into the same choppy regime; consider 24h cooldown after stop_loss exit specifically",
+    "risk_off": "BMSB macro gate: if bmsb_bullish == False (price below 20-SMA or 21-EMA long-period bands) suspend all new long entries and go to USDC; additionally gate on regime != ['ranging','bear'] from the engine regime classifier \u2014 these two gates together form a structural bear-market shield"
+  },
+  "metrics": [
+    "CAGR \u2014 primary return metric; target >20% annualized in OOS 2024-2026 window",
+    "Sharpe ratio (annualized, hourly returns) \u2014 target >1.2 after costs; evolved IS Sharpe was 1.84, WF Sharpe 3.13 (unusually high, warrants scrutiny for data-snooping)",
+    "Sortino ratio \u2014 more relevant for long-only (only downside vol penalized); target >1.5",
+    "Maximum drawdown % \u2014 peak-to-trough on full equity curve; target <25% for spot long-only",
+    "Calmar ratio (CAGR / maxDD) \u2014 target >0.8",
+    "Hit rate (% winning trades) \u2014 with wide stops (3.48 ATR) and wide TPs (5.64 ATR) expect 40-50% hit rate; below 35% signals stop-hunting",
+    "Average trade PnL net of all costs (commission + slippage + funding=0 for spot) \u2014 must be positive after realistic 5bps commission + 5bps slippage per side",
+    "Trade count \u2014 with 41 trades in the evolved run on multi-year data, statistical confidence is very low; target minimum 80 OOS trades for meaningful inference",
+    "Turnover / exposure time \u2014 fraction of time in position; spot long-only with time stops should sit in cash during downtrends; track as signal of regime-filtering effectiveness",
+    "Cost sensitivity \u2014 sweep commission from 2bps to 15bps and slippage from 2bps to 20bps; if Sharpe degrades below 0.8 at realistic costs, strategy is marginal",
+    "Walk-forward Sharpe stability \u2014 Sharpe across individual WF folds should not have std > 1.5 * mean; high variance means the strategy only works in specific sub-periods",
+    "Bootstrap / Monte Carlo \u2014 resample trade returns with replacement (1000 iterations) to get 5th-percentile Sharpe and CAGR; report confidence interval",
+    "Per-year Sharpe and CAGR \u2014 break out 2019, 2020, 2021, 2022, 2023 performance; 2022 bear year is the critical stress test for long-only spot",
+    "OOS degradation % \u2014 compute_oos_degradation(train_metrics, test_metrics) from engine; target <50% degradation IS to OOS"
+  ],
+  "sweep_changes": [
+    "DROP the short branch entirely (lines 89-99 in dual_ma.py): remove the elif block for death-cross short signal; death cross = exit to cash only (position becomes None, no new signal emitted \u2014 the engine's time stop and regime filter handle the exit naturally)",
+    "Add long-only exit signal: when a death cross occurs while long, emit Signal(side='long_exit') or return a signal with side opposite to position to trigger signal_exit in backtester \u2014 verify this triggers the 'signal_exit' path in the engine (line 302 of backtester.py: signal.side != position.side)",
+    "Add BMSB macro filter: at bar_idx check current.get('bmsb_bullish', True); if False and bmsb_filter param is True, return None (no new longs)",
+    "Add RSI overbought filter: if rsi_14 > rsi_max_entry param (default 70.0), return None to avoid chasing peaks",
+    "Add BB bandwidth percentile filter: if bb_bw_percentile < bb_bw_percentile_min param (default 20.0), return None to avoid entries during volatility compression with unclear direction",
+    "Fix require_adx = True, require_volume = True, require_price_above_slow = True as structural constants (remove from genome, hard-code in PARAMS)",
+    "Fix allowed_regimes = ['trend', 'breakout'] as structural constant (remove from genome)",
+    "Extend slow_period genome upper bound from 60 to 80 to allow exploration of slower trend-following periods suitable for multi-week crypto trends",
+    "Add time_stop_hours to genome with range [24, 120] at integer granularity (currently fixed at 36h; longer time stops may capture multi-day moves better)",
+    "Enforce fast_period < slow_period constraint in genome evaluation: if sampled fast >= slow, skip evaluation and assign worst-case fitness",
+    "Switch position sizing to volatility-targeted using gk_vol feature: position_size = min(equity * vol_target / asset_vol, equity * max_position_pct); add vol_target as a fixed param (not swept) at 0.20 annualized",
+    "Add 24h cooldown tracking: record last exit timestamp in strategy state or check bar timestamps; block new entries within 12-24h of last exit",
+    "Update STRATEGY_REGISTRY param_space in auto_evolve.py to: add rsi_max_entry (float, 60.0, 80.0), bmsb_filter (bool), bb_bw_percentile_min (float, 10.0, 40.0), time_stop_hours (int, 24, 120), pullback_tolerance_pct (float, 0.1, 1.0); remove require_adx, require_volume, require_price_above_slow, require_trend_regime from genome (fix them True)"
+  ],
+  "methodological_risks": [
+    "Thin trade count (41 trades in evolved IS run): with ~41 trades any Sharpe estimate has a standard error of ~1/sqrt(41) \u2248 0.16 \u2014 the reported IS Sharpe 1.84 has a 95% CI of roughly [1.5, 2.2]; OOS Sharpe 3.13 on the same or fewer trades is statistically implausible and strongly suggests data-snooping or regime coincidence",
+    "Walk-forward Sharpe 3.13 > IS Sharpe 1.84 is a red flag: genuine OOS performance should degrade, not improve; this can occur when the test window happened to coincide with a strong bull run (e.g. late 2023 rally) that the strategy was accidentally tuned to, rather than true generalization",
+    "EMA window computed on a slice df['close'].iloc[bar_idx - slow_period - 1 : bar_idx + 1] inside the loop (lines 56-59 of dual_ma.py): this recalculates EMA from scratch on a sub-window each bar, which means the EMA does NOT have the same history as if computed from bar 0; the warm-up effect makes the EMA values at crossover slightly different from a full-history EMA \u2014 this is a subtle but real calculation artifact that can affect signal timing",
+    "Regime label leakage risk: the regime parameter is passed externally by the engine; if the regime classifier uses future bars or is calibrated on the full dataset including OOS, entries conditioned on regime='trend' inherit that leakage",
+    "Parameter count vs. trade count: with 12 genome parameters and 41 trades, the model has ~1 free parameter per 3-4 trades \u2014 extreme overfitting territory; fixing 5 structural params reduces this but the problem remains",
+    "ADX threshold at exactly 26.5476 (an evolved decimal) is a classic overfitting signature; a round number (25 or 30) would be more robust; the decimal precision should be noted and rounded",
+    "Time stop at exactly 36 hours is similarly suspiciously precise; if the best training trades happened to resolve within 36h, this parameter is curve-fitted to historical bar sequences",
+    "Volume_ratio threshold 1.0685 at 4 decimal places is another overfitting artifact from the genetic algorithm; should be rounded to 1.1 for robustness testing",
+    "Cost model validation: the backtester charges commission + slippage but spot trades have no funding cost; verify funding_bps_per_8h is set to 0.0 for spot-only simulation (the Backtester defaults to 1.0 bps/8h which is a perp cost and inflates apparent net returns when excluded)",
+    "2022 bear market survivorship: a strategy tuned on 2019-2023 data that uses a regime filter for 'trend' only may have survived 2022 by sitting mostly flat; this reduces drawdown but also means the OOS 2024-2026 window (which includes another bull run) may look artificially good simply because crypto trended up again \u2014 not because the strategy has genuine alpha"
+  ]
+}

@@ -1,0 +1,178 @@
+{
+  "strategy": "ichimoku_kumo",
+  "classification": "candidate",
+  "diagnosis": "The strategy implements a full Ichimoku cloud breakout system with crypto-adapted parameters (tenkan=10, kijun=34, senkou_b=59, displacement=30). It computes Tenkan-sen, Kijun-sen, Senkou Span A, and Senkou Span B internally via rolling Donchian midlines. Entry logic: detects a bar where close crosses above the cloud top (bullish_breakout) or below the cloud bottom (bearish_breakout), optionally confirmed by Chikou span and/or a concurrent TK cross. CRITICAL: the strategy DOES emit short signals \u2014 line 138 sets side = \"short\" if bearish_breakout. The short branch is fully live, with inverted stop/TP arithmetic (lines 151-153). In evolved PARAMS, require_chikou_confirm=False, require_tk_cross=True (confusingly, code logic at lines 132-135 means TK cross is required for longs AND a bearish TK cross for shorts). ADX filter at 12.1 is weak \u2014 nearly always passes. Regime gate: only [\"trend\",\"breakout\"]. Walk-forward reported Sharpe 2.28, PF 1.30 over 106 trades, but this was with the short branch live. Core edge for longs: cloud breakouts in crypto trend strongly \u2014 the cloud acts as a thick dynamic S/R zone and breakouts above a wide cloud represent genuine momentum continuation, not noise. Weakness: pure breakout (no mean-reversion awareness), high latency in components (30-bar displacement means cloud lags badly during fast reversals), and the internal loop re-computes Donchian midlines from scratch on every bar (O(n*period) per bar, but not a correctness issue).",
+  "long_only_hypothesis": "In crypto spot markets, upward Kumo breakouts reliably precede sustained trending moves: the cloud condenses months of price action into a single dynamic support zone, so a confirmed close above the cloud top (especially when the cloud is thick, ADX is rising, and volume is expanding) identifies the transition from range/distribution to markup phase. The hypothesis is: enter long when close breaks above cloud top with concurrent TK alignment and regime = trend/breakout; stay in cash otherwise, including when the bearish breakout would have triggered a short. The bullish-cloud scenario aligns with the crypto risk-on cycle that dominates spot returns 2019-2026; longs capture the majority of profitable Ichimoku signals historically. The short signals are dropped entirely \u2014 any bearish breakout becomes a flat/cash signal, meaning the strategy exits any open long (via signal_exit) and does not re-enter until a new bullish breakout forms.",
+  "market_techniques": [
+    "Kumo (cloud) breakout momentum \u2014 enter long only on confirmed close above cloud top, drop short branch entirely",
+    "Senkou Span B as dynamic trailing stop floor \u2014 update hard stop to cloud_top - buffer after entry rather than fixed ATR multiple",
+    "TK cross as entry quality filter \u2014 require tenkan > kijun at entry (momentum confirmation)",
+    "Cloud thickness as position-sizing signal \u2014 thicker cloud = stronger structure break = larger size fraction",
+    "Regime gating \u2014 restrict entries to trend/breakout regimes, add explicit bear-market gate via BMSB or BTC drawdown filter",
+    "ADX trend-strength filter \u2014 raise ADX threshold above the current 12 to require genuine trending conditions",
+    "Volume confirmation at breakout \u2014 volume_ratio spike validates institutional participation at the cloud break",
+    "Chikou span as secondary confirmation \u2014 price above its own displaced value confirms broader trend alignment",
+    "Time stop as position duration cap \u2014 72h cap prevents trades from degenerating into open-ended drawdowns in ranging conditions",
+    "ATR-based stop below cloud bottom \u2014 stop anchored to cloud_bottom - 0.5*ATR is structurally motivated rather than arbitrary"
+  ],
+  "useful_features": [
+    "trend: adx_14 \u2014 primary trend-strength gate, raise min threshold",
+    "trend: roc_12 \u2014 rate-of-change confirms momentum direction at breakout bar",
+    "trend: bmsb_bullish \u2014 bull-market support band as macro long-side gate, avoids entries in secular bear",
+    "volatility: atr_14 \u2014 stop placement and position sizing denominator",
+    "volatility: bb_bw_percentile \u2014 cloud breakouts after volatility compression (low percentile) are higher-quality",
+    "volatility: gk_vol \u2014 Garman-Klass vol for volatility targeting position sizing",
+    "volume: volume_ratio \u2014 confirms breakout with above-average volume (require_volume gate)",
+    "volume: volume_zscore \u2014 spike detection at breakout bar",
+    "volume: obv_divergence \u2014 OBV trending up before price breakout is leading confirmation",
+    "momentum: rsi_14 \u2014 avoid overbought entries (rsi > 75 after breakout often means chasing late), use as exit signal",
+    "momentum: ret_zscore_20 \u2014 z-score of recent returns, high positive z at entry warns of extended move",
+    "momentum: price_acceleration \u2014 second derivative of price, positive acceleration at cloud break is bullish",
+    "market_regime: regime parameter passed to strategy \u2014 already used, but add BTC/ETH drawdown-from-ATH as informative feature",
+    "market_regime: dist_from_high_20 \u2014 close near 20-bar high at breakout confirms strength not exhaustion",
+    "mean_reversion: bb_pct_b \u2014 secondary awareness that price is not already at extreme upper band before entry",
+    "microstructure: pressure_imbalance \u2014 buying pressure > selling pressure at breakout bar confirms demand",
+    "microstructure: close_location \u2014 high close_location (close near high of bar) on breakout bar is bullish confirmation"
+  ],
+  "genome_params": [
+    {
+      "name": "tenkan_period",
+      "type": "int",
+      "low": 7,
+      "high": 14,
+      "note": "Faster Tenkan captures crypto momentum; tight range around evolved value of 10"
+    },
+    {
+      "name": "kijun_period",
+      "type": "int",
+      "low": 22,
+      "high": 38,
+      "note": "Kijun defines medium-term equilibrium; wider than tenkan by design"
+    },
+    {
+      "name": "senkou_b_period",
+      "type": "int",
+      "low": 44,
+      "high": 65,
+      "note": "Long cloud boundary; should stay ~2x kijun to maintain structural validity"
+    },
+    {
+      "name": "displacement",
+      "type": "int",
+      "low": 22,
+      "high": 34,
+      "note": "Cloud forward projection lag; tied to kijun_period conceptually"
+    },
+    {
+      "name": "adx_min",
+      "type": "float",
+      "low": 15,
+      "high": 30,
+      "note": "Raise floor from evolved 12.1 to require genuine trend; upper bound avoids filtering too many valid entries"
+    },
+    {
+      "name": "stop_loss_atr_mult",
+      "type": "float",
+      "low": 1.5,
+      "high": 4,
+      "note": "ATR stop multiplier; lower bound gives tighter stops that suit confirmed breakouts"
+    },
+    {
+      "name": "take_profit_atr_mult",
+      "type": "float",
+      "low": 3,
+      "high": 8,
+      "note": "TP multiplier; wide TP suits trending regime expectation"
+    },
+    {
+      "name": "require_chikou_confirm",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Toggle Chikou span confirmation; can reduce false breakouts but reduces trade count"
+    },
+    {
+      "name": "require_tk_cross",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Toggle concurrent TK cross; current PARAMS has True"
+    },
+    {
+      "name": "require_volume",
+      "type": "bool",
+      "low": 0,
+      "high": 1,
+      "note": "Volume spike confirmation toggle; default off but worth sweeping"
+    },
+    {
+      "name": "volume_threshold",
+      "type": "float",
+      "low": 0.8,
+      "high": 2,
+      "note": "Only active when require_volume=True; 1.2-1.5 typical for genuine breakout confirmation"
+    },
+    {
+      "name": "time_stop_hours",
+      "type": "int",
+      "low": 48,
+      "high": 120,
+      "note": "Trade duration cap; sweep to find optimal holding window for long-only regime"
+    }
+  ],
+  "do_not_optimize": [
+    "allowed_regimes \u2014 hardcoded to [trend, breakout] for long-only; changing the set has only 3-4 meaningful combinations, which will massively overfit to specific OOS periods",
+    "require_trend_regime \u2014 should be locked True for long-only spot; toggling it off removes the regime gate entirely and invites whipsaws",
+    "displacement \u2014 tightly coupled to kijun_period by Ichimoku theory (should equal kijun); if kijun is swept displacement should track it (kijun_period value), not be independently optimized",
+    "senkou_b_period \u2014 should remain approximately 2x kijun_period; independent sweeping breaks the structural relationship and produces non-Ichimoku hybrids that are curve-fit artifacts"
+  ],
+  "risk_management": {
+    "stop": "ATR hard stop below cloud_bottom - 0.5*atr_14 at entry (structurally motivated); fall back to close - stop_loss_atr_mult * atr_14 if cloud_bottom is above entry (rare case after fast move); minimum stop distance = 1.5 * atr_14",
+    "take_profit": "Fixed take_profit = close + take_profit_atr_mult * atr_14 at entry; evolved value 6.82x ATR suits trending regimes; sweep 3.0-8.0x",
+    "trailing": "Optional trailing stop: once unrealized gain > 2*atr_14, raise stop to cloud_top (current displaced value) \u2014 this locks in cloud structure as a trailing floor and is conceptually grounded in Ichimoku theory",
+    "vol_target": "Volatility-targeted sizing using gk_vol: target 20% annualized portfolio vol; size = equity * (vol_target / current_annual_vol); cap at max_position_pct; this naturally reduces size during high-vol regimes",
+    "max_size": "Maximum 40% of equity per trade (config.max_position_pct); cloud breakouts can fail fast so over-concentration is dangerous; strength scalar 0.6-1.0 from current code already modulates this",
+    "cooldown": "Minimum 12h cooldown after any stop_loss exit; prevent re-entry into the same failed breakout bar; implement via time check in strategy_fn against last exit timestamp",
+    "risk_off": "Block all new longs when: (1) bmsb_bullish == False for 3 consecutive days (macro bear gate), (2) dist_from_high_20 < -0.15 on weekly timeframe equivalent (deep drawdown in recent history), (3) regime not in [trend, breakout] (already implemented), (4) adx_14 < adx_min (already implemented)"
+  },
+  "metrics": [
+    "CAGR (annualized) \u2014 primary return target; expect 25-60% for long-only crypto trend strategy",
+    "Sharpe ratio (annualized, risk-free 0%) \u2014 target > 1.0; walk-forward reported 2.28 with shorts, long-only will likely be lower",
+    "Sortino ratio \u2014 penalizes only downside vol; more appropriate for long-only crypto with asymmetric return distribution",
+    "Maximum drawdown (%) \u2014 critical for spot long-only; cloud strategies can sit in cash for extended periods, so max DD should be better than buy-and-hold",
+    "Calmar ratio (CAGR / maxDD) \u2014 composite risk-adjusted metric; target > 0.5",
+    "Hit rate (% winning trades) \u2014 with wide TP and tight SL, expect 35-50%; high profit factor compensates low hit rate",
+    "Profit factor (gross profit / gross loss) \u2014 target > 1.4; current PARAMS has 1.30 with shorts included",
+    "Trade count and turnover \u2014 106 trades over full history is ~15-20 per year; adequate for statistical significance; monitor if long-only filtering halves this",
+    "Average trade duration (hours) \u2014 with 72h time stop; distinguish TP exits (short duration, good) from time stops (may indicate failed breakouts)",
+    "Market exposure (% of time in a long position) \u2014 critical for long-only; higher exposure means more beta-like returns",
+    "Cost sensitivity \u2014 re-run at 2x and 5x commission/slippage assumptions; Ichimoku breakouts are infrequent enough that costs should be manageable",
+    "Bootstrap Sharpe confidence interval (1000 resample) \u2014 verify Sharpe > 0.8 at 5th percentile",
+    "Walk-forward per-fold consistency \u2014 Sharpe should be positive in at least 6/8 folds on pre-2024 history; one negative fold is acceptable",
+    "Per-year return stability 2019-2023 \u2014 check that no single year (especially 2021 bull or 2022 bear) dominates cumulative PnL"
+  ],
+  "sweep_changes": [
+    "REMOVE the short branch: delete lines 113 (bearish_breakout detection), 115 (bearish_breakout in compound condition), the short-side logic in Chikou confirm block (lines 126-127), short-side TK check (lines 135-136), and lines 151-153 (short stop/TP arithmetic); replace with: if not bullish_breakout: return None",
+    "FIX the side assignment line 138: remove the ternary, always set side = 'long'",
+    "ADD bmsb_bullish macro gate: before bullish_breakout check, if current.get('bmsb_bullish', True) == False: return None (long-only risk-off macro filter)",
+    "RAISE adx_min floor in param_space from (10.0, 25.0) to (15.0, 30.0) \u2014 the evolved 12.1 is too permissive; a genuine trend filter requires at least 15",
+    "ADD cloud_bottom trailing stop update logic: after 2*atr_14 unrealized gain, update position.stop_loss to max(position.stop_loss, cloud_bottom_current) inside the position management block (requires passing cloud values through metadata or recomputing on each bar)",
+    "ADD volume_threshold sweep to param_space: currently fixed at 0.8 when require_volume=True; sweep (0.8, 2.0) as float",
+    "ADD time_stop_hours to param_space with range (48, 120) as int \u2014 currently hardcoded at 72, which is not swept",
+    "ADD cooldown enforcement: track last_stop_loss_exit_time in strategy state or via metadata; skip entry if current_timestamp - last_stop_time < cooldown_hours * 3600000",
+    "ADD strength calculation enhancement: incorporate volume_zscore into strength scalar (volume_zscore > 1.5 adds 0.1 to base 0.6) so position sizing naturally reflects breakout quality",
+    "UPDATE allowed_regimes to lock to ['trend', 'breakout'] only (already default); remove it from param_space to prevent it from being independently toggled during genome evolution (overfitting risk)"
+  ],
+  "methodological_risks": [
+    "Short-branch contamination of walk-forward metrics: the reported WF Sharpe=2.28 includes short trades; long-only backtest will have materially different (likely lower) statistics and cannot be compared directly to the existing benchmark",
+    "Displacement lag creates look-ahead ambiguity: the code uses senkou_a/b at index [last - disp] to represent the 'current' cloud, but classic Ichimoku displaces the cloud FORWARD by 26 bars, meaning the current bar's cloud was computed disp bars ago \u2014 the implementation is correct but easy to misread; verify the cloud values align with TradingView reference",
+    "Per-bar Donchian recomputation: the inner loop in _donchian_mid recomputes midlines from scratch on every strategy call; this is O(n*period) per call but produces correct results; for production sweeps with many param configurations this is slow, consider pre-computing in features.py",
+    "ADX computed in features.py uses EMA-smoothed DM (not Wilder smoothing); this differs from standard ADX definition and will produce different crossover levels \u2014 the adx_min threshold calibrated against this non-standard ADX cannot be directly compared to published Ichimoku ADX thresholds",
+    "Cloud thickness filter uses a 1% absolute threshold (cloud_thickness > 1.0 adds 0.15 strength); this threshold is not evolved and may be too tight for early history (2019-2020) where BTC price was much lower and ATR% was higher, or too loose in mature 2025-2026 market",
+    "Regime label dependency: the regime parameter is passed externally; if the regime classifier has lookahead or regime changes are detected with a lag, the regime gate may inadvertently filter good trades or pass bad ones \u2014 validate regime classifier independence",
+    "Low trade count risk: dropping the short branch may reduce 106 historical trades to ~40-60 long-only trades; this is marginal for statistical significance testing; bootstrap CI will be wide and Sharpe estimates unreliable",
+    "Parameter space collapse between senkou_b_period and displacement: if both are independently swept, the optimizer will find pathological combinations (e.g., displacement > kijun_period) that violate Ichimoku theory and overfit to specific market structures",
+    "OOS lockbox integrity: the evolved PARAMS (recorded 2026-03-22) fall within the 2-year OOS window (2024-06-07 to 2026-06-07), meaning the current best-evolved params were optimized on data that includes OOS period; any final OOS evaluation with these params is compromised and must use a clean re-optimization on pre-2024 history only",
+    "BMSB macro gate calibration risk: bmsb_sma/ema periods in features.py are in bar units (20/21 bars for hourly data = ~20 hours, not 20 weeks); if the feature was intended to represent weekly SMAs, the current parameterization is orders of magnitude too short and the bmsb_bullish signal is essentially noise at the hourly timeframe"
+  ]
+}
