@@ -1099,7 +1099,7 @@ class EvolutionEngine:
             logger.info(
                 f"  DSR REJECT: [{genome.strategy}] {genome.genome_id} "
                 f"fitness={genome.fitness:.3f} dsr={genome.dsr:.3f} "
-                f"(< {self.dsr_min:.2f}, n_trials={self.total_evaluated}) "
+                f"(< {self.dsr_min:.2f}, n_trials={self.prior_trials + self.total_evaluated}) "
                 f"— excluded from global HoF"
             )
             self._log_event({
