@@ -962,6 +962,11 @@ class EvolutionEngine:
                 seen.add(key)
                 seeds.append(Genome(strategy=strat, params=dict(params), generation=0))
         cap = int(self.pop_size * getattr(self.evo_config, "warm_start_max_frac", 0.5))
+        # Phase-3: the legacy Hall of Fame is SHORT-ERA (tuned with shorts on the
+        # old 365d window). Cap seeding hard so a fresh long-only search dominates;
+        # long-only Phase-3 survivors then repopulate the HoF organically.
+        if PHASE3_LONG_ONLY:
+            cap = min(cap, 2)
         if len(seeds) > cap:
             seeds = seeds[:cap]
         if seeds:
