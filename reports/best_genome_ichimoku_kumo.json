@@ -1,25 +1,25 @@
 {
   "strategy": "ichimoku_kumo",
   "params": {
-    "tenkan_period": 8,
-    "kijun_period": 27,
-    "senkou_b_period": 52,
+    "tenkan_period": 10,
+    "kijun_period": 35,
+    "senkou_b_period": 40,
     "displacement": 33,
     "require_chikou_confirm": true,
-    "require_tk_cross": false,
-    "adx_min": 19.8292,
-    "stop_loss_atr_mult": 4.0396,
-    "take_profit_atr_mult": 5.0396
+    "require_tk_cross": true,
+    "adx_min": 14.5845,
+    "stop_loss_atr_mult": 4.6674,
+    "take_profit_atr_mult": 5.6674
   },
-  "fitness": 0.01359228520448963,
-  "sharpe": 2.2262663588148235,
-  "wf_sharpe": 0.11688906414521938,
-  "is_train_sharpe": 3.39312451097723,
-  "is_val_sharpe": -1.6338358771003048,
-  "cross_asset_median_sharpe": 0.041446028697605164,
-  "dsr": 0.04401403096161177,
+  "fitness": 1.4969020297917026,
+  "sharpe": 1.6333944564034915,
+  "wf_sharpe": 1.588785811662562,
+  "is_train_sharpe": 2.3613381667244067,
+  "is_val_sharpe": -0.34768356652559906,
+  "cross_asset_median_sharpe": 0.234583986101627,
+  "dsr": 0.010685668271299853,
   "dsr_pass": false,
-  "trades": 62,
-  "net_pnl": 881.0710430791145,
-  "wf_robust": false
+  "trades": 52,
+  "net_pnl": 613.357545528281,
+  "wf_robust": true
 }

@@ -15,7 +15,7 @@
   "is_train_sharpe": -0.07258014025666018,
   "is_val_sharpe": 2.469352952035147,
   "cross_asset_median_sharpe": -0.13318616849047868,
-  "dsr": 0.18163810082804094,
+  "dsr": 6.467627329020953e-05,
   "dsr_pass": false,
   "trades": 32,
   "net_pnl": -127.59396468172262,
