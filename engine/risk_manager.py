@@ -114,9 +114,13 @@ class RiskManager:
             if minutes_since < self.config.min_trade_interval_minutes:
                 return False, f"min_interval_{minutes_since:.0f}m"
 
-        # 5. Excessive consecutive losses (optional safety)
+        # 5. Excessive consecutive losses (optional safety). Informational only —
+        # does NOT gate the trade. Logged at debug to avoid flooding (this is
+        # called per entry attempt across tens of thousands of backtested genomes);
+        # the live streak count stays available via get_state()["consecutive_losses"].
         if self.state.consecutive_losses >= 5:
-            logger.warning(f"5 consecutive losses — proceed with caution")
+            logger.debug("%d consecutive losses — proceed with caution",
+                         self.state.consecutive_losses)
 
         return True, "approved"
 

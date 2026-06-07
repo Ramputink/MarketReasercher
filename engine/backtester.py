@@ -592,7 +592,7 @@ class WalkForwardValidator:
         oos_degradations = []
 
         for i, (train, val, test) in enumerate(folds):
-            logger.info(f"Walk-forward fold {i + 1}/{len(folds)}")
+            logger.debug(f"Walk-forward fold {i + 1}/{len(folds)}")
 
             # Run on train (in-sample)
             _, _, train_metrics = self.backtester.run(train, strategy_fn, f"{strategy_name}_train_f{i}")
