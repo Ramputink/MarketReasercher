@@ -1,25 +1,25 @@
 {
   "strategy": "dual_ma",
   "params": {
-    "fast_period": 17,
-    "slow_period": 30,
-    "signal_type": "sma",
+    "fast_period": 24,
+    "slow_period": 49,
+    "signal_type": "ema",
     "require_adx": true,
-    "adx_min": 32.4881,
+    "adx_min": 28.2407,
     "require_volume": false,
-    "volume_threshold": 2.0,
-    "stop_loss_atr_mult": 3.9322,
-    "take_profit_atr_mult": 5.3239
+    "volume_threshold": 1.1554,
+    "stop_loss_atr_mult": 3.505,
+    "take_profit_atr_mult": 4.505
   },
-  "fitness": 3.7286105165478585,
-  "sharpe": 2.6367707959970303,
-  "wf_sharpe": 2.0522780905574156,
-  "is_train_sharpe": 2.779351534513461,
-  "is_val_sharpe": 7.558534237121483,
-  "cross_asset_median_sharpe": -0.19036398419183787,
-  "dsr": 0.013330144045073489,
+  "fitness": 0.17241117802171102,
+  "sharpe": 0.5900846649237554,
+  "wf_sharpe": 0.2950668764365898,
+  "is_train_sharpe": 0.48737388606475934,
+  "is_val_sharpe": 2.436148461988338,
+  "cross_asset_median_sharpe": 0.4805644420577846,
+  "dsr": 0.008932043652797317,
   "dsr_pass": false,
-  "trades": 66,
-  "net_pnl": 642.8875200403095,
-  "wf_robust": true
+  "trades": 172,
+  "net_pnl": 406.66698987285014,
+  "wf_robust": false
 }

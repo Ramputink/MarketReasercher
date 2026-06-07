@@ -1,24 +1,24 @@
 {
   "strategy": "kama_trend",
   "params": {
-    "er_period": 15,
+    "er_period": 14,
     "fast_sc": 5,
-    "slow_sc": 27,
-    "signal_period": 6,
-    "slope_threshold_pct": 0.0546,
-    "adx_min": 8.3603,
-    "stop_loss_atr_mult": 3.1269,
-    "take_profit_atr_mult": 4.2257
+    "slow_sc": 28,
+    "signal_period": 8,
+    "slope_threshold_pct": 0.1129,
+    "adx_min": 20.5843,
+    "stop_loss_atr_mult": 3.7076,
+    "take_profit_atr_mult": 4.8336
   },
-  "fitness": 3.0024540640350366,
-  "sharpe": 3.1951180084821535,
-  "wf_sharpe": 4.125343566965469,
-  "is_train_sharpe": 3.83432805797152,
-  "is_val_sharpe": 5.5126199189535505,
-  "cross_asset_median_sharpe": -0.2722766719687524,
-  "dsr": 0.1526475518663558,
+  "fitness": 0.014763497633778544,
+  "sharpe": 0.1053390743309828,
+  "wf_sharpe": 0.37273856101598357,
+  "is_train_sharpe": 0.21977557974978146,
+  "is_val_sharpe": 6.242400506805705,
+  "cross_asset_median_sharpe": 0.140572808470459,
+  "dsr": 0.0002264627373632644,
   "dsr_pass": false,
-  "trades": 20,
-  "net_pnl": 553.6367523332376,
-  "wf_robust": true
+  "trades": 119,
+  "net_pnl": 175.75439372515245,
+  "wf_robust": false
 }
