@@ -58,3 +58,7 @@ sweep/snapshots/*.parquet
 
 # Phase 2/3 research panels: large parquet, rebuildable from manifest
 phase2/snapshots/*.parquet
+
+# Phase-3: benchmark snapshot parquet is now multi-year (~148MB). Too large to
+# commit; rebuildable from the committed manifest hashes via `python -m benchmark snapshot --force`.
+benchmark/snapshots/*.parquet

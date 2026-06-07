@@ -112,6 +112,7 @@ class Backtester:
         use_risk_manager: bool = True,
         entry_lag_bars: int = 1,
         funding_bps_per_8h: float = 1.0,
+        long_only: bool = False,
     ):
         """
         Args:
@@ -136,6 +137,10 @@ class Backtester:
         self.entry_lag_bars = max(0, int(entry_lag_bars))
         # Per-8h perp funding cost in bps (configurable knob).
         self.funding_bps_per_8h = float(funding_bps_per_8h)
+        # SPOT LONG-ONLY gate (Phase 3): when True, the engine refuses to open
+        # any non-long position. A short signal against an open long still routes
+        # through the signal_exit path (closes to cash) — long-or-cash only.
+        self.long_only = bool(long_only)
 
     def _apply_slippage(self, price: float, side: str, is_entry: bool) -> float:
         """Apply slippage: adverse direction for entries, adverse for exits."""
@@ -384,6 +389,10 @@ class Backtester:
             if position is None and pending_entry is None and not trading_halted:
                 signal = strategy_fn(df, i, None)
 
+                # SPOT LONG-ONLY hard gate: never open a non-long position.
+                if signal is not None and self.long_only and signal.side != "long":
+                    signal = None
+
                 if signal is not None:
                     atr_val = float(current_bar.get("atr_14", price * 0.02)) if has_atr else price * 0.02
 
@@ -489,6 +498,8 @@ class WalkForwardValidator:
         val_days: int = 15,
         test_days: int = 15,
         embargo_bars: int = 120,
+        funding_bps_per_8h: float = 1.0,
+        long_only: bool = False,
     ):
         """
         Args:
@@ -509,7 +520,12 @@ class WalkForwardValidator:
                 20-bar safety margin. If you add a feature with a longer window,
                 raise this accordingly.
         """
-        self.backtester = Backtester(config, risk_config)
+        # Thread spot-honesty + long-only into the validator's OWN backtester:
+        # the GA selects on these WF train/val Sharpes, so the gates MUST apply
+        # here too, not only in the full-sample reporting backtester.
+        self.backtester = Backtester(config, risk_config,
+                                     funding_bps_per_8h=funding_bps_per_8h,
+                                     long_only=long_only)
         self.train_days = train_days
         self.val_days = val_days
         self.test_days = test_days

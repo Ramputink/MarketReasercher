@@ -56,6 +56,17 @@ logger = logging.getLogger("auto_evolve")
 
 
 # ═══════════════════════════════════════════════════════════════
+# PHASE 3 — SPOT LONG-ONLY hard gates (read by spawned fitness workers)
+# ═══════════════════════════════════════════════════════════════
+# When PHASE3_LONG_ONLY is True every backtest (full-sample AND each walk-forward
+# fold) refuses non-long entries, and perp funding is forced to 0.0 so funding
+# can never become PnL on spot. These are module-level so they survive the
+# "spawn" multiprocessing re-import into each worker.
+PHASE3_LONG_ONLY = os.environ.get("PHASE3_LONG_ONLY", "1") == "1"
+PHASE3_FUNDING_BPS = 0.0 if PHASE3_LONG_ONLY else 1.0
+
+
+# ═══════════════════════════════════════════════════════════════
 # STRATEGY REGISTRY — all available strategies + their param spaces
 # ═══════════════════════════════════════════════════════════════
 
@@ -520,17 +531,27 @@ def evaluate_genome(args_tuple):
             return d.iloc[i].get("_regime", "unknown") if i < len(d) else "unknown"
 
         def strategy_fn(d, i, p):
-            return strategy_fn_ref(d, i, p, regime=_bar_regime(d, i))
+            sig = strategy_fn_ref(d, i, p, regime=_bar_regime(d, i))
+            # Phase-3 wrapper filter (defense-in-depth): never surface a non-long
+            # entry signal. A short signal against an open long still returns and
+            # routes to signal_exit (close to cash) — long-or-cash only.
+            if PHASE3_LONG_ONLY and sig is not None and getattr(sig, "side", None) != "long" and p is None:
+                return None
+            return sig
 
         # FULL (in-sample) backtest — used for reporting + DSR trade returns
-        backtester = Backtester(bt_config, risk_config)
+        backtester = Backtester(bt_config, risk_config,
+                                funding_bps_per_8h=PHASE3_FUNDING_BPS,
+                                long_only=PHASE3_LONG_ONLY)
         trades_df, eq, metrics = backtester.run(df, strategy_fn, strategy_name)
 
         # WALK-FORWARD validation
         validator = WalkForwardValidator(bt_config, risk_config,
                                          train_days=train_days,
                                          val_days=val_days,
-                                         test_days=test_days)
+                                         test_days=test_days,
+                                         funding_bps_per_8h=PHASE3_FUNDING_BPS,
+                                         long_only=PHASE3_LONG_ONLY)
         wf_result = validator.validate(df, strategy_fn, strategy_name)
         wf_agg = wf_result["aggregate"]
         wf_degrad = wf_result.get("oos_degradation", 100.0)
@@ -1508,6 +1529,16 @@ def load_data(history_days: int = 365, use_lockbox: bool = True) -> pd.DataFrame
             logger.info(f"Ready: {len(df)} bars, {len(df.columns)} features")
             return df
         except Exception as e:
+            # Phase-3 spot long-only: the silent fall-through to an UNSEALED live
+            # full-series load is a leakage vector (it would include the sealed
+            # 2-year lockbox). Make it fail-closed: a broken/missing/byte-mismatched
+            # snapshot must RAISE, never silently leak.
+            if PHASE3_LONG_ONLY:
+                raise RuntimeError(
+                    f"Phase-3 lockbox load FAILED ({e}). Refusing to fall back to an "
+                    f"unsealed live load (would leak the sealed lockbox). Rebuild the "
+                    f"multi-year snapshot: `python -m benchmark snapshot --force`."
+                ) from e
             logger.warning(
                 f"Data lockbox unavailable ({e}); falling back to live full-series "
                 f"load. WARNING: this load is NOT lockbox-sealed — for an honest run, "

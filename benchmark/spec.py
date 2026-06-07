@@ -20,7 +20,9 @@ import json
 
 
 # Bump this whenever ANY value below changes.
-SPEC_VERSION = "1.0.0"
+# 3.0.0-p3: Phase-3 spot long-only data contract — multi-year history with a
+# sealed 2-year (730d) lockbox, replacing the 365d/120d Phase-1/2 contract.
+SPEC_VERSION = "3.0.0-p3"
 
 
 @dataclass(frozen=True)
@@ -43,16 +45,19 @@ class BenchmarkSpec:
     primary_symbol: str = "XRP/USDT"
     cross_symbols: tuple = ("BTC/USDT", "ETH/USDT", "SOL/USDT", "ADA/USDT")
     timeframe: str = "1h"
-    history_days: int = 365
+    # Phase-3: pull the full available multi-year history (~7y) so a 2-year
+    # lockbox still leaves years of in-sample data for evolution.
+    history_days: int = 2600
     # The FINAL `lockbox_days` are held out and NEVER given to evolution.
-    lockbox_days: int = 120
+    # Phase-3 seals the last 2 years (730d) as the spot long-only OOS lockbox.
+    lockbox_days: int = 730
     # Bars of warm-up discarded at the start of every segment (indicator burn-in).
     warmup_bars: int = 60
 
     # ── Execution realism (the harness uses these, not the research backtester) ─
     base_commission_rate: float = 0.001       # 0.1% per side, taker
     base_slippage_bps: float = 5.0            # realistic average
-    funding_bps_per_8h: float = 1.0           # perp funding cost (always a cost here)
+    funding_bps_per_8h: float = 0.0           # Phase-3 SPOT: no perp funding (long-or-cash)
     entry_lag_bars: int = 1                   # fill at NEXT bar open — kills look-ahead
     position_pct: float = 0.10                # fixed notional fraction (comparable across candidates)
     ruin_equity_floor: float = 0.0            # equity <= this => account ruined, stop
