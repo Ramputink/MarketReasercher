@@ -34,8 +34,9 @@ Built on three architectural pillars:
 12. [Experiment Results](#experiment-results)
 13. [Post-Evolution Optimizations](#post-evolution-optimizations)
 14. [Benchmark Gauntlet — Honest OOS Validation](#benchmark-gauntlet--honest-oos-validation)
-15. [Installation & Usage](#installation--usage)
-16. [Next Steps](#next-steps)
+15. [Timeframe Sweep — BTC/ETH (USDC) + Multi-TF Confirmation](#timeframe-sweep--btceth-usdc--multi-tf-confirmation)
+16. [Installation & Usage](#installation--usage)
+17. [Next Steps](#next-steps)
 
 ---
 
@@ -104,6 +105,7 @@ Built on three architectural pillars:
 | **Strategies** | `strategies/*.py` | 13 active + 5 archived strategy implementations |
 | **Config** | `config.py` | All system parameters as frozen dataclasses |
 | **Benchmark Gauntlet** | `benchmark/` | Frozen, reproducible 11-gate OOS validation: lockbox, Deflated Sharpe, cost-stress, ruin floor |
+| **Timeframe Sweep** | `sweep/` | BTC/ETH·USDC across 15m/1h/4h/1d with no-look-ahead multi-TF confirmation; honest lockbox + Deflated Sharpe |
 
 ---
 
@@ -741,6 +743,67 @@ gauntlet doing its job, not a regression.
 
 ---
 
+## Timeframe Sweep — BTC/ETH (USDC) + Multi-TF Confirmation
+
+> **Why this exists.** Run honestly through the [gauntlet](#benchmark-gauntlet--honest-oos-validation),
+> XRP/USDT-H1 produced **zero** certifiable genomes over thousands of evaluations,
+> with a **cross-asset median Sharpe of −0.11** — the "edges" were fitting XRP's
+> own noise, not anything transferable. The honest conclusion: XRP-H1 is a poor
+> universe for systematic technical trading (jump-driven, news-exogenous returns;
+> edge buried inside the cost band). So the research pivots to a tradeable universe
+> and asks a sharper question: **which timeframe, if any, carries a certifiable
+> directional edge — and does a higher timeframe confirm it?**
+
+### Design
+
+- **Universe**: `BTC/USDC` and `ETH/USDC`, each traded **independently vs USDC**
+  (never against each other — the cross-asset figure is a *generalisation check*,
+  not a pairs trade). Full available history (~7.5 years, from 2018-12).
+- **Base timeframes swept**: `15m`, `1h`, `4h`, `1d`.
+- **Multi-timeframe confirmation (no look-ahead)**: a base-TF signal is only taken
+  if the higher timeframe(s) don't contradict its direction. The hard part —
+  done correctly here — is that at a base bar's close we may only consult higher-TF
+  bars that have **themselves already closed**:
+
+$$\text{conf}_t = \text{dir}\big(\text{higher bar } j\big), \quad j = \max\{\,k : \text{ts}_k + \Delta_{\text{high}} \le \text{ts}_t + \Delta_{\text{base}}\,\}$$
+
+  Confirmation map: `15m ← {1h, 4h}`, `1h ← {4h, 1d}`, `4h ← {1d}`, `1d` standalone.
+  Higher-TF direction is an EMA-trend sign computed only from closed bars.
+
+- **Same referee**: each (timeframe, asset) is scored on a **sealed 365-day lockbox**
+  with the benchmark's own leak-free `ConservativeBacktester` (next-bar fills,
+  funding, ruin floor) and **Deflated Sharpe**, deflated by the real number of
+  search trials. Nothing here can certify an edge the gauntlet would reject.
+
+### Components
+
+| File | Role |
+|------|------|
+| `sweep/__init__.py` | Universe, base TFs + confirmation map, history/lockbox depth |
+| `sweep/build_data.py` | Freezes BTC/ETH·USDC snapshots at all TFs (features+regime+lockbox), SHA-256 manifest |
+| `sweep/mtf.py` | No-look-ahead higher-TF confirmation alignment + signal gate (verified leak-free) |
+| `sweep/run.py` | Parallel search per (TF, asset) → lockbox score → DSR → generalisation check; emits a TF×asset comparison table |
+
+### Usage
+
+```bash
+FPY=/Library/Frameworks/Python.framework/Versions/3.10/bin/python3
+
+# 1) Freeze BTC/ETH·USDC snapshots at 15m/1h/4h/1d (full history; needs network once)
+$FPY -m sweep.build_data
+
+# 2) Run the honest sweep (n random search trials per TF×asset, parallel across cores)
+$FPY -m sweep.run 250
+```
+
+The output is a table of `TF × asset → lockbox Sharpe / PF / trades / DSR /
+generalisation / maxDD`, flagging anything with **DSR ≥ 0.95** as certifiable. If
+nothing certifies, that is the honest answer for this universe — and the next move
+is **Phase 2**: cross-sectional momentum + funding carry (a different, structurally
+grounded edge class), not more parameter tuning of retail indicators.
+
+---
+
 ## Installation & Usage
 
 ### Prerequisites
@@ -860,6 +923,13 @@ MarketResearcher/
 │   ├── snapshots/              # Frozen, hash-verified data (committed)
 │   └── results/                # Scorecards + leaderboard.csv (gitignored)
 │
+├── sweep/                      # Timeframe sweep: BTC/ETH·USDC + multi-TF confirmation
+│   ├── __init__.py             # Universe, base TFs + confirmation map, history/lockbox depth
+│   ├── build_data.py           # Freeze BTC/ETH·USDC snapshots at 15m/1h/4h/1d (full history)
+│   ├── mtf.py                  # No-look-ahead higher-TF confirmation alignment + gate
+│   ├── run.py                  # Parallel sweep -> lockbox + Deflated Sharpe comparison table
+│   └── snapshots/              # Frozen multi-TF data + manifest
+│
 ├── models/                     # Trained model artifacts (gitignored)
 ├── reports/                    # Evolution reports, best genomes, trade logs
 ├── logs/                       # Training and evolution logs (gitignored)
@@ -870,6 +940,14 @@ MarketResearcher/
 ---
 
 ## Next Steps
+
+> **Current direction.** The honest pipeline + gauntlet proved XRP-H1 has no
+> certifiable edge, so active research moved to the
+> [timeframe sweep](#timeframe-sweep--btceth-usdc--multi-tf-confirmation) on
+> **BTC/ETH·USDC** across 15m/1h/4h/1d with multi-TF confirmation over full history.
+> Phase 2, if the directional sweep also fails to certify, is **cross-sectional
+> momentum + funding carry** — structurally grounded edges rather than retail TA.
+> The XRP-era steps below remain valid as the validation methodology.
 
 ### Short Term (Wire the lockbox + re-certify)
 
