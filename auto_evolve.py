@@ -880,13 +880,63 @@ class EvolutionEngine:
         with open(self.log_path, "a") as f:
             f.write(json.dumps(event, default=str) + "\n")
 
+    def _load_seed_genomes(self) -> list[Genome]:
+        """
+        Warm-start: reconstruct genomes from the previous run's Hall of Fame
+        (reports/evolution_checkpoint.json) so successive 1h loops COMPOUND.
+        Only strategies available in THIS environment are kept; fitness is reset
+        to -999 so every seed is re-evaluated fresh on the in-sample data (we
+        never trust a stale, possibly-leaky score).
+        """
+        if not getattr(self.evo_config, "warm_start", False):
+            return []
+        path = "reports/evolution_checkpoint.json"
+        if not os.path.exists(path):
+            return []
+        try:
+            with open(path) as f:
+                ckpt = json.load(f)
+        except Exception as e:
+            logger.warning(f"Warm-start: could not read checkpoint ({e}); cold start.")
+            return []
+        # Prefer the per-strategy best regions (carried regardless of the DSR
+        # gate) so the search compounds; fall back to the DSR-gated global HoF.
+        candidates = []
+        per_strat = ckpt.get("hall_of_fame_per_strategy", {})
+        for strat, genomes in per_strat.items():
+            for g in genomes:
+                candidates.append(g)
+        if not candidates:
+            candidates = ckpt.get("hall_of_fame", [])
+
+        seeds = []
+        seen = set()
+        for g in candidates:
+            strat = g.get("strategy")
+            params = g.get("params")
+            if strat in self.strategies_available and isinstance(params, dict) and params:
+                key = (strat, json.dumps(params, sort_keys=True, default=str))
+                if key in seen:
+                    continue
+                seen.add(key)
+                seeds.append(Genome(strategy=strat, params=dict(params), generation=0))
+        cap = int(self.pop_size * getattr(self.evo_config, "warm_start_max_frac", 0.5))
+        if len(seeds) > cap:
+            seeds = seeds[:cap]
+        if seeds:
+            logger.info(f"Warm-start: seeded {len(seeds)} genomes from previous "
+                        f"Hall of Fame (cap {cap}); rest random for diversity.")
+        return seeds
+
     def generate_initial_population(self) -> list[Genome]:
         """Create diverse initial population across all strategies."""
-        pop = []
-        per_strat = max(2, self.pop_size // len(self.strategies_available))
+        pop = self._load_seed_genomes()   # warm-start seeds (may be empty)
 
+        per_strat = max(1, (self.pop_size - len(pop)) // len(self.strategies_available))
         for strat in self.strategies_available:
             for _ in range(per_strat):
+                if len(pop) >= self.pop_size:
+                    break
                 pop.append(random_genome(strat, generation=0))
 
         # Fill remaining with random
@@ -1309,6 +1359,12 @@ class EvolutionEngine:
             "total_robust": self.total_robust,
             "dsr_rejected": self.dsr_rejected,
             "hall_of_fame": [g.to_dict() for g in self.hall_of_fame],
+            # Per-strategy best regions — carried even when nothing passes the DSR
+            # gate, so warm-start can COMPOUND the search across runs.
+            "hall_of_fame_per_strategy": {
+                strat: [g.to_dict() for g in genomes]
+                for strat, genomes in self.hall_of_fame_per_strategy.items()
+            },
             "promising_strategies": self.learning.get_promising_strategies(),
         }
         path = "reports/evolution_checkpoint.json"

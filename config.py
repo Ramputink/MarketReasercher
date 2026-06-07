@@ -307,6 +307,14 @@ class EvolutionConfig:
     # warning if the snapshot is missing.
     use_data_lockbox: bool = True
 
+    # ── Warm-start (resume / compound across runs) ──
+    # If True, the initial population is seeded from the previous run's Hall of
+    # Fame (reports/evolution_checkpoint.json) so successive 1h loops COMPOUND
+    # instead of each starting from scratch. Seeds are re-evaluated fresh (stale
+    # fitness discarded); the rest of the population stays random for diversity.
+    warm_start: bool = True
+    warm_start_max_frac: float = 0.5   # at most this fraction of the pop is seeds
+
     # ── Deflated Sharpe acceptance filter (Hall of Fame gate) ──
     # A genome is only admitted to / flagged passing in the HoF if its Deflated
     # Sharpe Ratio (computed on in-sample TRADE returns, deflated by the real
