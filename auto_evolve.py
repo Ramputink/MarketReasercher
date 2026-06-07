@@ -241,6 +241,9 @@ STRATEGY_REGISTRY = {
         "module": "strategies.lstm_pattern",
         "function": "lstm_pattern_strategy",
         "params_dict": "PARAMS",
+        # Optional heavy deps. If any are missing the engine drops this strategy
+        # at startup (one warning) instead of failing per-bar 200k times.
+        "requires": ["sklearn", "tensorflow"],
         "param_space": {
             "cluster_variant": ("choice", [
                 "kmeans_8", "kmeans_20", "kmeans_50",
@@ -262,6 +265,28 @@ STRATEGY_REGISTRY = {
         },
     },
 }
+
+
+def _available_strategies() -> list:
+    """
+    Active strategies whose optional heavy dependencies are importable in THIS
+    environment. A strategy declaring `requires` (e.g. lstm_pattern needs sklearn
+    + tensorflow) is dropped — with a single clear warning — when a dep is missing,
+    instead of failing inside every bar of every genome (which floods the log and
+    wastes ~1/N of the compute budget). Run in the full venv to include them all.
+    """
+    import importlib.util
+    available = []
+    for name, spec in STRATEGY_REGISTRY.items():
+        missing = [m for m in spec.get("requires", []) if importlib.util.find_spec(m) is None]
+        if missing:
+            logger.warning(
+                f"Strategy '{name}' disabled this run: missing {', '.join(missing)} "
+                f"(install them / use the full venv to include it)."
+            )
+            continue
+        available.append(name)
+    return available
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -778,7 +803,7 @@ class EvolutionEngine:
         self.generation = 0
         self.total_evaluated = 0
         self.total_robust = 0
-        self.strategies_available = list(STRATEGY_REGISTRY.keys())
+        self.strategies_available = _available_strategies()
         # Minimum exploration: at least 15% of pop goes to underexplored strategies
         self.min_explore_pct = 0.15
 
