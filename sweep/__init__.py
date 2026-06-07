@@ -12,7 +12,10 @@ timeframe CONFIRMATION filter, swept across base TFs {15m, 1h, 4h, 1d} on BTC+ET
 Phase 2 (later): cross-sectional momentum + funding carry (different paradigm).
 """
 
-SWEEP_SYMBOLS = ["BTC/USDT", "ETH/USDT"]
+# Trade BTC and ETH each independently vs the USDC stablecoin (not against each
+# other). The cross-asset figure in the sweep is a GENERALISATION check only —
+# a BTC-fit strategy tested on ETH — never a BTC-vs-ETH pairs trade.
+SWEEP_SYMBOLS = ["BTC/USDC", "ETH/USDC"]
 
 # base timeframe -> higher timeframes used to CONFIRM signals (no look-ahead).
 # A signal on the base TF is only taken if the higher TF(s) agree on direction.

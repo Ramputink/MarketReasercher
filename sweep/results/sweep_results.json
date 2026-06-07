@@ -1,0 +1,232 @@
+[
+  {
+    "tf": "15m",
+    "symbol": "BTC/USDC",
+    "confirm": [
+      "1h",
+      "4h"
+    ],
+    "n_samples": 4,
+    "best": {
+      "strategy": "donchian_breakout",
+      "is_sharpe": -2.317,
+      "is_trades": 211,
+      "lockbox_sharpe": -3.7,
+      "lockbox_pf": 0.609,
+      "lockbox_trades": 95,
+      "lockbox_net_pnl": -345.16,
+      "lockbox_maxdd": 4.06,
+      "lockbox_ruined": false,
+      "dsr": 0.0009,
+      "dsr_sr_star": 0.1079,
+      "cross_ETH_sharpe": -2.751,
+      "cross_ETH_pnl": -353.71,
+      "params": {
+        "entry_period": 47,
+        "exit_period": 20,
+        "volume_surge_threshold": 1.7469,
+        "adx_min": 14.206,
+        "atr_filter_mult": 1.4619,
+        "use_volatility_filter": false,
+        "stop_loss_atr_mult": 3.94,
+        "take_profit_atr_mult": 4.9399999999999995
+      }
+    }
+  },
+  {
+    "tf": "15m",
+    "symbol": "ETH/USDC",
+    "confirm": [
+      "1h",
+      "4h"
+    ],
+    "n_samples": 4,
+    "best": {
+      "strategy": "chaos_trend",
+      "is_sharpe": -0.629,
+      "is_trades": 156,
+      "lockbox_sharpe": -0.941,
+      "lockbox_pf": 0.866,
+      "lockbox_trades": 71,
+      "lockbox_net_pnl": -119.94,
+      "lockbox_maxdd": 4.08,
+      "lockbox_ruined": false,
+      "dsr": 0.0605,
+      "dsr_sr_star": 0.1249,
+      "cross_BTC_sharpe": -0.34,
+      "cross_BTC_pnl": -29.13,
+      "params": {
+        "hurst_window": 92,
+        "hurst_min": 0.6954,
+        "hurst_max": 0.8611,
+        "ema_fast": 10,
+        "ema_slow": 35,
+        "adx_min": 22.4544,
+        "momentum_period": 8,
+        "volume_threshold": 0.8223,
+        "use_fractal_filter": false,
+        "fractal_max": 1.4346,
+        "stop_loss_atr_mult": 4.5117,
+        "take_profit_atr_mult": 5.5748
+      }
+    }
+  },
+  {
+    "tf": "1h",
+    "symbol": "BTC/USDC",
+    "confirm": [
+      "4h",
+      "1d"
+    ],
+    "n_samples": 4,
+    "best": {
+      "strategy": "vol_regime_arb",
+      "is_sharpe": -0.949,
+      "is_trades": 23,
+      "lockbox_sharpe": 1.093,
+      "lockbox_pf": 1.439,
+      "lockbox_trades": 14,
+      "lockbox_net_pnl": 45.98,
+      "lockbox_maxdd": 0.62,
+      "lockbox_ruined": false,
+      "dsr": 0.3382,
+      "dsr_sr_star": 0.2812,
+      "cross_ETH_sharpe": -0.765,
+      "cross_ETH_pnl": -36.27,
+      "params": {
+        "gk_fast_period": 20,
+        "gk_slow_period": 73,
+        "gk_baseline_period": 84,
+        "expansion_zscore_threshold": -1.2023,
+        "expansion_min_bars_compressed": 10,
+        "expansion_momentum_period": 7,
+        "expansion_adx_min": 14.805,
+        "contraction_zscore_threshold": 2.6164,
+        "contraction_rsi_oversold": 35.26,
+        "contraction_rsi_overbought": 72.9534,
+        "enable_contraction_mode": true,
+        "volume_threshold": 1.3119,
+        "stop_loss_atr_mult": 4.475,
+        "take_profit_atr_mult": 5.3732
+      }
+    }
+  },
+  {
+    "tf": "1h",
+    "symbol": "ETH/USDC",
+    "confirm": [
+      "4h",
+      "1d"
+    ],
+    "n_samples": 4,
+    "best": {
+      "strategy": "keltner_breakout",
+      "is_sharpe": 1.003,
+      "is_trades": 31,
+      "lockbox_sharpe": -1.255,
+      "lockbox_pf": 0.673,
+      "lockbox_trades": 15,
+      "lockbox_net_pnl": -71.32,
+      "lockbox_maxdd": 1.84,
+      "lockbox_ruined": false,
+      "dsr": 0.0593,
+      "dsr_sr_star": 0.2717,
+      "cross_BTC_sharpe": -0.151,
+      "cross_BTC_pnl": -7.59,
+      "params": {
+        "ema_period": 17,
+        "atr_mult": 2.9255,
+        "rsi_long_min": 55.2879,
+        "rsi_short_max": 40.1348,
+        "adx_min": 23.3237,
+        "volume_threshold": 1.7623,
+        "stop_loss_atr_mult": 2.595,
+        "take_profit_atr_mult": 3.595
+      }
+    }
+  },
+  {
+    "tf": "4h",
+    "symbol": "BTC/USDC",
+    "confirm": [
+      "1d"
+    ],
+    "n_samples": 4,
+    "best": {
+      "strategy": "chaos_trend",
+      "is_sharpe": -0.383,
+      "is_trades": 34,
+      "lockbox_sharpe": -1.305,
+      "lockbox_pf": 0.666,
+      "lockbox_trades": 12,
+      "lockbox_net_pnl": -74.04,
+      "lockbox_maxdd": 1.64,
+      "lockbox_ruined": false,
+      "dsr": 0.0609,
+      "dsr_sr_star": 0.3037,
+      "cross_ETH_sharpe": 0.166,
+      "cross_ETH_pnl": 11.03,
+      "params": {
+        "hurst_window": 150,
+        "hurst_min": 0.53,
+        "hurst_max": 0.802,
+        "ema_fast": 19,
+        "ema_slow": 31,
+        "adx_min": 17.1221,
+        "momentum_period": 18,
+        "volume_threshold": 1.6728,
+        "use_fractal_filter": false,
+        "fractal_max": 1.5046,
+        "stop_loss_atr_mult": 4.6682,
+        "take_profit_atr_mult": 6.9958
+      }
+    }
+  },
+  {
+    "tf": "4h",
+    "symbol": "ETH/USDC",
+    "confirm": [
+      "1d"
+    ],
+    "n_samples": 4,
+    "best": {
+      "strategy": "keltner_breakout",
+      "is_sharpe": 1.506,
+      "is_trades": 26,
+      "lockbox_sharpe": -1.994,
+      "lockbox_pf": 0.425,
+      "lockbox_trades": 10,
+      "lockbox_net_pnl": -138.46,
+      "lockbox_maxdd": 2.68,
+      "lockbox_ruined": false,
+      "dsr": 0.0324,
+      "dsr_sr_star": 0.3327,
+      "cross_BTC_sharpe": -0.112,
+      "cross_BTC_pnl": -6.44,
+      "params": {
+        "ema_period": 39,
+        "atr_mult": 3.1985,
+        "rsi_long_min": 52.4354,
+        "rsi_short_max": 48.9487,
+        "adx_min": 17.9892,
+        "volume_threshold": 1.4495,
+        "stop_loss_atr_mult": 2.6867,
+        "take_profit_atr_mult": 5.9076
+      }
+    }
+  },
+  {
+    "tf": "1d",
+    "symbol": "BTC/USDC",
+    "confirm": [],
+    "n_samples": 4,
+    "best": null
+  },
+  {
+    "tf": "1d",
+    "symbol": "ETH/USDC",
+    "confirm": [],
+    "n_samples": 4,
+    "best": null
+  }
+]
