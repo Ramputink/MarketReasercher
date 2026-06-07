@@ -26,5 +26,8 @@ SWEEP_TIMEFRAMES = {
     "1d":  [],          # no higher TF in the set; trades standalone
 }
 
-LOCKBOX_DAYS = 120
-HISTORY_DAYS = 365
+# Full available history of the USDC pairs (Binance BTC/USDC & ETH/USDC start
+# 2018-12-15, ~7.5y). 2800d reaches before the listing, so ccxt returns from the
+# real start. Lockbox seals the most recent full year as out-of-sample.
+LOCKBOX_DAYS = 365
+HISTORY_DAYS = 2800

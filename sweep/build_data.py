@@ -56,8 +56,9 @@ def build():
 
     for sym in SWEEP_SYMBOLS:
         for tf in sorted(all_tfs):
-            print(f"  fetching {sym} {tf} ...", flush=True)
-            raw = engine.fetch_ohlcv(sym, tf_map[tf], since_days=HISTORY_DAYS, force_refresh=False)
+            print(f"  fetching {sym} {tf} (full history, force refresh) ...", flush=True)
+            # force_refresh=True so a stale shorter-range cache is not reused.
+            raw = engine.fetch_ohlcv(sym, tf_map[tf], since_days=HISTORY_DAYS, force_refresh=True)
             if raw is None or len(raw) == 0:
                 raise RuntimeError(f"No data for {sym} {tf}")
             feat = build_all_features(raw).reset_index(drop=True)
