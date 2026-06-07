@@ -1,0 +1,44 @@
+{
+  "timeframe": "1h",
+  "history_days": 365,
+  "lockbox_days": 120,
+  "symbols": {
+    "XRP/USDT": {
+      "path": "XRPUSDT_1h.parquet",
+      "sha256": "18b701be5406f00de7a46ec023ed3deb9b119de401df79be16dcf858ea4794c9",
+      "n_bars": 8760,
+      "first_ts": 1749304800000,
+      "last_ts": 1780837200000
+    },
+    "BTC/USDT": {
+      "path": "BTCUSDT_1h.parquet",
+      "sha256": "8728d42939cdf8f821a5ea0e936edf10e29a85804fcf3c42e10732b0f2693115",
+      "n_bars": 8760,
+      "first_ts": 1749304800000,
+      "last_ts": 1780837200000
+    },
+    "ETH/USDT": {
+      "path": "ETHUSDT_1h.parquet",
+      "sha256": "cdd2de21f9b3c05fd1963039628bc95b149f8f6310965572dc471206533a9a8e",
+      "n_bars": 8760,
+      "first_ts": 1749304800000,
+      "last_ts": 1780837200000
+    },
+    "SOL/USDT": {
+      "path": "SOLUSDT_1h.parquet",
+      "sha256": "f7da3ab62af1913d73f42c16ec327523854f3e746dc9104f76bc86e8c7d8c105",
+      "n_bars": 8760,
+      "first_ts": 1749304800000,
+      "last_ts": 1780837200000
+    },
+    "ADA/USDT": {
+      "path": "ADAUSDT_1h.parquet",
+      "sha256": "0f17b8079a0b985636d3c45db3fe65152f2287f022f70bd7296242ab25134463",
+      "n_bars": 8760,
+      "first_ts": 1749304800000,
+      "last_ts": 1780837200000
+    }
+  },
+  "lockbox_cutoff_ts": 1770469200000,
+  "built_at": "2026-06-07T13:16:18.421214+00:00"
+}
