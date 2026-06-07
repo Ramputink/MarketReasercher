@@ -30,6 +30,11 @@ checkpoints/
 logs/*.log
 logs/*.jsonl
 
+# Benchmark per-run scorecards (regenerable from candidate+spec+frozen data).
+# NOTE: benchmark/snapshots/ is intentionally NOT ignored so the frozen, hash-
+# verified data is committed and every machine judges on identical bytes.
+benchmark/results/
+
 # Jupyter
 .ipynb_checkpoints/
 
