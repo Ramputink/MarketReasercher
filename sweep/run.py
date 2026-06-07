@@ -133,13 +133,22 @@ def _weval(args):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def sweep(n_samples: int = 250, cores: int = 0, seed: int = 42):
+    # macOS default 'spawn' stalls here (workers re-import the heavy stack and
+    # hang); 'fork' runs the pool correctly. Fork before any backtest work.
+    try:
+        mp.set_start_method("fork", force=True)
+    except RuntimeError:
+        pass
     os.makedirs(RESULTS, exist_ok=True)
     rng = random.Random(seed)
     cores = cores if cores > 0 else max(1, mp.cpu_count() - 1)
     results = []
     tmp = "/tmp/sweep_is.pkl"
 
-    for base_tf in SWEEP_TIMEFRAMES:
+    # Fastest TFs first (fewest bars) so higher-TF results — where a directional
+    # edge is most plausible — land within minutes, not behind the slow 15m run.
+    fast_first = sorted(SWEEP_TIMEFRAMES, key=lambda tf: BAR_HOURS[tf], reverse=True)
+    for base_tf in fast_first:
         conf_tfs = SWEEP_TIMEFRAMES[base_tf]
         bh = BAR_HOURS[base_tf]
 
