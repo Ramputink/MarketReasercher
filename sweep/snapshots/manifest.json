@@ -23,89 +23,89 @@
     ],
     "1d": []
   },
-  "history_days": 365,
-  "lockbox_days": 120,
+  "history_days": 2800,
+  "lockbox_days": 365,
   "entries": {
     "BTC/USDC|15m": {
       "symbol": "BTC/USDC",
       "tf": "15m",
       "path": "BTCUSDC_15m.parquet",
-      "sha256": "f76a799f3446ee233392474f1b4b767a7184e5d77f290bc0ccf2b6727811fb96",
-      "n_bars": 35040,
-      "first_ts": 1749320100000,
-      "last_ts": 1780855200000,
-      "lockbox_cutoff_ts": 1770487200000
+      "sha256": "c4c3815cc25b0a2111ac82362aa70410b4539dc017437395270c69bd0ff24b78",
+      "n_bars": 246210,
+      "first_ts": 1544842800000,
+      "last_ts": 1780856100000,
+      "lockbox_cutoff_ts": 1749320100000
     },
     "BTC/USDC|1d": {
       "symbol": "BTC/USDC",
       "tf": "1d",
       "path": "BTCUSDC_1d.parquet",
-      "sha256": "567bf199948d6a27b929b5748298b4ef07486bc28ff19fa002b74fcc18183fdf",
-      "n_bars": 365,
-      "first_ts": 1749340800000,
+      "sha256": "31df7359e393957d73297eddd8db77ac2e5e3f6737b51a974968bc171ba99db3",
+      "n_bars": 2569,
+      "first_ts": 1544832000000,
       "last_ts": 1780790400000,
-      "lockbox_cutoff_ts": 1770422400000
+      "lockbox_cutoff_ts": 1749254400000
     },
     "BTC/USDC|1h": {
       "symbol": "BTC/USDC",
       "tf": "1h",
       "path": "BTCUSDC_1h.parquet",
-      "sha256": "81c86ace71811bac51fdf05c4446546e5e147711ecea6a250a8a11e7126bf14e",
-      "n_bars": 8760,
-      "first_ts": 1749322800000,
+      "sha256": "286af97f29d8e417083c772d7c19edd39b9d260596f4934b899ab1f2f8201543",
+      "n_bars": 61561,
+      "first_ts": 1544842800000,
       "last_ts": 1780855200000,
-      "lockbox_cutoff_ts": 1770487200000
+      "lockbox_cutoff_ts": 1749319200000
     },
     "BTC/USDC|4h": {
       "symbol": "BTC/USDC",
       "tf": "4h",
       "path": "BTCUSDC_4h.parquet",
-      "sha256": "dc36a15a6760181c242eabd7be18f492aac051728caef7b8796c0d0ffa5d9923",
-      "n_bars": 2190,
-      "first_ts": 1749326400000,
+      "sha256": "00e66c76d3202f3a2a55d40f70869d7b04229cedfdbc5ff95124c0a5beda4d3e",
+      "n_bars": 15402,
+      "first_ts": 1544832000000,
       "last_ts": 1780848000000,
-      "lockbox_cutoff_ts": 1770480000000
+      "lockbox_cutoff_ts": 1749312000000
     },
     "ETH/USDC|15m": {
       "symbol": "ETH/USDC",
       "tf": "15m",
       "path": "ETHUSDC_15m.parquet",
-      "sha256": "7f0ca1cff4f6f2d4bfafd6037b600c609934796fd5c5f163dd72da05623b2189",
-      "n_bars": 35040,
-      "first_ts": 1749320100000,
-      "last_ts": 1780855200000,
-      "lockbox_cutoff_ts": 1770487200000
+      "sha256": "5b77e479fb700e84c1d079e2cdc341b9681be4467400dc64bcbb6ba0596f3224",
+      "n_bars": 246209,
+      "first_ts": 1544843700000,
+      "last_ts": 1780856100000,
+      "lockbox_cutoff_ts": 1749320100000
     },
     "ETH/USDC|1d": {
       "symbol": "ETH/USDC",
       "tf": "1d",
       "path": "ETHUSDC_1d.parquet",
-      "sha256": "21f4ff1fe6f514435f601f559107ea3a479fa88ffdc09323c82558da1b267bb5",
-      "n_bars": 365,
-      "first_ts": 1749340800000,
+      "sha256": "d4f983b2bfb908848eaeb59940fc3bbfc938ddb74b66276d8b5412983de36cea",
+      "n_bars": 2569,
+      "first_ts": 1544832000000,
       "last_ts": 1780790400000,
-      "lockbox_cutoff_ts": 1770422400000
+      "lockbox_cutoff_ts": 1749254400000
     },
     "ETH/USDC|1h": {
       "symbol": "ETH/USDC",
       "tf": "1h",
       "path": "ETHUSDC_1h.parquet",
-      "sha256": "04a3b52c7aab31f96cb9e9613050c77e1b7adb6cb69f1d89fc3604a6ebb58d31",
-      "n_bars": 8760,
-      "first_ts": 1749322800000,
+      "sha256": "522e0accb52a004f16320cf2b52ebdf9c639eeba7daaae5f08c67a481515f9b9",
+      "n_bars": 61561,
+      "first_ts": 1544842800000,
       "last_ts": 1780855200000,
-      "lockbox_cutoff_ts": 1770487200000
+      "lockbox_cutoff_ts": 1749319200000
     },
     "ETH/USDC|4h": {
       "symbol": "ETH/USDC",
       "tf": "4h",
       "path": "ETHUSDC_4h.parquet",
-      "sha256": "eafe5a6ff38c786d7903d808c61fa33cff11b1c6410c9e000ecf6fa1ad0b8a4a",
-      "n_bars": 2190,
-      "first_ts": 1749326400000,
+      "sha256": "bf5793edfed6758999f78b6f5ab44a9080ef311d7c03783f64320c125f7cd50f",
+      "n_bars": 15402,
+      "first_ts": 1544832000000,
       "last_ts": 1780848000000,
-      "lockbox_cutoff_ts": 1770480000000
+      "lockbox_cutoff_ts": 1749312000000
     }
   },
-  "built_at": "2026-06-07T18:10:42.146901+00:00"
+  "built_at": "2026-06-07T18:24:35.561651+00:00"
 }
