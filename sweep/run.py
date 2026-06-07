@@ -59,13 +59,23 @@ def _load(symbol: str, tf: str) -> pd.DataFrame:
     return df
 
 
+def _downcast(df: pd.DataFrame) -> pd.DataFrame:
+    """Halve memory: float64 feature columns -> float32. Negligible effect on
+    Sharpe/DSR (~1e-7), but it keeps full-history 15m (~246k bars) within RAM so
+    parallel workers don't OOM."""
+    cols = df.select_dtypes(include=["float64"]).columns
+    for c in cols:
+        df[c] = df[c].astype("float32")
+    return df
+
+
 def _prepare(symbol: str, base_tf: str):
     base = _load(symbol, base_tf)
     confs = {h: _load(symbol, h) for h in SWEEP_TIMEFRAMES[base_tf]}
     base = mtf.add_confirmation_columns(base, base_tf, confs)
     cut = base.attrs["lockbox_cutoff_ts"]
-    in_s = base[base["timestamp"] < cut].reset_index(drop=True)
-    lock = base[base["timestamp"] >= cut].reset_index(drop=True)
+    in_s = _downcast(base[base["timestamp"] < cut].reset_index(drop=True))
+    lock = _downcast(base[base["timestamp"] >= cut].reset_index(drop=True))
     return in_s, lock
 
 
