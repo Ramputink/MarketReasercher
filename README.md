@@ -11,9 +11,10 @@
 
 Fully autonomous quantitative research platform for cryptocurrency trading on Binance. The system uses **genetic algorithm evolution** to discover, optimize, and validate trading strategy parameters over hundreds of generations, with walk-forward validation and regime-aware backtesting to combat overfitting.
 
-Built on two architectural pillars:
+Built on three architectural pillars:
 - **autoresearch** (inspired by [karpathy/autoresearch](https://github.com/karpathy/autoresearch)) — iterative experiment loop: hypothesis → mutation → backtest → accept/reject
 - **MiroFish** (inspired by [666ghj/MiroFish](https://github.com/666ghj/MiroFish)) — multi-agent scenario simulation, regime classification, and catalyst detection
+- **Benchmark Gauntlet** (`benchmark/`) — a frozen, versioned, reproducible 11-gate validation battery that judges every evolved genome on a **data lockbox** it was never trained on, with multiple-testing-corrected statistics (Deflated Sharpe). It is the referee that separates a real edge from the luckiest of 30,000 noise draws.
 
 ---
 
@@ -32,8 +33,9 @@ Built on two architectural pillars:
 11. [Risk Management](#risk-management)
 12. [Experiment Results](#experiment-results)
 13. [Post-Evolution Optimizations](#post-evolution-optimizations)
-14. [Installation & Usage](#installation--usage)
-15. [Next Steps](#next-steps)
+14. [Benchmark Gauntlet — Honest OOS Validation](#benchmark-gauntlet--honest-oos-validation)
+15. [Installation & Usage](#installation--usage)
+16. [Next Steps](#next-steps)
 
 ---
 
@@ -101,6 +103,7 @@ Built on two architectural pillars:
 | **Evolution Engine** | `auto_evolve.py` | Genetic algorithm with adaptive mutation and learning |
 | **Strategies** | `strategies/*.py` | 13 active + 5 archived strategy implementations |
 | **Config** | `config.py` | All system parameters as frozen dataclasses |
+| **Benchmark Gauntlet** | `benchmark/` | Frozen, reproducible 11-gate OOS validation: lockbox, Deflated Sharpe, cost-stress, ruin floor |
 
 ---
 
@@ -622,6 +625,122 @@ Best-evolved parameters from 725 generations applied as new defaults for all 13 
 
 ---
 
+## Benchmark Gauntlet — Honest OOS Validation
+
+> A backtest number is worthless unless the *process* that produced it is immune
+> to the ways quantitative research lies to itself. The `benchmark/` package is a
+> **frozen, versioned, reproducible** referee that every evolved genome must pass
+> before it is allowed near capital.
+
+The genetic engine optimizes a fitness that, by construction, *includes the
+out-of-sample folds* and is evaluated tens of thousands of times on a single
+asset. That is a recipe for selecting the luckiest overfit — high in-sample
+Sharpe that evaporates live. The gauntlet exists to catch exactly that, and to
+make every evolution run comparable on a **single fixed yardstick**.
+
+### Reproducibility contract
+
+Every gauntlet run emits a **scorecard** stamped with:
+
+| Stamp | Meaning |
+|-------|---------|
+| `spec_version` | The frozen thresholds. Changing any threshold bumps the version. |
+| `data_manifest_hash` | SHA-256 of the exact frozen data bytes the run used. |
+| `candidate_fingerprint` | Hash of (strategy, params). |
+| `seed` | RNG seed for all stochastic gates. |
+
+Identical `(candidate, spec, frozen data)` ⇒ **byte-identical scorecard**. This is
+what makes "did Run #12 actually improve on Run #11?" an answerable question.
+
+### The data lockbox (the one line that fixes the leak)
+
+The final `lockbox_days` (default **120 days**) of the primary series are sealed
+and **never** given to evolution. Evolution trains only on the in-sample slice:
+
+```python
+# auto_evolve.py — replace "load the full 365-day series" with:
+from benchmark.spec import BENCHMARK_SPEC
+from benchmark.data_lockbox import get_evolution_window
+df = get_evolution_window(BENCHMARK_SPEC)   # in-sample ONLY; lockbox stays sealed
+```
+
+Because the GA's fitness never touches the lockbox, the gauntlet's verdict on it
+is a genuine out-of-sample test — not a number the optimizer already saw.
+
+### The eleven gates
+
+A candidate is declared **IRONCLAD** only if every mandatory gate passes.
+
+| # | Gate | What it proves | Mandatory |
+|---|------|----------------|:---:|
+| G01 | `lockbox_performance` | Works on never-seen data (Sharpe, PF, trades, no ruin) | ✅ |
+| G02 | `oos_degradation` | Edge survived leaving the training set (≤ 50% decay) | ✅ |
+| G03 | `deflated_sharpe` | **Distinguishable from the best of N noise trials** (DSR ≥ 0.95) | ✅ |
+| G04 | `no_ruin_drawdown` | Full-sample MaxDD ≤ 25%, account never blown (hard ruin floor) | ✅ |
+| G05 | `cost_stress` | Survives 4× slippage + 1.5× fees; reports breakeven bps | ✅ |
+| G06 | `execution_lag` | Survives realistic **next-bar-open** fills, not same-bar | ✅ |
+| G07 | `monte_carlo` | Bootstrap: P(ruin) ≤ 5%, P(profit) ≥ 85% | ✅ |
+| G08 | `multi_asset` | Same params generalize to ≥ 2 other coins | ✅ |
+| G09 | `param_stability` | Robust basin, not a knife-edge (≥ 60% of ±10% neighbours profitable) | ✅ |
+| G10 | `significance` | Mean trade-return t-stat ≥ 2.0 | ✅ |
+| G11 | `concentration` | Not one lucky trade / one lucky regime | ⚠️ reported |
+
+Thresholds live in `benchmark/spec.py` and are **frozen**. Relaxing one to make a
+favourite genome pass is forbidden by design — it would require bumping the spec
+version and would make old scorecards incomparable.
+
+### The Deflated Sharpe Ratio (G03) — the headline defence
+
+After $N$ evaluations, the expected maximum Sharpe of $N$ *skill-less* strategies
+is not zero. The gate deflates the candidate's Sharpe against that noise ceiling
+(Bailey & López de Prado, 2014):
+
+$$\text{SR}^\* = \sigma_{\text{SR}}\left[(1-\gamma)\,Z^{-1}\!\left(1-\tfrac{1}{N}\right) + \gamma\,Z^{-1}\!\left(1-\tfrac{1}{N e}\right)\right]$$
+
+$$\text{DSR} = \Phi\!\left(\frac{(\hat{\text{SR}} - \text{SR}^\*)\sqrt{T-1}}{\sqrt{1 - \hat\gamma_3\hat{\text{SR}} + \tfrac{\hat\gamma_4 - 1}{4}\hat{\text{SR}}^2}}\right)$$
+
+where $\gamma$ is the Euler–Mascheroni constant, $T$ the trade count, and
+$\hat\gamma_3,\hat\gamma_4$ the skew/kurtosis of trade returns. The bar **scales
+with how hard you searched**: a genome cherry-picked from 31,000 evaluations must
+clear a far higher Sharpe than one found in 100. Pass `--n-trials` honestly.
+
+### The referee is independent — and self-tested
+
+The gauntlet uses its own `ConservativeBacktester` (`benchmark/harness.py`),
+deliberately **not** the research backtester, so it cannot inherit the same
+optimism. It is stricter on every axis: next-bar-open fills, worst-case intrabar
+SL/TP ordering, explicit perp funding, a hard ruin floor, and **balanced books**
+($\sum \text{pnl}_\text{net} = \Delta\text{equity}$ exactly). Its own correctness
+is proven by `benchmark/selftest.py` (determinism, no-look-ahead, balanced books,
+closed-form PnL, cost monotonicity, ruin detection, statistics). If the
+self-tests fail, no scorecard can be trusted.
+
+### Usage
+
+```bash
+# 1) Freeze the data snapshot ONCE (needs network the first time, then offline).
+python -m benchmark snapshot
+
+# 2) Self-test the referee (offline). Run after touching the harness.
+python -m benchmark selftest
+
+# 3) Judge a candidate. Exit 0 = IRONCLAD, 1 = rejected (CI-friendly).
+python -m benchmark run --genome reports/best_genome_lstm_pattern.json --n-trials 31000
+
+# 4) Compare every run on this spec.
+python -m benchmark leaderboard
+```
+
+### Validation integrity note
+
+The Sharpe 3–4 figures in [Experiment Results](#experiment-results) were produced
+*before* the lockbox contract, by a fitness that included the OOS folds. They are
+retained for historical transparency but **must be re-certified through the
+gauntlet** before any are treated as deployable. Expect attrition: that is the
+gauntlet doing its job, not a regression.
+
+---
+
 ## Installation & Usage
 
 ### Prerequisites
@@ -727,6 +846,20 @@ MarketResearcher/
 ├── autoresearch/
 │   └── experiment_runner.py    # Automated experiment framework
 │
+├── benchmark/                  # Frozen, reproducible OOS validation gauntlet
+│   ├── spec.py                 # Frozen thresholds + SPEC_VERSION (the constitution)
+│   ├── data_lockbox.py         # Freeze/load/hash snapshots; in-sample vs lockbox split
+│   ├── harness.py              # ConservativeBacktester: next-bar fills, funding, ruin floor
+│   ├── statistics.py           # Deflated/Probabilistic Sharpe, t-stat (no scipy)
+│   ├── candidate.py            # (strategy, params) + provenance loader
+│   ├── gates.py                # The 11 gates (G01–G11)
+│   ├── scorecard.py            # Verdict + JSON/Markdown report + leaderboard
+│   ├── runner.py               # run_gauntlet() orchestration
+│   ├── selftest.py             # Proves the referee itself is honest
+│   ├── __main__.py             # CLI (snapshot / run / selftest / leaderboard)
+│   ├── snapshots/              # Frozen, hash-verified data (committed)
+│   └── results/                # Scorecards + leaderboard.csv (gitignored)
+│
 ├── models/                     # Trained model artifacts (gitignored)
 ├── reports/                    # Evolution reports, best genomes, trade logs
 ├── logs/                       # Training and evolution logs (gitignored)
@@ -738,18 +871,25 @@ MarketResearcher/
 
 ## Next Steps
 
-### Short Term (Next Evolution Run)
+### Short Term (Wire the lockbox + re-certify)
 
-1. **Run 2nd evolution** with cleaned 13-strategy registry and anti-overfitting measures
-2. **Validate convergence speed** — evolved params as seeds should produce faster convergence
-3. **Monitor kama_trend** — verify the low-trade penalty is filtering overfit solutions ($n < 30$)
+1. **Freeze the benchmark snapshot** — `python -m benchmark snapshot` (one-off).
+2. **Wire the lockbox into evolution** — call `get_evolution_window(BENCHMARK_SPEC)` in
+   `auto_evolve.py` so the GA trains only on in-sample data and the lockbox stays sealed.
+3. **Re-certify existing "production candidates"** (`volatility_squeeze`, `donchian_breakout`,
+   `kama_trend`) through the gauntlet. Treat current Sharpe 3–4 figures as unverified
+   until they hold on the lockbox.
+4. **Run 2nd evolution** on the in-sample window with the cleaned registry and anti-overfitting
+   measures, then judge the Hall of Fame with `python -m benchmark run`.
 
-### Medium Term (Validation & Hardening)
+### Medium Term (Validation & Hardening) — now delivered by `benchmark/`
 
-4. **Monte Carlo validation** on production candidates (volatility_squeeze, donchian_breakout) — 1000 simulations per strategy
-5. **Multi-asset cross-validation** on BTC/USDT, ETH/USDT, SOL/USDT to test generalization
-6. **Regime-conditional analysis** — measure per-regime performance to build a regime-switching ensemble
-7. **Slippage sensitivity analysis** — stress test at 10, 20, 50 bps slippage to find breakeven point
+5. **Monte Carlo, multi-asset, cost-stress and slippage-breakeven** are now gates G07/G08/G05
+   rather than ad-hoc scripts. Track per-run attrition on the leaderboard.
+6. **Regime-conditional analysis** — extend gate G11 into a per-regime ensemble weighting study.
+7. **Measure the real trial-Sharpe dispersion** from each evolution run and feed it to G03 via
+   `--trials-sharpe-std` to make the Deflated Sharpe bar exact rather than the conservative
+   `1/√T` default.
 
 ### Long Term (Deployment)
 
