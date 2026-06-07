@@ -41,7 +41,7 @@ import pandas as pd
 MP_CTX = mp.get_context("spawn")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from config import LabConfig, BacktestConfig, RiskConfig, DataConfig, TimeFrame
+from config import LabConfig, BacktestConfig, RiskConfig, DataConfig, TimeFrame, EvolutionConfig
 from engine.data_ingestion import DataIngestionEngine
 from engine.env_loader import has_binance_keys
 from engine.features import build_all_features
@@ -282,6 +282,15 @@ class Genome:
     wf_sharpe: float = 0.0
     wf_degradation: float = 100.0
     wf_robust: bool = False
+    # In-sample train/validation Sharpe (the GA's actual selection objective — STEP 2)
+    is_train_sharpe: float = 0.0
+    is_val_sharpe: float = 0.0
+    # Cross-asset generalisation (STEP 5)
+    cross_asset_median_sharpe: float = 0.0
+    cross_asset_profitable: int = 0
+    # Deflated Sharpe Ratio on in-sample trade returns (STEP 3)
+    dsr: float = 0.0
+    dsr_pass: bool = False
     generation: int = 0
     parent_ids: list = field(default_factory=list)
     genome_id: str = ""
@@ -300,6 +309,12 @@ class Genome:
             "wf_sharpe": self.wf_sharpe,
             "wf_degradation": self.wf_degradation,
             "wf_robust": self.wf_robust,
+            "is_train_sharpe": self.is_train_sharpe,
+            "is_val_sharpe": self.is_val_sharpe,
+            "cross_asset_median_sharpe": self.cross_asset_median_sharpe,
+            "cross_asset_profitable": self.cross_asset_profitable,
+            "dsr": self.dsr,
+            "dsr_pass": self.dsr_pass,
             "generation": self.generation,
             "genome_id": self.genome_id,
         }
@@ -428,9 +443,29 @@ def _worker_init():
         pass
 
 
+def _trade_returns_from_df(trades_df):
+    """Per-trade returns (pnl_net / notional size) from a backtester trades_df.
+
+    These are *per-trade* (per-observation) returns — the correct unit for the
+    Deflated Sharpe Ratio (do NOT pass annualised values)."""
+    import numpy as np
+    import pandas as pd
+    if not isinstance(trades_df, pd.DataFrame) or len(trades_df) == 0:
+        return np.array([])
+    if "pnl_net" not in trades_df.columns:
+        return np.array([])
+    size = trades_df["size"].abs() if "size" in trades_df.columns else None
+    if size is not None and (size > 0).any():
+        ret = trades_df["pnl_net"].values / size.replace(0, np.nan).values
+        ret = ret[np.isfinite(ret)]
+        return np.asarray(ret, dtype=float)
+    return np.asarray(trades_df["pnl_net"].values, dtype=float)
+
+
 def evaluate_genome(args_tuple):
     """Evaluate a genome via walk-forward validation. Runs in spawn process."""
-    genome_dict, df_path, bt_cfg, risk_cfg, train_days, val_days, test_days = args_tuple
+    (genome_dict, df_path, bt_cfg, risk_cfg, train_days, val_days, test_days,
+     cross_paths, evo_knobs) = args_tuple
 
     import sys, os, copy
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -462,7 +497,7 @@ def evaluate_genome(args_tuple):
         def strategy_fn(d, i, p):
             return strategy_fn_ref(d, i, p, regime=_bar_regime(d, i))
 
-        # FULL-SAMPLE backtest
+        # FULL (in-sample) backtest — used for reporting + DSR trade returns
         backtester = Backtester(bt_config, risk_config)
         trades_df, eq, metrics = backtester.run(df, strategy_fn, strategy_name)
 
@@ -476,19 +511,90 @@ def evaluate_genome(args_tuple):
         wf_degrad = wf_result.get("oos_degradation", 100.0)
         wf_robust = wf_result.get("is_robust", False)
 
-        # FITNESS: composite score that rewards robustness
-        # = WF_Sharpe * 0.5 + IS_Sharpe * 0.3 + log(trades) * 0.2 - penalty_for_degradation
-        # Minimum 30 trades required to avoid overfitting to micro-patterns
+        # ── In-sample TRAIN / VALIDATION Sharpe (the GA's selection objective) ──
+        # STEP 2: the GA must NOT optimise on the walk-forward TEST (OOS) folds.
+        # We aggregate the per-fold TRAIN and VAL Sharpes instead. wf_agg (the OOS
+        # test aggregate) is still computed/reported but carries ZERO selection weight.
+        fold_results = wf_result.get("fold_results", [])
+        train_sharpes = [f["train"].sharpe_ratio for f in fold_results
+                         if getattr(f["train"], "total_trades", 0) >= 3]
+        val_sharpes = [f["val"].sharpe_ratio for f in fold_results
+                       if getattr(f["val"], "total_trades", 0) >= 3]
+        is_train_sharpe = float(np.mean(train_sharpes)) if train_sharpes else (
+            metrics.sharpe_ratio if metrics.total_trades >= 5 else -5.0)
+        is_val_sharpe = float(np.mean(val_sharpes)) if val_sharpes else is_train_sharpe
+
+        # ── Cross-asset generalisation (STEP 5) ──
+        # Same params, evaluated on the IN-SAMPLE windows of the cross assets
+        # (their lockbox tails stay sealed — see EvolutionEngine._freeze_cross_assets).
+        cross_sharpes = []
+        if evo_knobs.get("cross_asset_generalisation", True) and cross_paths:
+            sample_n = int(evo_knobs.get("cross_asset_sample_n", len(cross_paths)))
+            for cpath in cross_paths[:max(1, sample_n)]:
+                try:
+                    cdf = pd.read_pickle(cpath)
+                    _, _, cmetrics = backtester.run(cdf, strategy_fn,
+                                                    f"{strategy_name}_xa")
+                    if cmetrics.total_trades >= 5:
+                        cross_sharpes.append(float(cmetrics.sharpe_ratio))
+                except Exception:
+                    continue
+        cross_median = float(np.median(cross_sharpes)) if cross_sharpes else 0.0
+        cross_profitable = int(sum(1 for s in cross_sharpes if s > 0))
+
+        # ════════════════════════════════════════════════════════════════════
+        # FITNESS (STEP 2 + STEP 5) — IN-SAMPLE ONLY selection objective.
+        #
+        #   fitness =  0.50 * is_train_sharpe          (in-sample train fit)
+        #            + 0.30 * is_val_sharpe            (in-sample validation fit)
+        #            + 0.10 * log(trades)              (trade-count bonus)
+        #            + cross_w * clip(cross_median,..) (cross-asset generalisation)
+        #            - degrad_penalty                  (WF degradation, robustness)
+        #            - dd_penalty                      (full-sample drawdown)
+        #            - low_trade_penalty               (<30 trades)
+        #            - xrp_only_penalty                (profitable ONLY on XRP)
+        #
+        # NOTE: the walk-forward TEST (OOS) Sharpe `wf_agg.sharpe_ratio` is
+        # COMPUTED and REPORTED below but has ZERO weight here. The degradation
+        # term only penalises instability; it does not reward OOS profit.
+        # ════════════════════════════════════════════════════════════════════
         MIN_TRADES_FOR_POSITIVE_FITNESS = 30
-        wf_s = wf_agg.sharpe_ratio if wf_agg.total_trades >= 5 else -5.0
-        is_s = metrics.sharpe_ratio if metrics.total_trades >= 5 else -5.0
         trade_bonus = math.log(max(metrics.total_trades, 1)) * 0.1
         degrad_penalty = max(0, wf_degrad - 30) * 0.02
         dd_penalty = max(0, metrics.max_drawdown_pct - 5) * 0.1
-        # Low trade count penalty: strategies with <30 trades get heavily penalized
         low_trade_penalty = max(0, (MIN_TRADES_FOR_POSITIVE_FITNESS - metrics.total_trades) * 0.05) if metrics.total_trades < MIN_TRADES_FOR_POSITIVE_FITNESS else 0.0
 
-        fitness = wf_s * 0.5 + is_s * 0.3 + trade_bonus - degrad_penalty - dd_penalty - low_trade_penalty
+        cross_w = float(evo_knobs.get("cross_asset_weight", 0.25))
+        xrp_only_pen = float(evo_knobs.get("cross_asset_xrp_only_penalty", 0.30))
+        cross_term = 0.0
+        cross_penalty = 0.0
+        if evo_knobs.get("cross_asset_generalisation", True) and cross_sharpes:
+            # Reward positive median cross-asset Sharpe (clipped to keep it bounded).
+            cross_term = cross_w * max(-1.0, min(1.0, cross_median))
+            # Penalise genomes that work only on the primary asset.
+            if cross_median <= 0.0:
+                cross_penalty = xrp_only_pen
+
+        fitness = (is_train_sharpe * 0.5
+                   + is_val_sharpe * 0.3
+                   + trade_bonus
+                   + cross_term
+                   - degrad_penalty
+                   - dd_penalty
+                   - low_trade_penalty
+                   - cross_penalty)
+
+        # ── Deflated Sharpe Ratio on in-sample TRADE returns (STEP 3) ──
+        # Deflated by the REAL cumulative number of genome evaluations so far.
+        dsr_val = 0.0
+        try:
+            from benchmark.statistics import deflated_sharpe_ratio
+            tr = _trade_returns_from_df(trades_df)
+            n_trials = max(int(evo_knobs.get("n_trials", 1)), 1)
+            if len(tr) >= int(evo_knobs.get("dsr_min_trades", 10)):
+                dsr_val = float(deflated_sharpe_ratio(tr, n_trials, None)["dsr"])
+        except Exception:
+            dsr_val = 0.0
 
         # Monte Carlo simulation for top genomes only (fitness > 1.5 to avoid
         # wasting compute on mediocre genomes during evolution).
@@ -531,6 +637,11 @@ def evaluate_genome(args_tuple):
             "wf_trades": wf_agg.total_trades,
             "wf_degradation": wf_degrad,
             "wf_robust": wf_robust,
+            "is_train_sharpe": is_train_sharpe,
+            "is_val_sharpe": is_val_sharpe,
+            "cross_asset_median_sharpe": cross_median,
+            "cross_asset_profitable": cross_profitable,
+            "dsr": dsr_val,
             "monte_carlo": mc_result,
         }
 
@@ -659,6 +770,7 @@ class EvolutionEngine:
         self.config = LabConfig()
         self.bt_config = asdict(self.config.backtest)
         self.risk_config = asdict(self.config.risk)
+        self.evo_config = self.config.evolution
 
         self.learning = LearningEngine()
         self.hall_of_fame = []  # Top 20 all-time best genomes (diverse)
@@ -675,6 +787,14 @@ class EvolutionEngine:
         self.df_path = "/tmp/crypto_evolve/df.pkl"
         df.to_pickle(self.df_path)
 
+        # STEP 5: freeze cross-asset IN-SAMPLE windows once for generalisation
+        # pressure. Their lockbox tails are kept sealed.
+        self.cross_paths = self._freeze_cross_assets()
+
+        # STEP 3: real cumulative number of genome evaluations (the DSR trial count).
+        self.dsr_min = float(self.evo_config.dsr_min)
+        self.dsr_rejected = 0
+
         # Logging
         os.makedirs("logs", exist_ok=True)
         os.makedirs("reports", exist_ok=True)
@@ -682,6 +802,50 @@ class EvolutionEngine:
         self.log_path = f"logs/evolution_{ts}.jsonl"
         self.report_path = f"reports/evolution_report_{ts}.json"
         logger.info(f"Evolution log: {self.log_path}")
+
+    def _freeze_cross_assets(self) -> list:
+        """STEP 5: write the cross-asset IN-SAMPLE feature frames to /tmp once.
+
+        Loads each cross asset from the frozen benchmark snapshot via DataLockbox
+        and keeps ONLY the in-sample portion (everything before that asset's
+        lockbox-equivalent tail), so the cross-asset lockboxes stay sealed.
+        Returns a list of pickle paths (picklable args for the spawn workers).
+        Returns [] if disabled or the snapshot is unavailable.
+        """
+        if not self.evo_config.cross_asset_generalisation:
+            logger.info("Cross-asset generalisation: DISABLED via config.")
+            return []
+        paths = []
+        try:
+            from benchmark.spec import BENCHMARK_SPEC
+            from benchmark.data_lockbox import DataLockbox
+            lb = DataLockbox(BENCHMARK_SPEC)
+            cutoff_ms = BENCHMARK_SPEC.lockbox_days * 86_400_000
+            wanted = list(self.evo_config.cross_asset_symbols)
+            for sym in wanted:
+                if sym not in lb.manifest.symbols:
+                    continue
+                cdf = lb._load(sym)
+                # in-sample = drop the final lockbox_days tail
+                tail_cutoff = int(cdf["timestamp"].iloc[-1]) - cutoff_ms
+                in_sample = cdf[cdf["timestamp"] < tail_cutoff].reset_index(drop=True)
+                if len(in_sample) < 200:
+                    continue
+                cpath = f"/tmp/crypto_evolve/cross_{sym.replace('/', '')}.pkl"
+                in_sample.to_pickle(cpath)
+                paths.append(cpath)
+            logger.info(
+                f"Cross-asset generalisation: ENABLED on {len(paths)} assets "
+                f"(in-sample only; lockbox tails sealed) "
+                f"[weight={self.evo_config.cross_asset_weight}]."
+            )
+        except Exception as e:
+            logger.warning(
+                f"Cross-asset generalisation unavailable ({e}); proceeding without "
+                f"cross-asset pressure."
+            )
+            return []
+        return paths
 
     def _log_event(self, event: dict):
         """Append event to JSONL log."""
@@ -710,9 +874,23 @@ class EvolutionEngine:
 
     def evaluate_population(self, population: list[Genome]) -> list[Genome]:
         """Evaluate all genomes in parallel."""
+        # STEP 3: n_trials = REAL cumulative number of genome evaluations so far.
+        # Snapshot it at the start of the batch so every genome in this batch is
+        # deflated by the same (monotonically growing) trial count. +1 so the
+        # very first batch uses >= 1.
+        n_trials_now = max(self.total_evaluated + 1, 1)
+        evo_knobs = {
+            "cross_asset_generalisation": bool(self.evo_config.cross_asset_generalisation),
+            "cross_asset_sample_n": int(self.evo_config.cross_asset_sample_n),
+            "cross_asset_weight": float(self.evo_config.cross_asset_weight),
+            "cross_asset_xrp_only_penalty": float(self.evo_config.cross_asset_xrp_only_penalty),
+            "dsr_min_trades": int(self.evo_config.dsr_min_trades),
+            "n_trials": n_trials_now,
+        }
         work_items = [
             (g.to_dict(), self.df_path, self.bt_config, self.risk_config,
-             self.train_days, self.val_days, self.test_days)
+             self.train_days, self.val_days, self.test_days,
+             self.cross_paths, evo_knobs)
             for g in population
         ]
 
@@ -742,13 +920,22 @@ class EvolutionEngine:
                         genome.wf_sharpe = result.get("wf_sharpe", 0)
                         genome.wf_degradation = result.get("wf_degradation", 100)
                         genome.wf_robust = result.get("wf_robust", False)
+                        genome.is_train_sharpe = result.get("is_train_sharpe", 0.0)
+                        genome.is_val_sharpe = result.get("is_val_sharpe", 0.0)
+                        genome.cross_asset_median_sharpe = result.get("cross_asset_median_sharpe", 0.0)
+                        genome.cross_asset_profitable = result.get("cross_asset_profitable", 0)
+                        genome.dsr = result.get("dsr", 0.0)
+                        # STEP 3: DSR acceptance flag (in-sample trade returns,
+                        # deflated by the real cumulative trial count).
+                        genome.dsr_pass = bool(genome.dsr >= self.dsr_min)
 
                         self.learning.record(genome)
                         self.total_evaluated += 1
                         if genome.wf_robust:
                             self.total_robust += 1
 
-                        # Update hall of fame with diversity enforcement
+                        # Update hall of fame with diversity enforcement +
+                        # Deflated-Sharpe acceptance filter (STEP 3).
                         self._update_hall_of_fame(genome)
 
                         results.append(genome)
@@ -793,16 +980,41 @@ class EvolutionEngine:
         """Update hall of fame with diversity enforcement.
 
         Rules:
+        - STEP 3: Deflated-Sharpe acceptance filter. A genome is only admitted to
+          the global HoF if its in-sample-trade DSR clears self.dsr_min (0.95 by
+          default), deflated by the REAL cumulative number of genome evaluations.
+          Genomes failing DSR are EXCLUDED from the global HoF and LOGGED (never
+          silently dropped). They remain tracked in the per-strategy list (flagged
+          dsr_pass=False) so reporting still sees them.
         - Max 4 genomes per strategy in global HoF (ensures strategy diversity)
         - New genome must have param distance > 0.15 from existing HoF entries
           of the same strategy (prevents clones flooding HoF)
         - Also maintain per-strategy top 5 for best-per-strategy tracking
         """
-        # Per-strategy tracking (no dedup needed)
+        # Per-strategy tracking (no dedup needed) — keeps both pass/fail genomes
         per_strat = self.hall_of_fame_per_strategy[genome.strategy]
         per_strat.append(genome)
         per_strat.sort(key=lambda g: g.fitness, reverse=True)
         self.hall_of_fame_per_strategy[genome.strategy] = per_strat[:5]
+
+        # STEP 3: Deflated-Sharpe acceptance gate for the GLOBAL Hall of Fame.
+        if not genome.dsr_pass:
+            self.dsr_rejected += 1
+            logger.info(
+                f"  DSR REJECT: [{genome.strategy}] {genome.genome_id} "
+                f"fitness={genome.fitness:.3f} dsr={genome.dsr:.3f} "
+                f"(< {self.dsr_min:.2f}, n_trials={self.total_evaluated}) "
+                f"— excluded from global HoF"
+            )
+            self._log_event({
+                "event": "dsr_reject",
+                "genome_id": genome.genome_id,
+                "strategy": genome.strategy,
+                "fitness": genome.fitness,
+                "dsr": genome.dsr,
+                "dsr_min": self.dsr_min,
+            })
+            return
 
         # Global HoF: check if it's a clone of existing entries
         # Fix: check ALL same-strategy entries for clones, remove ALL that are
@@ -954,7 +1166,10 @@ class EvolutionEngine:
         logger.info(f"  GEN {self.generation} | Evaluated: {len(valid)}/{self.pop_size} | "
                      f"Robust: {robust_count} | Avg fitness: {avg_fit:.3f}")
         logger.info(f"  BEST: [{best.strategy}] fitness={best.fitness:.3f} "
-                     f"IS_Sharpe={best.sharpe:.3f} WF_Sharpe={best.wf_sharpe:.3f} "
+                     f"IS_train_Sh={best.is_train_sharpe:.3f} IS_val_Sh={best.is_val_sharpe:.3f} "
+                     f"WF_Sharpe(OOS,unweighted)={best.wf_sharpe:.3f} "
+                     f"xa_med_Sh={best.cross_asset_median_sharpe:.3f} "
+                     f"DSR={best.dsr:.3f}{'✓' if best.dsr_pass else '✗'} "
                      f"trades={best.trades} PnL=${best.net_pnl:.2f} "
                      f"degrad={best.wf_degradation:.0f}%")
 
@@ -1067,6 +1282,7 @@ class EvolutionEngine:
             "generation": self.generation,
             "total_evaluated": self.total_evaluated,
             "total_robust": self.total_robust,
+            "dsr_rejected": self.dsr_rejected,
             "hall_of_fame": [g.to_dict() for g in self.hall_of_fame],
             "promising_strategies": self.learning.get_promising_strategies(),
         }
@@ -1081,6 +1297,7 @@ class EvolutionEngine:
             "generations": self.generation,
             "total_evaluated": self.total_evaluated,
             "total_robust": self.total_robust,
+            "dsr_rejected": self.dsr_rejected,
             "hall_of_fame": [g.to_dict() for g in self.hall_of_fame],
             "promising_strategies": self.learning.get_promising_strategies(),
             "strategy_scores": {
@@ -1099,25 +1316,35 @@ class EvolutionEngine:
             json.dump(report, f, indent=2, default=str)
         logger.info(f"\nFinal report saved: {self.report_path}")
 
-        # Save best genome per strategy as ready-to-use configs
+        # Save best genome per strategy as ready-to-use configs.
+        # STEP 3: prefer a DSR-passing genome; deprioritise DSR failures.
         for strat, bests in self.hall_of_fame_per_strategy.items():
-            if bests and bests[0].fitness > 0:
-                best = bests[0]
-                best_path = f"reports/best_genome_{strat}.json"
-                with open(best_path, "w") as f:
-                    json.dump({
-                        "strategy": best.strategy,
-                        "params": best.params,
-                        "fitness": best.fitness,
-                        "sharpe": best.sharpe,
-                        "wf_sharpe": best.wf_sharpe,
-                        "trades": best.trades,
-                        "net_pnl": best.net_pnl,
-                        "wf_robust": best.wf_robust,
-                    }, f, indent=2)
-                logger.info(f"Best genome saved: {best_path}")
+            if not bests:
+                continue
+            dsr_ok = [g for g in bests if g.dsr_pass and g.fitness > 0]
+            best = dsr_ok[0] if dsr_ok else (bests[0] if bests[0].fitness > 0 else None)
+            if best is None:
+                continue
+            best_path = f"reports/best_genome_{strat}.json"
+            with open(best_path, "w") as f:
+                json.dump({
+                    "strategy": best.strategy,
+                    "params": best.params,
+                    "fitness": best.fitness,
+                    "sharpe": best.sharpe,
+                    "wf_sharpe": best.wf_sharpe,
+                    "is_train_sharpe": best.is_train_sharpe,
+                    "is_val_sharpe": best.is_val_sharpe,
+                    "cross_asset_median_sharpe": best.cross_asset_median_sharpe,
+                    "dsr": best.dsr,
+                    "dsr_pass": best.dsr_pass,
+                    "trades": best.trades,
+                    "net_pnl": best.net_pnl,
+                    "wf_robust": best.wf_robust,
+                }, f, indent=2)
+            logger.info(f"Best genome saved: {best_path} (dsr_pass={best.dsr_pass})")
 
-        # Also save global best
+        # Also save global best (the global HoF is already DSR-gated).
         if self.hall_of_fame:
             best = self.hall_of_fame[0]
             best_path = f"reports/best_genome_overall.json"
@@ -1128,6 +1355,11 @@ class EvolutionEngine:
                     "fitness": best.fitness,
                     "sharpe": best.sharpe,
                     "wf_sharpe": best.wf_sharpe,
+                    "is_train_sharpe": best.is_train_sharpe,
+                    "is_val_sharpe": best.is_val_sharpe,
+                    "cross_asset_median_sharpe": best.cross_asset_median_sharpe,
+                    "dsr": best.dsr,
+                    "dsr_pass": best.dsr_pass,
                     "trades": best.trades,
                     "net_pnl": best.net_pnl,
                     "wf_robust": best.wf_robust,
@@ -1139,8 +1371,45 @@ class EvolutionEngine:
 # DATA LOADING
 # ═══════════════════════════════════════════════════════════════
 
-def load_data(history_days: int = 365) -> pd.DataFrame:
-    """Load real data with features and regime labels."""
+def load_data(history_days: int = 365, use_lockbox: bool = True) -> pd.DataFrame:
+    """Load the price series the GA is allowed to optimise on.
+
+    STEP 1 — Data lockbox wiring:
+      When `use_lockbox` is True (default), evolution trains ONLY on the in-sample
+      window of the frozen benchmark snapshot. The final `lockbox_days` of the
+      primary series are sealed and NEVER enter any backtest the GA evaluates.
+      If the frozen snapshot is missing, we log a clear warning and fall back to
+      the previous full-series live load so the script still runs.
+    """
+    if use_lockbox:
+        try:
+            from benchmark.spec import BENCHMARK_SPEC
+            from benchmark.data_lockbox import get_evolution_window, DataLockbox
+            df = get_evolution_window(BENCHMARK_SPEC)
+            cutoff = DataLockbox(BENCHMARK_SPEC).lockbox_cutoff_ts()
+            # Hard assert: no in-sample bar may reach into the sealed lockbox.
+            if "timestamp" in df.columns and len(df) > 0:
+                assert int(df["timestamp"].max()) < int(cutoff), \
+                    "Lockbox leakage: in-sample window crosses the lockbox cutoff!"
+            logger.info(
+                f"Data lockbox: loaded {len(df)} in-sample bars from frozen snapshot "
+                f"(lockbox cutoff_ts={cutoff}, {BENCHMARK_SPEC.lockbox_days}d sealed)."
+            )
+            regime_counts = Counter(df["_regime"]) if "_regime" in df.columns else {}
+            if regime_counts:
+                total = len(df)
+                dist = ", ".join(f"{r}: {c} ({c/total*100:.0f}%)"
+                                 for r, c in sorted(regime_counts.items()))
+                logger.info(f"Regime distribution: {dist}")
+            logger.info(f"Ready: {len(df)} bars, {len(df.columns)} features")
+            return df
+        except Exception as e:
+            logger.warning(
+                f"Data lockbox unavailable ({e}); falling back to live full-series "
+                f"load. WARNING: this load is NOT lockbox-sealed — for an honest run, "
+                f"freeze the snapshot with `python -m benchmark snapshot`."
+            )
+
     if not has_binance_keys():
         raise RuntimeError("No Binance API keys in .env")
 
@@ -1191,7 +1460,8 @@ def main():
     logger.info(f"Autonomous Evolution: {args.hours}h, pop={args.pop_size}, "
                 f"cores={max_workers}, data={args.days}d")
 
-    df = load_data(args.days)
+    evo_cfg = EvolutionConfig()
+    df = load_data(args.days, use_lockbox=evo_cfg.use_data_lockbox)
 
     engine = EvolutionEngine(
         df=df,

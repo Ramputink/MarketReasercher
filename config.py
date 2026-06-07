@@ -291,6 +291,51 @@ class ExecutionConfig:
 
 
 # ---------------------------------------------------------------
+# EVOLUTION CONFIG (auto_evolve.py GA controls)
+# ---------------------------------------------------------------
+
+@dataclass
+class EvolutionConfig:
+    """Controls for the genetic-algorithm strategy optimizer (auto_evolve.py).
+
+    These knobs make the honesty upgrades configurable without touching the GA
+    internals. Defaults are tuned for an honest, leakage-free run.
+    """
+    # ── Data lockbox ──
+    # If True, the GA loads ONLY the in-sample window from the frozen snapshot
+    # (lockbox tail stays sealed). Falls back to the live full-series load with a
+    # warning if the snapshot is missing.
+    use_data_lockbox: bool = True
+
+    # ── Deflated Sharpe acceptance filter (Hall of Fame gate) ──
+    # A genome is only admitted to / flagged passing in the HoF if its Deflated
+    # Sharpe Ratio (computed on in-sample TRADE returns, deflated by the real
+    # cumulative number of genome evaluations) clears this bar.
+    dsr_min: float = 0.95
+    # Minimum trades required to even attempt the DSR computation.
+    dsr_min_trades: int = 10
+
+    # ── Cross-asset generalisation pressure ──
+    # When True, each genome is also evaluated (same params) on the in-sample
+    # windows of the cross assets, and a generalisation term is folded into
+    # fitness so the GA prefers genomes that work beyond XRP.
+    cross_asset_generalisation: bool = True
+    # Cross-asset symbols to evaluate on (subset of DataConfig.cross_assets is OK,
+    # keep it cheap since this runs per-genome).
+    cross_asset_symbols: list = field(default_factory=lambda: [
+        "BTC/USDT", "ETH/USDT", "SOL/USDT", "ADA/USDT"
+    ])
+    # How many cross assets to actually evaluate per genome (sample the first N
+    # for speed). Set to len(cross_asset_symbols) to use all.
+    cross_asset_sample_n: int = 4
+    # Weight of the cross-asset generalisation term in fitness.
+    cross_asset_weight: float = 0.25
+    # Penalty applied when the genome is profitable ONLY on the primary asset
+    # (i.e. median cross-asset Sharpe <= 0).
+    cross_asset_xrp_only_penalty: float = 0.30
+
+
+# ---------------------------------------------------------------
 # MASTER CONFIG
 # ---------------------------------------------------------------
 
@@ -306,3 +351,4 @@ class LabConfig:
     vol_breakout: VolatilityBreakoutDefaults = field(default_factory=VolatilityBreakoutDefaults)
     mean_reversion: MeanReversionDefaults = field(default_factory=MeanReversionDefaults)
     trend_following: TrendFollowingDefaults = field(default_factory=TrendFollowingDefaults)
+    evolution: EvolutionConfig = field(default_factory=EvolutionConfig)

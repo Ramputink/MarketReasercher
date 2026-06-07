@@ -47,6 +47,7 @@ class Trade:
     commission: float
     slippage: float
     pnl_net: float
+    funding: float = 0.0  # perp funding paid over the life of the trade
     exit_reason: str = ""  # "take_profit", "stop_loss", "time_stop", "signal_exit"
     strategy: str = ""
 
@@ -61,6 +62,7 @@ class Trade:
             "pnl_gross": self.pnl_gross,
             "commission": self.commission,
             "slippage": self.slippage,
+            "funding": self.funding,
             "pnl_net": self.pnl_net,
             "exit_reason": self.exit_reason,
             "strategy": self.strategy,
@@ -82,6 +84,8 @@ class Position:
     take_profit: Optional[float] = None
     time_stop_hours: int = 48
     strategy: str = ""
+    funding_paid: float = 0.0       # cumulative perp funding charged so far
+    entry_commission: float = 0.0   # commission paid on the entry leg (booked into pnl_net at close)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -105,9 +109,33 @@ class Backtester:
         self,
         config: BacktestConfig,
         risk_config: RiskConfig,
+        use_risk_manager: bool = True,
+        entry_lag_bars: int = 1,
+        funding_bps_per_8h: float = 1.0,
     ):
+        """
+        Args:
+            config: backtest cost / acceptance config.
+            risk_config: risk-management config (sizing, circuit-breaker, etc.).
+            use_risk_manager: when True (default) the simulation routes every
+                candidate entry through engine.risk_manager.RiskManager, so the
+                circuit-breaker drawdown halt, max-daily-loss halt, min-time-
+                between-trades and (optional) Kelly / vol-target sizing actually
+                reject or halt simulated trades. Set False to recover the
+                legacy *unconstrained* behaviour for apples-to-apples comparison.
+            entry_lag_bars: number of bars between the signal bar and the bar
+                whose OPEN we fill at (>=1 removes same-bar look-ahead). Default 1.
+            funding_bps_per_8h: perpetual-swap funding cost charged on the open
+                position notional, expressed in basis points per 8h funding
+                period (the standard perp interval). Applied per bar pro-rata.
+        """
         self.config = config
         self.risk_config = risk_config
+        self.use_risk_manager = use_risk_manager
+        # 1-bar (default) entry lag: never look-ahead inside the signal bar.
+        self.entry_lag_bars = max(0, int(entry_lag_bars))
+        # Per-8h perp funding cost in bps (configurable knob).
+        self.funding_bps_per_8h = float(funding_bps_per_8h)
 
     def _apply_slippage(self, price: float, side: str, is_entry: bool) -> float:
         """Apply slippage: adverse direction for entries, adverse for exits."""
@@ -119,6 +147,33 @@ class Backtester:
 
     def _compute_commission(self, notional: float) -> float:
         return notional * self.config.commission_rate
+
+    def _settle(self, position, exit_ref_price: float):
+        """
+        Close a position and book ALL costs into pnl_net so that the sum of
+        per-trade pnl_net reconciles EXACTLY with the equity change. This is the
+        honest-books invariant the benchmark harness already enforces (self-test
+        T3); the research backtester now matches it.
+
+        - Slippage is captured inside the slipped entry/exit PRICES (both legs),
+          so it is reflected in pnl_gross and must NOT be subtracted again.
+        - Entry commission and per-bar funding already left `equity` earlier in
+          the position's life; they are folded into pnl_net here (for honest
+          trade metrics) but only the exit-side delta is returned for `equity`.
+
+        Returns (pnl_net, realized_for_equity, exit_commission, exit_slip_cost).
+        """
+        exit_slipped = self._apply_slippage(exit_ref_price, position.side, False)
+        exit_commission = self._compute_commission(position.size)
+        exit_slip = (abs(exit_ref_price - exit_slipped) * (position.size / exit_ref_price)
+                     if exit_ref_price else 0.0)
+        if position.side == "long":
+            pnl_gross = (exit_slipped - position.entry_price) / position.entry_price * position.size
+        else:
+            pnl_gross = (position.entry_price - exit_slipped) / position.entry_price * position.size
+        realized_for_equity = pnl_gross - exit_commission
+        pnl_net = pnl_gross - exit_commission - position.entry_commission - position.funding_paid
+        return pnl_net, realized_for_equity, exit_commission, exit_slip
 
     def _compute_position_size(
         self,
@@ -162,13 +217,34 @@ class Backtester:
         Returns:
             (trades_df, equity_curve, metrics)
         """
+        # Lazy import to avoid a hard import cycle (risk_manager imports
+        # engine.backtester.Signal). Only constructed when risk gating is on.
+        risk_mgr = None
+        if self.use_risk_manager:
+            from engine.risk_manager import RiskManager
+            risk_mgr = RiskManager(self.risk_config)
+            risk_mgr.state.equity = self.config.initial_capital
+            risk_mgr.state.peak_equity = self.config.initial_capital
+
         equity = self.config.initial_capital
         equity_curve = []
         trades = []
         position: Optional[Position] = None
+        # A pending entry decision made on the signal bar, to be FILLED at the
+        # OPEN of bar (signal_bar + entry_lag_bars). Removes same-bar look-ahead.
+        pending_entry: Optional[dict] = None
+        # Once the circuit breaker (or daily-loss halt) fires we stop opening
+        # new positions for the remainder of this segment (still mark-to-market
+        # and still allow the open position to exit on its own stops).
+        trading_halted = False
 
         # Need ATR for position sizing
         has_atr = "atr_14" in df.columns
+
+        # Funding cost per bar: bps/8h pro-rated to the bar duration.
+        tf_ms = float(df["timestamp"].diff().median()) if len(df) > 1 else 3_600_000.0
+        bar_hours = tf_ms / 3_600_000.0
+        funding_rate_per_bar = (self.funding_bps_per_8h / 10000.0) * (bar_hours / 8.0)
 
         # Warm-up period: skip first 50 bars
         warmup = 50
@@ -177,6 +253,12 @@ class Backtester:
             current_bar = df.iloc[i]
             timestamp = int(current_bar["timestamp"])
             price = float(current_bar["close"])
+
+            # ─── Funding cost on any open perp position (charged per bar) ───
+            if position is not None and funding_rate_per_bar != 0.0:
+                funding_cost = position.size * funding_rate_per_bar
+                equity -= funding_cost
+                position.funding_paid += funding_cost
 
             # ─── Check exits for open position ───
             if position is not None:
@@ -222,72 +304,116 @@ class Backtester:
                         exit_reason = "signal_exit"
 
                 if exit_signal:
-                    # Execute exit
-                    exit_price_slipped = self._apply_slippage(exit_price, position.side, False)
-                    commission = self._compute_commission(position.size)
-                    slippage_cost = abs(exit_price - exit_price_slipped) * (position.size / exit_price)
-
-                    if position.side == "long":
-                        pnl_gross = (exit_price_slipped - position.entry_price) / position.entry_price * position.size
-                    else:
-                        pnl_gross = (position.entry_price - exit_price_slipped) / position.entry_price * position.size
-
-                    pnl_net = pnl_gross - commission - slippage_cost
+                    pnl_net, realized_for_equity, exit_commission, exit_slip = self._settle(
+                        position, exit_price)
+                    equity += realized_for_equity  # entry comm + funding already left equity
 
                     trade = Trade(
                         entry_time=position.entry_time,
                         exit_time=timestamp,
                         side=position.side,
                         entry_price=position.entry_price,
-                        exit_price=exit_price_slipped,
+                        exit_price=self._apply_slippage(exit_price, position.side, False),
                         size=position.size,
-                        pnl_gross=pnl_gross,
-                        commission=commission,
-                        slippage=slippage_cost,
-                        pnl_net=pnl_net,
+                        pnl_gross=pnl_net + position.entry_commission + exit_commission + position.funding_paid,
+                        commission=position.entry_commission + exit_commission,  # both legs
+                        slippage=exit_slip,
+                        funding=position.funding_paid,
+                        pnl_net=pnl_net,  # ALL costs booked -> sum(pnl_net) == equity change
                         exit_reason=exit_reason,
                         strategy=strategy_name,
                     )
                     trades.append(trade)
-                    equity += pnl_net
+
+                    # Notify the risk manager of the realised result, net of ALL
+                    # costs (entry+exit commission + funding) — that is pnl_net.
+                    if risk_mgr is not None:
+                        risk_mgr.state.open_positions = 0
+                        risk_mgr.record_trade_result(pnl_net, timestamp)
+                        risk_mgr.update_equity(equity)
+
                     position = None
 
-            # ─── Check for new entry ───
-            if position is None:
+            # ─── (A) FILL a pending entry at THIS bar's OPEN (1-bar lag) ───
+            # The entry decision was taken on an earlier (signal) bar; we only
+            # commit capital now, at the next bar's open — never the signal
+            # bar's close. This removes same-bar look-ahead in execution.
+            if position is None and pending_entry is not None and i >= pending_entry["fill_bar"]:
+                pe = pending_entry
+                pending_entry = None
+                # Fill reference price = THIS bar's open (honest, no look-ahead).
+                fill_ref = float(current_bar.get("open", price))
+                atr_val = pe["atr_val"]
+                size = pe["size"]
+                side = pe["side"]
+
+                entry_price = self._apply_slippage(fill_ref, side, True)
+                entry_commission = self._compute_commission(size)
+                equity -= entry_commission  # pay commission on entry leg
+
+                sl = pe["stop_loss"]
+                tp = pe["take_profit"]
+                if sl is None:
+                    if side == "long":
+                        sl = entry_price - self.risk_config.stop_loss_atr_mult * atr_val
+                    else:
+                        sl = entry_price + self.risk_config.stop_loss_atr_mult * atr_val
+                if tp is None:
+                    if side == "long":
+                        tp = entry_price + self.risk_config.take_profit_atr_mult * atr_val
+                    else:
+                        tp = entry_price - self.risk_config.take_profit_atr_mult * atr_val
+
+                position = Position(
+                    entry_time=timestamp,
+                    side=side,
+                    entry_price=entry_price,
+                    size=size,
+                    stop_loss=sl,
+                    take_profit=tp,
+                    time_stop_hours=pe["time_stop_hours"] or self.risk_config.time_stop_hours,
+                    strategy=strategy_name,
+                    entry_commission=entry_commission,
+                )
+                if risk_mgr is not None:
+                    risk_mgr.state.open_positions = 1
+                    # Record the trade time so min-interval applies to the next.
+                    risk_mgr.state.last_trade_time = timestamp
+
+            # ─── (B) Evaluate a NEW entry signal (queued for next bar) ───
+            if position is None and pending_entry is None and not trading_halted:
                 signal = strategy_fn(df, i, None)
 
                 if signal is not None:
                     atr_val = float(current_bar.get("atr_14", price * 0.02)) if has_atr else price * 0.02
-                    size = self._compute_position_size(equity, price, atr_val, signal.strength)
 
-                    entry_price = self._apply_slippage(price, signal.side, True)
-                    entry_commission = self._compute_commission(size)
-                    equity -= entry_commission  # pay commission on entry
+                    # ── Risk-manager gate: circuit breaker / daily-loss / max
+                    # positions / min-interval. These actually reject trades. ──
+                    allowed = True
+                    if risk_mgr is not None:
+                        risk_mgr.update_equity(equity)
+                        allowed, reason = risk_mgr.can_trade(signal, timestamp)
+                        if not allowed and reason.startswith("circuit_breaker"):
+                            # Halt all further new entries for this segment.
+                            trading_halted = True
 
-                    # Set stop/take profit
-                    sl = signal.stop_loss
-                    tp = signal.take_profit
-                    if sl is None:
-                        if signal.side == "long":
-                            sl = entry_price - self.risk_config.stop_loss_atr_mult * atr_val
+                    if allowed:
+                        if risk_mgr is not None:
+                            size = risk_mgr.compute_allowed_size(signal, price, atr_val)
                         else:
-                            sl = entry_price + self.risk_config.stop_loss_atr_mult * atr_val
-                    if tp is None:
-                        if signal.side == "long":
-                            tp = entry_price + self.risk_config.take_profit_atr_mult * atr_val
-                        else:
-                            tp = entry_price - self.risk_config.take_profit_atr_mult * atr_val
+                            size = self._compute_position_size(equity, price, atr_val, signal.strength)
 
-                    position = Position(
-                        entry_time=timestamp,
-                        side=signal.side,
-                        entry_price=entry_price,
-                        size=size,
-                        stop_loss=sl,
-                        take_profit=tp,
-                        time_stop_hours=signal.time_stop_hours or self.risk_config.time_stop_hours,
-                        strategy=strategy_name,
-                    )
+                        if size > 0:
+                            # Queue the entry to be FILLED at a later bar's open.
+                            pending_entry = {
+                                "fill_bar": i + self.entry_lag_bars,
+                                "side": signal.side,
+                                "atr_val": atr_val,
+                                "size": size,
+                                "stop_loss": signal.stop_loss,
+                                "take_profit": signal.take_profit,
+                                "time_stop_hours": signal.time_stop_hours,
+                            }
 
             # Record equity
             # Mark-to-market if position open
@@ -304,28 +430,29 @@ class Backtester:
         # Close any remaining position at last bar
         if position is not None:
             last_price = float(df.iloc[-1]["close"])
-            exit_price_slipped = self._apply_slippage(last_price, position.side, False)
-            commission = self._compute_commission(position.size)
-            slippage_cost = abs(last_price - exit_price_slipped) * (position.size / last_price)
-            if position.side == "long":
-                pnl_gross = (exit_price_slipped - position.entry_price) / position.entry_price * position.size
-            else:
-                pnl_gross = (position.entry_price - exit_price_slipped) / position.entry_price * position.size
-            pnl_net = pnl_gross - commission - slippage_cost
+            pnl_net, realized_for_equity, exit_commission, exit_slip = self._settle(
+                position, last_price)
+            equity += realized_for_equity
             trades.append(Trade(
                 entry_time=position.entry_time,
                 exit_time=int(df.iloc[-1]["timestamp"]),
                 side=position.side,
                 entry_price=position.entry_price,
-                exit_price=exit_price_slipped,
+                exit_price=self._apply_slippage(last_price, position.side, False),
                 size=position.size,
-                pnl_gross=pnl_gross,
-                commission=commission,
-                slippage=slippage_cost,
+                pnl_gross=pnl_net + position.entry_commission + exit_commission + position.funding_paid,
+                commission=position.entry_commission + exit_commission,
+                slippage=exit_slip,
+                funding=position.funding_paid,
                 pnl_net=pnl_net,
                 exit_reason="end_of_data",
                 strategy=strategy_name,
             ))
+            # Record the final REALISED equity so the curve ends at realised
+            # value (not a mark-to-market of the just-closed position). This keeps
+            # the equity curve reconciled with sum(pnl_net).
+            if equity_curve:
+                equity_curve[-1] = {"timestamp": int(df.iloc[-1]["timestamp"]), "equity": equity}
 
         # Build results
         trades_df = pd.DataFrame([t.to_dict() for t in trades]) if trades else pd.DataFrame()
@@ -361,19 +488,50 @@ class WalkForwardValidator:
         train_days: int = 60,
         val_days: int = 15,
         test_days: int = 15,
+        embargo_bars: int = 120,
     ):
+        """
+        Args:
+            embargo_bars: purge/embargo GAP (in bars) inserted between the train
+                window end and the val window start, and again between val and
+                test. It MUST be >= the maximum rolling-feature lookback so that
+                a feature computed near a boundary cannot share *any* raw bar
+                with the other side of the boundary. Without this gap the last
+                train bars and the first test bars are computed from overlapping
+                rolling windows, leaking train information into the OOS test
+                (look-ahead via shared inputs).
+
+                Default 120 covers the LONGEST feature window in the pipeline,
+                which is bb_bandwidth_percentile(lookback=100) in
+                engine/features.py (NOT 60 — an earlier value of 60 left a 40-bar
+                leak, since a 100-bar rolling feature on the first post-gap test
+                bar still reached 40 bars into the train side). 120 = 100 + a
+                20-bar safety margin. If you add a feature with a longer window,
+                raise this accordingly.
+        """
         self.backtester = Backtester(config, risk_config)
         self.train_days = train_days
         self.val_days = val_days
         self.test_days = test_days
+        self.embargo_bars = max(0, int(embargo_bars))
 
     def _split_by_time(
         self, df: pd.DataFrame
     ) -> list[tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]]:
         """
         Create walk-forward folds.
-        Each fold: [train_window | val_window | test_window]
-        Windows slide forward by test_window size.
+        Each fold: [train_window | EMBARGO | val_window | EMBARGO | test_window]
+
+        An EMBARGO/purge gap of `self.embargo_bars` bars is dropped BETWEEN the
+        train and val windows, and again BETWEEN the val and test windows. The
+        gap bars are excluded from every window. This prevents rolling-feature
+        leakage: features such as a 60-bar SMA / z-score / model sequence are
+        computed from the trailing `lookback` raw bars, so the first bars of the
+        test window would otherwise be derived from raw bars that also feed the
+        last train bars — an information bridge across the OOS boundary. By
+        purging at least `max_lookback` bars, no test feature can see any bar
+        that contributed to a train feature. Windows still slide forward by
+        test_window size so the OOS coverage is unchanged.
         """
         tf_ms = df["timestamp"].diff().median()
         candles_per_day = 86_400_000 / tf_ms
@@ -381,15 +539,23 @@ class WalkForwardValidator:
         train_bars = int(self.train_days * candles_per_day)
         val_bars = int(self.val_days * candles_per_day)
         test_bars = int(self.test_days * candles_per_day)
-        fold_size = train_bars + val_bars + test_bars
+        gap = self.embargo_bars
+        # Two embargo gaps per fold: train|gap|val|gap|test
+        fold_size = train_bars + gap + val_bars + gap + test_bars
         step_size = test_bars
 
         folds = []
         start = 0
         while start + fold_size <= len(df):
-            train = df.iloc[start: start + train_bars].copy().reset_index(drop=True)
-            val = df.iloc[start + train_bars: start + train_bars + val_bars].copy().reset_index(drop=True)
-            test = df.iloc[start + train_bars + val_bars: start + fold_size].copy().reset_index(drop=True)
+            tr_lo = start
+            tr_hi = start + train_bars
+            va_lo = tr_hi + gap                      # embargo after train
+            va_hi = va_lo + val_bars
+            te_lo = va_hi + gap                      # embargo after val
+            te_hi = te_lo + test_bars
+            train = df.iloc[tr_lo: tr_hi].copy().reset_index(drop=True)
+            val = df.iloc[va_lo: va_hi].copy().reset_index(drop=True)
+            test = df.iloc[te_lo: te_hi].copy().reset_index(drop=True)
             folds.append((train, val, test))
             start += step_size
 
@@ -418,6 +584,8 @@ class WalkForwardValidator:
                 "aggregate": StrategyMetrics(),
                 "is_robust": False,
                 "oos_degradation": 100.0,
+                "full_sample_max_drawdown_pct": 0.0,
+                "is_ruined": False,
             }
 
         fold_results = []
@@ -456,10 +624,38 @@ class WalkForwardValidator:
         aggregate = compute_walk_forward_metrics(oos_metrics)
         aggregate.oos_degradation_pct = float(np.mean(oos_degradations))
 
-        # Robustness check
+        # ── FULL-SAMPLE drawdown / ruin check ──────────────────────────────
+        # The per-fold (15-day) drawdown that compute_walk_forward_metrics
+        # aggregates with np.max can NEVER express a large multi-fold drawdown:
+        # a genome that bleeds steadily, blows up across a fold boundary, or
+        # rides equity to zero looks fine fold-by-fold yet is actually ruined.
+        # So we run ONE continuous full-sample backtest and measure the true
+        # peak-to-trough drawdown plus whether equity ever went non-positive
+        # (ruin). A ruined genome is reported NOT robust regardless of folds.
+        full_sample_max_dd_pct = float(aggregate.max_drawdown_pct)
+        is_ruined = False
+        try:
+            _, full_eq, _ = self.backtester.run(df, strategy_fn, f"{strategy_name}_fullsample")
+            if len(full_eq) > 0:
+                peak = full_eq.cummax()
+                dd = (full_eq - peak) / peak
+                full_sample_max_dd_pct = float(abs(dd.min()) * 100)
+                # Ruin = equity wiped out (<= 0) at any point in the full run.
+                is_ruined = bool((full_eq <= 0).any())
+        except Exception as e:  # pragma: no cover - defensive
+            logger.warning(f"Full-sample robustness backtest failed: {e}")
+            # If we cannot verify the full-sample path, fail closed.
+            is_ruined = True
+
+        # Surface the (worse) full-sample DD on the aggregate so callers and
+        # logs report the honest number rather than the optimistic per-fold max.
+        aggregate.max_drawdown_pct = max(aggregate.max_drawdown_pct, full_sample_max_dd_pct)
+
+        # Robustness check — now keyed on FULL-SAMPLE DD and ruin.
         is_robust = (
-            aggregate.sharpe_ratio >= self.backtester.config.min_sharpe * 0.8
-            and aggregate.max_drawdown_pct <= self.backtester.config.max_drawdown_pct
+            not is_ruined
+            and full_sample_max_dd_pct <= self.backtester.config.max_drawdown_pct
+            and aggregate.sharpe_ratio >= self.backtester.config.min_sharpe * 0.8
             and aggregate.total_trades >= self.backtester.config.min_trades
             and aggregate.oos_degradation_pct <= self.backtester.config.max_oos_degradation_pct
             and aggregate.profit_factor > 1.0
@@ -470,4 +666,6 @@ class WalkForwardValidator:
             "aggregate": aggregate,
             "is_robust": is_robust,
             "oos_degradation": float(np.mean(oos_degradations)),
+            "full_sample_max_drawdown_pct": full_sample_max_dd_pct,
+            "is_ruined": is_ruined,
         }

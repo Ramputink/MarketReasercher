@@ -239,6 +239,7 @@ def _train_single_variant(
     logger.info(f"  Evaluating on test set...")
     test_features, test_indices = extract_candle_windows(test_df, window_size=window_size)
     test_accuracy = None
+    test_report = None
     if len(test_features) > 0:
         test_scaled = scaler.transform(test_features)
         # Use appropriate predict method
@@ -260,8 +261,20 @@ def _train_single_variant(
         if len(X_test) > 50:
             test_preds = model.predict(X_test, verbose=0)
             test_dir_preds = np.argmax(test_preds[0], axis=1)
+            # Raw accuracy kept for backward-compat, but it is base-rate-inflated:
+            # the 0.5% (direction_threshold) move band makes "neutral" dominate.
             test_accuracy = float(np.mean(test_dir_preds == y_dir_test))
-            logger.info(f"  Test accuracy: {test_accuracy:.3f} (n={len(X_test)})")
+
+            # Honest, imbalance-aware metrics from the confusion matrix.
+            from engine.tf_model import (
+                classification_report_imbalanced,
+                _log_imbalanced_report,
+            )
+            test_report = classification_report_imbalanced(
+                y_dir_test, test_dir_preds, n_classes=3,
+            )
+            logger.info(f"  Test RAW accuracy (INFLATED): {test_accuracy:.3f} (n={len(X_test)})")
+            _log_imbalanced_report(test_report, f"{variant_id} test", log=logger)
 
             for cls, name in [(0, "DOWN"), (1, "NEUTRAL"), (2, "UP")]:
                 mask = y_dir_test == cls
@@ -283,6 +296,10 @@ def _train_single_variant(
         "lstm_sequences": len(X),
         "val_metrics": val_metrics,
         "test_accuracy": test_accuracy,
+        "test_accuracy_note": "RAW accuracy -- base-rate-inflated by dominant "
+                              "'neutral' class; see test_report for honest metrics "
+                              "(balanced_accuracy / macro_f1 / mcc vs baseline).",
+        "test_report": test_report,
         "lstm_name": lstm_name,
         "status": "ok",
         "trained_at": datetime.utcnow().isoformat(),

@@ -202,6 +202,150 @@ def prepare_sequences(
 
 
 # ---------------------------------------------------------------
+# IMBALANCE-AWARE CLASSIFICATION METRICS
+# ---------------------------------------------------------------
+
+# Class index -> name mapping for the 3-class direction heads.
+# Matches create_labels(): 0=down, 1=flat/neutral, 2=up
+CLASS_NAMES = ["down", "neutral", "up"]
+NEUTRAL_CLASS = 1
+
+
+def classification_report_imbalanced(y_true, y_pred, n_classes: int = 3):
+    """
+    Honest, imbalance-aware classification metrics for the direction heads.
+
+    Raw accuracy is base-rate-inflated when one class (here "neutral") dominates,
+    so this computes a fuller picture. Everything is derived by hand from the
+    confusion matrix -- no new heavy dependencies (does not require sklearn).
+
+    Returns a dict with:
+      - accuracy: raw accuracy (base-rate INFLATED -- not the headline metric)
+      - balanced_accuracy: mean per-class recall (the honest headline metric)
+      - confusion_matrix: rows=true class, cols=predicted class (list of lists)
+      - support: per-class true-count
+      - per_class: {name: {precision, recall, f1, support}}
+      - precision_macro / recall_macro / f1_macro
+      - mcc: Matthews correlation coefficient (multi-class)
+      - baseline: the trivial "always predict majority class (neutral)" classifier
+                  reported side-by-side {majority_class, accuracy, balanced_accuracy}
+      - beats_baseline: bool, model balanced_accuracy > baseline balanced_accuracy
+      - n_samples
+    """
+    y_true = np.asarray(y_true).astype(np.int64).ravel()
+    y_pred = np.asarray(y_pred).astype(np.int64).ravel()
+    n = int(y_true.shape[0])
+
+    # Confusion matrix: cm[t][p] = count of true=t predicted=p
+    cm = np.zeros((n_classes, n_classes), dtype=np.int64)
+    if n > 0:
+        valid = (y_true >= 0) & (y_true < n_classes) & (y_pred >= 0) & (y_pred < n_classes)
+        for t, p in zip(y_true[valid], y_pred[valid]):
+            cm[t, p] += 1
+
+    support = cm.sum(axis=1)              # true count per class
+    pred_count = cm.sum(axis=0)           # predicted count per class
+    tp = np.diag(cm).astype(np.float64)
+
+    total = float(cm.sum())
+    accuracy = float(tp.sum() / total) if total > 0 else 0.0
+
+    # Per-class precision / recall / f1
+    per_class = {}
+    recalls = []
+    precisions = []
+    f1s = []
+    for c in range(n_classes):
+        rec = float(tp[c] / support[c]) if support[c] > 0 else 0.0
+        prec = float(tp[c] / pred_count[c]) if pred_count[c] > 0 else 0.0
+        f1 = (2 * prec * rec / (prec + rec)) if (prec + rec) > 0 else 0.0
+        name = CLASS_NAMES[c] if c < len(CLASS_NAMES) else str(c)
+        per_class[name] = {
+            "precision": prec,
+            "recall": rec,
+            "f1": float(f1),
+            "support": int(support[c]),
+        }
+        # Only count classes that actually appear in y_true for the macro averages
+        if support[c] > 0:
+            recalls.append(rec)
+            precisions.append(prec)
+            f1s.append(float(f1))
+
+    balanced_accuracy = float(np.mean(recalls)) if recalls else 0.0
+    precision_macro = float(np.mean(precisions)) if precisions else 0.0
+    recall_macro = float(np.mean(recalls)) if recalls else 0.0
+    f1_macro = float(np.mean(f1s)) if f1s else 0.0
+
+    # Matthews correlation coefficient (multi-class generalization)
+    # MCC = (c*s - sum_k p_k*t_k) / sqrt((s^2 - sum p_k^2)(s^2 - sum t_k^2))
+    c_correct = float(tp.sum())
+    s = total
+    p_k = pred_count.astype(np.float64)
+    t_k = support.astype(np.float64)
+    cov_ytyp = c_correct * s - float(np.dot(p_k, t_k))
+    denom_sq = (s * s - float(np.dot(p_k, p_k))) * (s * s - float(np.dot(t_k, t_k)))
+    mcc = float(cov_ytyp / np.sqrt(denom_sq)) if denom_sq > 0 else 0.0
+
+    # Baseline: "always predict the majority class".
+    # Majority class is taken as the neutral class if it is in fact the largest
+    # (it is, by construction of the 0.8% threshold); otherwise the true argmax.
+    majority_class = int(np.argmax(support)) if total > 0 else NEUTRAL_CLASS
+    base_acc = float(support[majority_class] / total) if total > 0 else 0.0
+    # A constant classifier gets recall=1 on the majority class, 0 on every other
+    # present class -> balanced accuracy = 1 / (#classes present).
+    n_present = int(np.sum(support > 0))
+    base_bal_acc = float(1.0 / n_present) if n_present > 0 else 0.0
+
+    return {
+        "n_samples": n,
+        # Raw accuracy retained for backward-compat but explicitly de-emphasized.
+        "accuracy": accuracy,
+        "accuracy_note": "RAW accuracy -- base-rate INFLATED by the dominant "
+                         "'neutral' class; NOT the headline metric. Use "
+                         "balanced_accuracy / macro_f1 / mcc instead.",
+        "balanced_accuracy": balanced_accuracy,
+        "macro_f1": f1_macro,
+        "macro_precision": precision_macro,
+        "macro_recall": recall_macro,
+        "mcc": mcc,
+        "confusion_matrix": cm.tolist(),
+        "confusion_matrix_labels": list(CLASS_NAMES[:n_classes]),
+        "support": support.tolist(),
+        "per_class": per_class,
+        "baseline_majority": {
+            "majority_class": majority_class,
+            "majority_class_name": CLASS_NAMES[majority_class]
+                                   if majority_class < len(CLASS_NAMES) else str(majority_class),
+            "accuracy": base_acc,
+            "balanced_accuracy": base_bal_acc,
+            "note": "Trivial 'always predict majority (neutral)' classifier, "
+                    "shown side-by-side so the model is judged against the base rate.",
+        },
+        "beats_baseline": bool(balanced_accuracy > base_bal_acc),
+        "accuracy_vs_baseline_delta": float(accuracy - base_acc),
+        "balanced_accuracy_vs_baseline_delta": float(balanced_accuracy - base_bal_acc),
+    }
+
+
+def _log_imbalanced_report(rep: dict, label: str, log=logger):
+    """Pretty-log an imbalance-aware report block."""
+    log.info(f"  [{label}] imbalance-aware metrics (n={rep['n_samples']}):")
+    log.info(f"    raw accuracy (INFLATED): {rep['accuracy']:.4f}  "
+             f"| majority-baseline acc: {rep['baseline_majority']['accuracy']:.4f}")
+    log.info(f"    balanced accuracy:       {rep['balanced_accuracy']:.4f}  "
+             f"| baseline bal-acc:      {rep['baseline_majority']['balanced_accuracy']:.4f}  "
+             f"| beats_baseline={rep['beats_baseline']}")
+    log.info(f"    macro-F1: {rep['macro_f1']:.4f}  |  MCC: {rep['mcc']:.4f}")
+    for name in CLASS_NAMES:
+        if name in rep["per_class"]:
+            pc = rep["per_class"][name]
+            log.info(f"    {name:>7}: P={pc['precision']:.3f} R={pc['recall']:.3f} "
+                     f"F1={pc['f1']:.3f} (support={pc['support']})")
+    log.info(f"    confusion matrix (rows=true {CLASS_NAMES}, cols=pred): {rep['confusion_matrix']}")
+
+
+# ---------------------------------------------------------------
 # MODEL ARCHITECTURE
 # ---------------------------------------------------------------
 
@@ -512,15 +656,34 @@ def train_model(
         "n_features": n_features,
     }
 
+    # -- Imbalance-aware classification report per horizon --
+    # The 0.8% move threshold makes "neutral" dominate, so raw accuracy is
+    # base-rate-inflated. Compute honest metrics from the confusion matrix.
+    test_predictions = model.predict(test_ds, verbose=0)
+    test_metrics["classification_report"] = {}
+
     for h in horizons:
         dir_key = f"dir_{h}h_accuracy"
         if dir_key in test_results:
+            # Kept for backward-compat, but flagged as inflated below.
             test_metrics[f"test_accuracy_{h}h"] = float(test_results[dir_key])
-            logger.info(f"  Test accuracy {h}h: {test_results[dir_key]:.4f}")
 
         mag_key = f"mag_{h}h_loss"
         if mag_key in test_results:
             test_metrics[f"test_mag_loss_{h}h"] = float(test_results[mag_key])
+
+        out_key = f"dir_{h}h"
+        if out_key in test_predictions:
+            y_pred_h = np.argmax(np.asarray(test_predictions[out_key]), axis=1)
+            y_true_h = np.asarray(y_test[out_key])
+            rep = classification_report_imbalanced(y_true_h, y_pred_h, n_classes=3)
+            test_metrics["classification_report"][f"{h}h"] = rep
+            # Surface the honest headline metrics as flat fields too.
+            test_metrics[f"test_balanced_accuracy_{h}h"] = rep["balanced_accuracy"]
+            test_metrics[f"test_macro_f1_{h}h"] = rep["macro_f1"]
+            test_metrics[f"test_mcc_{h}h"] = rep["mcc"]
+            test_metrics[f"baseline_accuracy_{h}h"] = rep["baseline_majority"]["accuracy"]
+            _log_imbalanced_report(rep, f"test {h}h")
 
     # -- Save model + artifacts --
     model_path = os.path.join(config.model_dir, f"{model_name}.keras")
@@ -714,12 +877,29 @@ def walk_forward_train(
                 test_ds = tf.data.Dataset.from_tensor_slices((X_test, y_test_dict))
                 test_ds = test_ds.batch(config.batch_size)
                 oos_results = model.evaluate(test_ds, return_dict=True, verbose=0)
+                oos_predictions = model.predict(test_ds, verbose=0)
 
                 fold_result = {"fold": fold_idx, "oos_loss": float(oos_results.get("loss", 0))}
                 for h in config.prediction_horizons:
                     acc_key = f"dir_{h}h_accuracy"
                     if acc_key in oos_results:
+                        # Raw accuracy kept for backward-compat (base-rate inflated).
                         fold_result[f"oos_accuracy_{h}h"] = float(oos_results[acc_key])
+
+                    out_key = f"dir_{h}h"
+                    if out_key in oos_predictions:
+                        y_pred_h = np.argmax(np.asarray(oos_predictions[out_key]), axis=1)
+                        rep = classification_report_imbalanced(
+                            y_dir_test[h], y_pred_h, n_classes=3,
+                        )
+                        # Honest, imbalance-aware OOS headline metrics + baseline.
+                        fold_result[f"oos_balanced_accuracy_{h}h"] = rep["balanced_accuracy"]
+                        fold_result[f"oos_macro_f1_{h}h"] = rep["macro_f1"]
+                        fold_result[f"oos_mcc_{h}h"] = rep["mcc"]
+                        fold_result[f"oos_baseline_accuracy_{h}h"] = \
+                            rep["baseline_majority"]["accuracy"]
+                        fold_result[f"oos_beats_baseline_{h}h"] = rep["beats_baseline"]
+                        _log_imbalanced_report(rep, f"fold{fold_idx} OOS {h}h")
 
                 fold_results.append(fold_result)
                 logger.info(f"  Fold {fold_idx} OOS: {fold_result}")
