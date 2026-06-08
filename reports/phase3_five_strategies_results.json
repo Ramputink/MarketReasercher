@@ -1,0 +1,249 @@
+{
+  "in_sample": {
+    "trend_ts": {
+      "cagr_pct": 95.96,
+      "total_ret_pct": 2343.45,
+      "sharpe": 1.302,
+      "sortino": 1.597,
+      "max_dd_pct": -74.27,
+      "calmar": 1.292,
+      "avg_exposure_pct": 62.1,
+      "days_in_market_pct": 85.4,
+      "n_days": 1734,
+      "per_year": {
+        "2019": 0.0,
+        "2020": 1.648,
+        "2021": 2.47,
+        "2022": -2.238,
+        "2023": 1.544,
+        "2024": 0.658
+      }
+    },
+    "rel_strength": {
+      "cagr_pct": 102.3,
+      "total_ret_pct": 2742.14,
+      "sharpe": 1.284,
+      "sortino": 1.661,
+      "max_dd_pct": -82.8,
+      "calmar": 1.235,
+      "avg_exposure_pct": 88.4,
+      "days_in_market_pct": 94.8,
+      "n_days": 1734,
+      "per_year": {
+        "2019": -0.432,
+        "2020": 2.325,
+        "2021": 2.722,
+        "2022": -1.292,
+        "2023": 1.895,
+        "2024": 0.441
+      }
+    },
+    "dip_in_uptrend": {
+      "cagr_pct": 23.18,
+      "total_ret_pct": 169.2,
+      "sharpe": 0.667,
+      "sortino": 0.686,
+      "max_dd_pct": -46.96,
+      "calmar": 0.493,
+      "avg_exposure_pct": 24.2,
+      "days_in_market_pct": 58.7,
+      "n_days": 1734,
+      "per_year": {
+        "2019": 0.0,
+        "2020": 0.076,
+        "2021": 1.954,
+        "2022": -1.438,
+        "2023": 0.402,
+        "2024": -0.588
+      }
+    },
+    "capitulation": {
+      "cagr_pct": 92.87,
+      "total_ret_pct": 2165.79,
+      "sharpe": 1.753,
+      "sortino": 1.557,
+      "max_dd_pct": -32.53,
+      "calmar": 2.855,
+      "avg_exposure_pct": 28.5,
+      "days_in_market_pct": 36.9,
+      "n_days": 1734,
+      "per_year": {
+        "2019": 0.0,
+        "2020": 1.606,
+        "2021": 3.62,
+        "2022": 0.712,
+        "2023": 0.834,
+        "2024": -0.006
+      }
+    },
+    "breakout": {
+      "cagr_pct": 147.45,
+      "total_ret_pct": 7301.2,
+      "sharpe": 1.817,
+      "sortino": 1.986,
+      "max_dd_pct": -55.56,
+      "calmar": 2.654,
+      "avg_exposure_pct": 43.1,
+      "days_in_market_pct": 74.9,
+      "n_days": 1734,
+      "per_year": {
+        "2019": 0.0,
+        "2020": 2.379,
+        "2021": 2.978,
+        "2022": -0.776,
+        "2023": 1.967,
+        "2024": 0.927
+      }
+    },
+    "ENSEMBLE_5": {
+      "cagr_pct": 98.19,
+      "total_ret_pct": 2478.14,
+      "sharpe": 1.568,
+      "sortino": 1.983,
+      "max_dd_pct": -48.67,
+      "calmar": 2.017,
+      "avg_exposure_pct": 20.0,
+      "days_in_market_pct": 100.0,
+      "n_days": 1734,
+      "per_year": {
+        "2019": -0.432,
+        "2020": 1.946,
+        "2021": 3.069,
+        "2022": -1.51,
+        "2023": 1.683,
+        "2024": 0.372
+      }
+    }
+  },
+  "lockbox_oos": {
+    "trend_ts": {
+      "cagr_pct": -1.36,
+      "total_ret_pct": -2.71,
+      "sharpe": 0.243,
+      "sortino": 0.304,
+      "max_dd_pct": -54.74,
+      "calmar": -0.025,
+      "avg_exposure_pct": 61.2,
+      "days_in_market_pct": 95.8,
+      "n_days": 731,
+      "per_year": {
+        "2024": 0.953,
+        "2025": -0.023,
+        "2026": -0.737
+      }
+    },
+    "rel_strength": {
+      "cagr_pct": -17.71,
+      "total_ret_pct": -32.32,
+      "sharpe": 0.049,
+      "sortino": 0.071,
+      "max_dd_pct": -69.48,
+      "calmar": -0.255,
+      "avg_exposure_pct": 99.9,
+      "days_in_market_pct": 99.9,
+      "n_days": 731,
+      "per_year": {
+        "2024": 1.222,
+        "2025": -0.099,
+        "2026": -1.511
+      }
+    },
+    "dip_in_uptrend": {
+      "cagr_pct": -27.18,
+      "total_ret_pct": -47.02,
+      "sharpe": -0.882,
+      "sortino": -0.805,
+      "max_dd_pct": -47.9,
+      "calmar": -0.567,
+      "avg_exposure_pct": 23.7,
+      "days_in_market_pct": 62.0,
+      "n_days": 731,
+      "per_year": {
+        "2024": -1.64,
+        "2025": -0.452,
+        "2026": -2.117
+      }
+    },
+    "capitulation": {
+      "cagr_pct": -2.14,
+      "total_ret_pct": -4.23,
+      "sharpe": 0.115,
+      "sortino": 0.092,
+      "max_dd_pct": -38.09,
+      "calmar": -0.056,
+      "avg_exposure_pct": 25.0,
+      "days_in_market_pct": 28.0,
+      "n_days": 731,
+      "per_year": {
+        "2024": 0.641,
+        "2025": -0.358,
+        "2026": 0.124
+      }
+    },
+    "breakout": {
+      "cagr_pct": 31.03,
+      "total_ret_pct": 71.81,
+      "sharpe": 0.856,
+      "sortino": 1.012,
+      "max_dd_pct": -37.49,
+      "calmar": 0.828,
+      "avg_exposure_pct": 39.6,
+      "days_in_market_pct": 85.5,
+      "n_days": 731,
+      "per_year": {
+        "2024": 1.772,
+        "2025": 0.588,
+        "2026": -1.129
+      }
+    },
+    "ENSEMBLE_5": {
+      "cagr_pct": -1.99,
+      "total_ret_pct": -3.94,
+      "sharpe": 0.148,
+      "sortino": 0.189,
+      "max_dd_pct": -44.78,
+      "calmar": -0.044,
+      "avg_exposure_pct": 20.0,
+      "days_in_market_pct": 100.0,
+      "n_days": 731,
+      "per_year": {
+        "2024": 0.975,
+        "2025": -0.072,
+        "2026": -1.495
+      }
+    }
+  },
+  "lockbox_buy_hold": {
+    "total_ret_pct": -46.06,
+    "max_dd_pct": -74.89
+  },
+  "max_positions": 10,
+  "note": "textbook params, no fitting; funding signal-only",
+  "recommended_ensemble_3_cash_gating": {
+    "sleeves": [
+      "trend_ts",
+      "breakout",
+      "capitulation"
+    ],
+    "selection_rule": "ex-ante structural: keep only sleeves with a CASH GATE; drop always-invested (rel_strength) and pure counter-trend (dip)",
+    "in_sample": {
+      "cagr_pct": 117.7,
+      "sharpe": 1.73,
+      "max_dd_pct": -45.0
+    },
+    "lockbox_oos": {
+      "cagr_pct": 10.2,
+      "sharpe": 0.45,
+      "max_dd_pct": -41.8,
+      "per_year": {
+        "2024": 1.197,
+        "2025": 0.085,
+        "2026": -0.801
+      }
+    },
+    "lockbox_buy_hold": {
+      "total_ret_pct": -46.06,
+      "max_dd_pct": -74.89
+    }
+  }
+}
