@@ -1,0 +1,77 @@
+{
+  "run_timestamp": "2026-06-08T01:25:36.187814+00:00",
+  "generations": 3,
+  "total_evaluated": 160,
+  "total_robust": 0,
+  "dsr_rejected": 160,
+  "hall_of_fame": [],
+  "promising_strategies": [
+    "chaos_trend",
+    "vol_regime_arb",
+    "dual_ma",
+    "kama_trend",
+    "keltner_breakout"
+  ],
+  "strategy_scores": {
+    "keltner_breakout": {
+      "count": 15,
+      "mean": -3.6221012690307086,
+      "max": -1.2587106146431457,
+      "positive_pct": 0.0
+    },
+    "dual_ma": {
+      "count": 21,
+      "mean": -4.20163683582031,
+      "max": -0.7556328694520846,
+      "positive_pct": 0.0
+    },
+    "chaos_trend": {
+      "count": 14,
+      "mean": -1.8744374503507166,
+      "max": 0.8355617591721206,
+      "positive_pct": 28.57142857142857
+    },
+    "trend_following": {
+      "count": 12,
+      "mean": -3.195457370062243,
+      "max": -1.480503058727214,
+      "positive_pct": 0.0
+    },
+    "vol_regime_arb": {
+      "count": 32,
+      "mean": -2.6474250112690787,
+      "max": -0.1359364445878376,
+      "positive_pct": 0.0
+    },
+    "fisher_transform": {
+      "count": 13,
+      "mean": -4.803568077160519,
+      "max": -1.7474274753104202,
+      "positive_pct": 0.0
+    },
+    "volatility_squeeze": {
+      "count": 12,
+      "mean": -3.2361810242392806,
+      "max": -1.573931711417203,
+      "positive_pct": 0.0
+    },
+    "ichimoku_kumo": {
+      "count": 10,
+      "mean": -2.9767982055571793,
+      "max": -1.4380721622780095,
+      "positive_pct": 0.0
+    },
+    "donchian_breakout": {
+      "count": 9,
+      "mean": -3.7612267555611205,
+      "max": -2.2711768026887933,
+      "positive_pct": 0.0
+    },
+    "kama_trend": {
+      "count": 22,
+      "mean": -3.4198609326948888,
+      "max": -1.0744296910450175,
+      "positive_pct": 0.0
+    }
+  }
+}

@@ -972,11 +972,14 @@ class EvolutionEngine:
                 seen.add(key)
                 seeds.append(Genome(strategy=strat, params=dict(params), generation=0))
         cap = int(self.pop_size * getattr(self.evo_config, "warm_start_max_frac", 0.5))
-        # Phase-3: the legacy Hall of Fame is SHORT-ERA (tuned with shorts on the
-        # old 365d window). Cap seeding hard so a fresh long-only search dominates;
-        # long-only Phase-3 survivors then repopulate the HoF organically.
+        # Phase-3: after iters 1-4 the per-strategy checkpoint is now LONG-ONLY
+        # (the legacy short-era genomes have been flushed by repeated long-only
+        # re-evaluation). Seed from ALL per-strategy bests so the search COMPOUNDS
+        # — refine the emerging gated candidates (dual_ma, kama_trend, keltner)
+        # instead of restarting cold each run. Seeds are still fitness-reset to
+        # -999 and re-evaluated long-only + macro-gated, so nothing stale is trusted.
         if PHASE3_LONG_ONLY:
-            cap = min(cap, 2)
+            cap = max(cap, len(candidates))   # carry every long-only per-strategy best
         if len(seeds) > cap:
             seeds = seeds[:cap]
         if seeds:
