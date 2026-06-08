@@ -64,6 +64,10 @@ logger = logging.getLogger("auto_evolve")
 # "spawn" multiprocessing re-import into each worker.
 PHASE3_LONG_ONLY = os.environ.get("PHASE3_LONG_ONLY", "1") == "1"
 PHASE3_FUNDING_BPS = 0.0 if PHASE3_LONG_ONLY else 1.0
+# Macro risk-off gate (iter4): block NEW long entries while price is below its
+# multi-week macro trend (feature `macro_bullish`). "Capture uptrends, sit in
+# cash during downtrends" — the central long-only thesis. Toggle to compare.
+PHASE3_MACRO_GATE = os.environ.get("PHASE3_MACRO_GATE", "0") == "1"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -536,6 +540,12 @@ def evaluate_genome(args_tuple):
             # entry signal. A short signal against an open long still returns and
             # routes to signal_exit (close to cash) — long-or-cash only.
             if PHASE3_LONG_ONLY and sig is not None and getattr(sig, "side", None) != "long" and p is None:
+                return None
+            # Macro risk-off gate: refuse a NEW long entry while macro trend is
+            # down. Only gates entries (p is None); never blocks an exit.
+            if (PHASE3_MACRO_GATE and sig is not None and p is None
+                    and getattr(sig, "side", None) == "long"
+                    and i < len(d) and float(d.iloc[i].get("macro_bullish", 1.0)) < 0.5):
                 return None
             return sig
 

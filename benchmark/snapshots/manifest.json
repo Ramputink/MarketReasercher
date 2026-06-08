@@ -5,40 +5,40 @@
   "symbols": {
     "XRP/USDT": {
       "path": "XRPUSDT_1h.parquet",
-      "sha256": "91f584295550c630be483ebf75864dd6310b96fe37a95ec954cf6858e0f05397",
+      "sha256": "a2be49f99f1f50a335f3f97b6b6f3e2f54a547ead63e436adadc7f4c3a7a502a",
       "n_bars": 62346,
-      "first_ts": 1556233200000,
-      "last_ts": 1780869600000
+      "first_ts": 1556236800000,
+      "last_ts": 1780873200000
     },
     "BTC/USDT": {
       "path": "BTCUSDT_1h.parquet",
-      "sha256": "2fa4d28a9ca08a9ee2f2ae54ed8100ce5ce206b51cb629a3a869577a95aa5cd0",
+      "sha256": "3195b4ec9e37f386e1787415040edd1c87a463ea1062e94f5a1b53283909e853",
       "n_bars": 62346,
-      "first_ts": 1556233200000,
-      "last_ts": 1780869600000
+      "first_ts": 1556236800000,
+      "last_ts": 1780873200000
     },
     "ETH/USDT": {
       "path": "ETHUSDT_1h.parquet",
-      "sha256": "7cad7b4a508449fbeaf99fd9352b1f6a69f012eeeb7534877a49570f718869fe",
+      "sha256": "a9b6d84fb8c9a557eff5a76dba7db032afcb94a61288c8d6bf54900b6b801e64",
       "n_bars": 62346,
-      "first_ts": 1556233200000,
-      "last_ts": 1780869600000
+      "first_ts": 1556236800000,
+      "last_ts": 1780873200000
     },
     "SOL/USDT": {
       "path": "SOLUSDT_1h.parquet",
-      "sha256": "27ce3a18d0879571ea17b5b4beb3fafb2a62bf9b4a2b91b95f2603bcf7e6f9c4",
-      "n_bars": 51021,
+      "sha256": "fa7795d399755136e571c4cfe1d6de1ceb802b74e2ecfde46929636fead59c4e",
+      "n_bars": 51022,
       "first_ts": 1597125600000,
-      "last_ts": 1780869600000
+      "last_ts": 1780873200000
     },
     "ADA/USDT": {
       "path": "ADAUSDT_1h.parquet",
-      "sha256": "67f4f45ea3d7a39c88294735a65139ce4c4b11a5eb642ba6ee933bc1eabdb4c5",
+      "sha256": "e0ccd7b9913bc436dbfbb7be437bba25e0a42632a9fa991112f27f7390ed4f74",
       "n_bars": 62346,
-      "first_ts": 1556233200000,
-      "last_ts": 1780869600000
+      "first_ts": 1556236800000,
+      "last_ts": 1780873200000
     }
   },
-  "lockbox_cutoff_ts": 1717797600000,
-  "built_at": "2026-06-07T22:23:49.888325+00:00"
+  "lockbox_cutoff_ts": 1717801200000,
+  "built_at": "2026-06-07T23:53:07.643604+00:00"
 }

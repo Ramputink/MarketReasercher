@@ -345,4 +345,18 @@ def build_all_features(
     for col in micro.columns:
         result[col] = micro[col]
 
+    # ── Macro trend (Phase-3 long-only risk-off gate) ──────────────────────
+    # The short BMSB above is ~20-bar (~20h on 1h). For a long-or-cash regime
+    # filter we need a MACRO trend: an asset is "risk-on" only while price is
+    # above its multi-week trend. Causal (ewm), no look-ahead.
+    close = df["close"]
+    ema_200 = close.ewm(span=200, adjust=False).mean()
+    ema_480 = close.ewm(span=480, adjust=False).mean()
+    result["ema_200"] = ema_200
+    result["macro_ema_480"] = ema_480
+    result["macro_bullish"] = (close > ema_200).astype(float)           # ~8d trend
+    result["bmsb_macro_bullish"] = (close > ema_480).astype(float)      # ~20d trend
+    # slope sign of the macro EMA (rising trend) — extra confirmation
+    result["macro_trend_up"] = (ema_200 > ema_200.shift(24)).astype(float)
+
     return result
