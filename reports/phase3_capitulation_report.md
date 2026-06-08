@@ -27,3 +27,21 @@
 The funding/capitulation signal is the **only long-only idea in the project that beat buy-and-hold OOS and was positive in most years** — it is real. But within a strict spot-long-only mandate it is a *defensive/relative* edge, not an absolute money-maker, because no long-only system profits while its universe drops 46%. The path to absolute profitability runs through either a far more aggressive cash-gate or the (excluded) short side.
 
 Artifacts: `reports/phase3_capitulation_lockbox_results.json`, `reports/phase3_capitulation_equity.csv`, `phase3_capitulation.py`.
+
+---
+
+## Path 1 addendum — aggressive regime cash-gate (v2, lockbox read #2)
+
+Signal fixed at v1's best; only a hard market-regime cash-gate (BTC>150d MA AND breadth≥0.5 else 100% cash) calibrated on in-sample. **This is the 2nd sealed-lockbox read — selection risk is higher; reported honestly.**
+
+| | v1 | **v2 (hard gate)** | Buy&hold |
+|---|---|---|---|
+| OOS total return | −15.3% | **−6.6%** | −46.1% |
+| Time in market | 69% | **28%** | 100% |
+| OOS Sharpe | 0.075 | 0.072 | −0.08 |
+| Per-year Sharpe | — | 2024 **+0.86**, 2025 −0.43, 2026 −0.98 | — |
+| In-sample Sharpe | 1.76 | 1.66 | — |
+
+**Finding:** the hard cash-gate roughly halved the loss (−15%→−6.6%) while sitting in cash 72% of the time, but stayed net-negative. Even minimal exposure catches falling knives in a sustained bear (funding goes extreme-negative repeatedly as price keeps dropping; bounces fail). **The long-only ceiling is confirmed: no long-only configuration is net-profitable through a −46% universe collapse.** However the strategy is strongly positive in normal/bull regimes (in-sample Sharpe 1.66; OOS 2024 Sharpe +0.86) — it is the specific 2024-26 bear that breaks it.
+
+**Stopping here:** the lockbox has now been read twice; further tuning against it would be p-hacking. The honest conclusion is reached.

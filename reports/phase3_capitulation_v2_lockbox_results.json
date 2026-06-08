@@ -1,0 +1,47 @@
+{
+  "strategy": "spot_longonly_buy_capitulation_v2_regime_gate",
+  "signal": {
+    "funding_lookback": 7,
+    "z_thresh": 1.0,
+    "confirm_ma": 5,
+    "risk_ma": 50,
+    "hold_days": 10,
+    "max_positions": 10
+  },
+  "regime_gate": {
+    "btc_ma": 150,
+    "breadth_thresh": 0.5
+  },
+  "lockbox_read_number": 2,
+  "in_sample": {
+    "cagr_pct": 78.72,
+    "total_ret_pct": 1477.54,
+    "sharpe": 1.661,
+    "sortino": 1.452,
+    "max_dd_pct": -26.88,
+    "calmar": 2.929,
+    "avg_exposure_pct": 25.8,
+    "days_in_market_pct": 34.8,
+    "n_days": 1734
+  },
+  "lockbox_oos": {
+    "cagr_pct": -3.34,
+    "total_ret_pct": -6.57,
+    "sharpe": 0.072,
+    "sortino": 0.058,
+    "max_dd_pct": -44.71,
+    "calmar": -0.075,
+    "avg_exposure_pct": 23.5,
+    "days_in_market_pct": 27.9,
+    "n_days": 731
+  },
+  "lockbox_per_year": {
+    "2024": 0.863,
+    "2025": -0.434,
+    "2026": -0.98
+  },
+  "lockbox_buy_hold_basket": {
+    "total_ret_pct": -46.06,
+    "max_dd_pct": -74.89
+  }
+}
