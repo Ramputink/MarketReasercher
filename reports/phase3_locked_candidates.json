@@ -1,0 +1,63 @@
+{
+  "phase": "phase3_long_only",
+  "frozen": true,
+  "no_more_tuning": true,
+  "spec_version": "3.0.0-p3",
+  "lockbox_cutoff_ts": null,
+  "gates": {
+    "long_only": true,
+    "macro_risk_off_gate": true,
+    "funding_bps": 0.0
+  },
+  "candidates": [
+    {
+      "strategy": "keltner_breakout",
+      "params": {
+        "ema_period": 19,
+        "atr_mult": 3.4916,
+        "rsi_long_min": 49.7018,
+        "rsi_short_max": 42.234,
+        "adx_min": 23.8517,
+        "volume_threshold": 1.8206,
+        "stop_loss_atr_mult": 3.5311,
+        "take_profit_atr_mult": 4.5311
+      },
+      "in_sample": {
+        "sharpe": 0.6360374833044439,
+        "wf_sharpe": 0.1561872240685072,
+        "trades": 63,
+        "max_dd": 4.776838350835759,
+        "pf": 1.5776407777842314,
+        "cross_asset_median_sharpe": 0.4002218547956592,
+        "cross_asset_profitable": 4
+      },
+      "tier": "primary",
+      "note": "passed in-sample pre-screen (63 trades, survives 2x costs, 4/4 cross-asset profitable)"
+    },
+    {
+      "strategy": "kama_trend",
+      "params": {
+        "er_period": 16,
+        "fast_sc": 4,
+        "slow_sc": 32,
+        "signal_period": 5,
+        "slope_threshold_pct": 0.1242,
+        "adx_min": 19.289,
+        "stop_loss_atr_mult": 2.9033,
+        "take_profit_atr_mult": 3.0842
+      },
+      "in_sample": {
+        "sharpe": 0.31865512395589424,
+        "wf_sharpe": 0.4591525316139251,
+        "trades": 26,
+        "max_dd": 4.033295042104848,
+        "pf": 1.5786077759366248,
+        "cross_asset_median_sharpe": 0.18795051178487437,
+        "cross_asset_profitable": 3
+      },
+      "tier": "exploratory",
+      "note": "strong WF (+0.46) & low DD but only 26 in-sample trades (<40) \u2014 reported for transparency, NOT a formal candidate"
+    }
+  ],
+  "lockbox_consumed": false
+}
