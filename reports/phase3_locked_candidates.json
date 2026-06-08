@@ -59,5 +59,6 @@
       "note": "strong WF (+0.46) & low DD but only 26 in-sample trades (<40) \u2014 reported for transparency, NOT a formal candidate"
     }
   ],
-  "lockbox_consumed": false
+  "lockbox_consumed": true,
+  "consumed_at": "2026-06-08"
 }

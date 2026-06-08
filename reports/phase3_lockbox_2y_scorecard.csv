@@ -1,0 +1,3 @@
+strategy,tier,verdict,trades,cagr_pct,sharpe,max_dd_pct,calmar,hit_rate,stress_pnl,xasset_median_sharpe,p_profit,acc_passed
+keltner_breakout,primary,REJECT,33,0.5,0.184,-3.69,0.136,45.5,-122.6,-0.134,0.594,5/9
+kama_trend,exploratory,EXPLORATORY,10,0.92,0.436,-2.51,0.368,40.0,108.46,-0.212,0.72,6/9

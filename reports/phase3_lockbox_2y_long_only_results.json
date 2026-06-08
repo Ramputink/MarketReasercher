@@ -1,0 +1,157 @@
+{
+  "spec_version": "3.0.0-p3",
+  "spec_fingerprint": "20ac255e524c4b63",
+  "lockbox_cutoff_ts": 1717801200000,
+  "primary": "XRP/USDT",
+  "lockbox_span": [
+    "2024-06-07T23:00:00+00:00",
+    "2026-06-07T23:00:00+00:00"
+  ],
+  "buy_hold": {
+    "bh_total_ret_pct": 131.48,
+    "bh_max_dd_pct": -71.04
+  },
+  "candidates": [
+    {
+      "strategy": "keltner_breakout",
+      "tier": "primary",
+      "verdict": "REJECT",
+      "oos": {
+        "trades": 33,
+        "cagr_pct": 0.5,
+        "total_ret_pct": 1.0,
+        "sharpe": 0.184,
+        "sortino": 0.048,
+        "max_dd_pct": -3.69,
+        "calmar": 0.136,
+        "hit_rate": 45.5,
+        "exposure_pct": 3.9,
+        "avg_trade": 3.04,
+        "net_pnl": 100.3,
+        "sharpe_per_trade": 0.039
+      },
+      "oos_cost_stress_2x": {
+        "trades": 33,
+        "cagr_pct": 0.5,
+        "total_ret_pct": 1.0,
+        "sharpe": 0.184,
+        "sortino": 0.048,
+        "max_dd_pct": -3.69,
+        "calmar": 0.136,
+        "hit_rate": 45.5,
+        "exposure_pct": 3.9,
+        "avg_trade": -3.72,
+        "net_pnl": -122.6,
+        "sharpe_per_trade": -0.048
+      },
+      "per_year": {
+        "2024": 0.054,
+        "2025": 0.004,
+        "2026": 0.09
+      },
+      "per_regime_pnl_share": {
+        "exogenous_shock": -2.509,
+        "mean_reversion": -0.148,
+        "trend": 3.657
+      },
+      "bootstrap": {
+        "p_profit": 0.594,
+        "p5_total_pnl": -655.1,
+        "median_total_pnl": 103.7
+      },
+      "cross_asset_oos_sharpe": {
+        "BTC/USDT": -1.147,
+        "ETH/USDT": 0.273,
+        "SOL/USDT": -0.15,
+        "ADA/USDT": -0.119
+      },
+      "buy_hold": {
+        "bh_total_ret_pct": 131.48,
+        "bh_max_dd_pct": -71.04
+      },
+      "acceptance": {
+        "long_only": true,
+        "positive_oos": "True",
+        "acceptable_maxdd": "True",
+        "survives_stress": false,
+        "enough_trades": false,
+        "not_single_asset": "False",
+        "not_single_year": true,
+        "no_single_trade_dominates": false,
+        "beats_buy_hold_riskadj": "True"
+      },
+      "acceptance_passed": 5,
+      "acceptance_total": 9
+    },
+    {
+      "strategy": "kama_trend",
+      "tier": "exploratory",
+      "verdict": "EXPLORATORY",
+      "oos": {
+        "trades": 10,
+        "cagr_pct": 0.92,
+        "total_ret_pct": 1.85,
+        "sharpe": 0.436,
+        "sortino": 0.084,
+        "max_dd_pct": -2.51,
+        "calmar": 0.368,
+        "hit_rate": 40.0,
+        "exposure_pct": 1.8,
+        "avg_trade": 18.5,
+        "net_pnl": 185.02,
+        "sharpe_per_trade": 0.198
+      },
+      "oos_cost_stress_2x": {
+        "trades": 10,
+        "cagr_pct": 0.92,
+        "total_ret_pct": 1.85,
+        "sharpe": 0.436,
+        "sortino": 0.084,
+        "max_dd_pct": -2.51,
+        "calmar": 0.368,
+        "hit_rate": 40.0,
+        "exposure_pct": 1.8,
+        "avg_trade": 10.85,
+        "net_pnl": 108.46,
+        "sharpe_per_trade": 0.117
+      },
+      "per_year": {
+        "2024": 0.378,
+        "2025": -0.107,
+        "2026": 0.0
+      },
+      "per_regime_pnl_share": {
+        "breakout": -0.205,
+        "trend": 1.205
+      },
+      "bootstrap": {
+        "p_profit": 0.72,
+        "p5_total_pnl": -224.5,
+        "median_total_pnl": 166.1
+      },
+      "cross_asset_oos_sharpe": {
+        "BTC/USDT": 0.479,
+        "ETH/USDT": -0.388,
+        "SOL/USDT": -0.76,
+        "ADA/USDT": -0.036
+      },
+      "buy_hold": {
+        "bh_total_ret_pct": 131.48,
+        "bh_max_dd_pct": -71.04
+      },
+      "acceptance": {
+        "long_only": true,
+        "positive_oos": "True",
+        "acceptable_maxdd": "True",
+        "survives_stress": true,
+        "enough_trades": false,
+        "not_single_asset": "False",
+        "not_single_year": true,
+        "no_single_trade_dominates": false,
+        "beats_buy_hold_riskadj": "True"
+      },
+      "acceptance_passed": 6,
+      "acceptance_total": 9
+    }
+  ]
+}
