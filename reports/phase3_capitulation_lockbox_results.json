@@ -1,0 +1,47 @@
+{
+  "strategy": "spot_longonly_buy_capitulation",
+  "config": {
+    "funding_lookback": 7,
+    "z_thresh": 1.0,
+    "confirm_ma": 5,
+    "risk_ma": 50,
+    "hold_days": 10,
+    "max_positions": 10
+  },
+  "in_sample": {
+    "cagr_pct": 111.9,
+    "total_ret_pct": 3442.68,
+    "sharpe": 1.757,
+    "sortino": 1.902,
+    "max_dd_pct": -40.82,
+    "calmar": 2.741,
+    "avg_exposure_pct": 41.9,
+    "days_in_market_pct": 62.1,
+    "n_days": 1734
+  },
+  "lockbox_oos": {
+    "cagr_pct": -7.94,
+    "total_ret_pct": -15.26,
+    "sharpe": 0.075,
+    "sortino": 0.086,
+    "max_dd_pct": -43.47,
+    "calmar": -0.183,
+    "avg_exposure_pct": 53.6,
+    "days_in_market_pct": 68.9,
+    "n_days": 731
+  },
+  "lockbox_per_year": {
+    "2024": 0.46,
+    "2025": 0.236,
+    "2026": -1.16
+  },
+  "lockbox_buy_hold_basket": {
+    "total_ret_pct": -46.06,
+    "max_dd_pct": -74.89,
+    "sharpe": -0.078
+  },
+  "lockbox_span": [
+    "2024-06-07",
+    "2026-06-07"
+  ]
+}
