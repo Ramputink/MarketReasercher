@@ -1,0 +1,365 @@
+{
+  "spec_version": "3.0.0-p3",
+  "spec_fingerprint": "20ac255e524c4b63",
+  "lockbox_cutoff_ts": 1717801200000,
+  "min_trades": 40,
+  "macro_gate": true,
+  "long_only": true,
+  "n_passed": 1,
+  "frozen_candidates": [
+    {
+      "strategy": "keltner_breakout",
+      "params": {
+        "ema_period": 19,
+        "atr_mult": 3.4916,
+        "rsi_long_min": 49.7018,
+        "rsi_short_max": 42.234,
+        "adx_min": 23.8517,
+        "volume_threshold": 1.8206,
+        "stop_loss_atr_mult": 3.5311,
+        "take_profit_atr_mult": 4.5311
+      },
+      "in_sample": {
+        "trades": 63,
+        "sharpe": 0.173,
+        "sharpe_cost_stress_2x": 0.098,
+        "max_dd_pct": -4.78,
+        "wf_sharpe": 0.1561872240685072,
+        "cross_asset_median_sharpe": 0.4002218547956592,
+        "cross_asset_profitable": 4,
+        "yearly_sharpe": {
+          "2019": 0.63,
+          "2020": 0.215,
+          "2021": 0.363,
+          "2022": 0.238,
+          "2023": -0.287,
+          "2024": 0.0
+        },
+        "neg_years": 1
+      },
+      "passed_prescreen": true
+    }
+  ],
+  "all_evaluated": [
+    {
+      "strategy": "keltner_breakout",
+      "params": {
+        "ema_period": 19,
+        "atr_mult": 3.4916,
+        "rsi_long_min": 49.7018,
+        "rsi_short_max": 42.234,
+        "adx_min": 23.8517,
+        "volume_threshold": 1.8206,
+        "stop_loss_atr_mult": 3.5311,
+        "take_profit_atr_mult": 4.5311
+      },
+      "in_sample": {
+        "trades": 63,
+        "sharpe": 0.173,
+        "sharpe_cost_stress_2x": 0.098,
+        "max_dd_pct": -4.78,
+        "wf_sharpe": 0.1561872240685072,
+        "cross_asset_median_sharpe": 0.4002218547956592,
+        "cross_asset_profitable": 4,
+        "yearly_sharpe": {
+          "2019": 0.63,
+          "2020": 0.215,
+          "2021": 0.363,
+          "2022": 0.238,
+          "2023": -0.287,
+          "2024": 0.0
+        },
+        "neg_years": 1
+      },
+      "passed_prescreen": true
+    },
+    {
+      "strategy": "volatility_squeeze",
+      "params": {
+        "keltner_atr_mult": 2.4501,
+        "squeeze_min_bars": 3,
+        "momentum_lookback": 6,
+        "volume_surge_threshold": 1.1136,
+        "stop_loss_atr_mult": 1.8162,
+        "take_profit_atr_mult": 5.587
+      },
+      "in_sample": {
+        "trades": 8,
+        "sharpe": 0.565,
+        "sharpe_cost_stress_2x": 0.431,
+        "max_dd_pct": -0.95,
+        "wf_sharpe": 0.11245023120863888,
+        "cross_asset_median_sharpe": 0.36852903361532785,
+        "cross_asset_profitable": 4,
+        "yearly_sharpe": {
+          "2019": 0.339,
+          "2020": -2.169,
+          "2022": 1.242,
+          "2023": 1.665
+        },
+        "neg_years": 1
+      },
+      "passed_prescreen": false
+    },
+    {
+      "strategy": "kama_trend",
+      "params": {
+        "er_period": 16,
+        "fast_sc": 4,
+        "slow_sc": 32,
+        "signal_period": 5,
+        "slope_threshold_pct": 0.1242,
+        "adx_min": 19.289,
+        "stop_loss_atr_mult": 2.9033,
+        "take_profit_atr_mult": 3.0842
+      },
+      "in_sample": {
+        "trades": 26,
+        "sharpe": 0.177,
+        "sharpe_cost_stress_2x": 0.071,
+        "max_dd_pct": -4.03,
+        "wf_sharpe": 0.4591525316139251,
+        "cross_asset_median_sharpe": 0.18795051178487437,
+        "cross_asset_profitable": 3,
+        "yearly_sharpe": {
+          "2019": 0.0,
+          "2020": 0.44,
+          "2021": 0.024,
+          "2022": 0.124,
+          "2023": 0.608,
+          "2024": 0.494
+        },
+        "neg_years": 0
+      },
+      "passed_prescreen": false
+    },
+    {
+      "strategy": "chaos_trend",
+      "params": {
+        "hurst_window": 100,
+        "hurst_min": 0.6509,
+        "hurst_max": 0.859,
+        "ema_fast": 9,
+        "ema_slow": 38,
+        "adx_min": 29.7647,
+        "momentum_period": 8,
+        "volume_threshold": 1.7435,
+        "use_fractal_filter": false,
+        "fractal_max": 1.35,
+        "stop_loss_atr_mult": 2.5028,
+        "take_profit_atr_mult": 3.9239
+      },
+      "in_sample": {
+        "trades": 152,
+        "sharpe": 0.1,
+        "sharpe_cost_stress_2x": 0.031,
+        "max_dd_pct": -7.33,
+        "wf_sharpe": -0.5341106709765744,
+        "cross_asset_median_sharpe": 0.07761525325605263,
+        "cross_asset_profitable": 3,
+        "yearly_sharpe": {
+          "2019": -0.089,
+          "2020": 0.33,
+          "2021": 0.182,
+          "2022": -0.068,
+          "2023": -0.127,
+          "2024": -0.372
+        },
+        "neg_years": 4
+      },
+      "passed_prescreen": false
+    },
+    {
+      "strategy": "trend_following",
+      "params": {
+        "adx_threshold": 27.7704,
+        "fib_zone_tolerance_pct": 1.9986,
+        "stop_loss_atr_mult": 4.8321,
+        "take_profit_atr_mult": 5.3321,
+        "min_volume_ratio": 1.3107,
+        "rsi_lower_bound": 39,
+        "rsi_upper_bound": 63
+      },
+      "in_sample": {
+        "trades": 171,
+        "sharpe": 0.044,
+        "sharpe_cost_stress_2x": -0.035,
+        "max_dd_pct": -10.98,
+        "wf_sharpe": -0.5701357419784788,
+        "cross_asset_median_sharpe": 0.0868610453991763,
+        "cross_asset_profitable": 2,
+        "yearly_sharpe": {
+          "2019": 0.164,
+          "2020": -0.037,
+          "2021": 0.064
+        },
+        "neg_years": 1
+      },
+      "passed_prescreen": false
+    },
+    {
+      "strategy": "vol_regime_arb",
+      "params": {
+        "gk_fast_period": 5,
+        "gk_slow_period": 64,
+        "gk_baseline_period": 60,
+        "expansion_zscore_threshold": -1.6727,
+        "expansion_min_bars_compressed": 5,
+        "expansion_momentum_period": 10,
+        "expansion_adx_min": 28.0,
+        "contraction_zscore_threshold": 2.2996,
+        "contraction_rsi_oversold": 39.7348,
+        "contraction_rsi_overbought": 67.5926,
+        "enable_contraction_mode": true,
+        "volume_threshold": 1.5811,
+        "stop_loss_atr_mult": 3.6924,
+        "take_profit_atr_mult": 7.0
+      },
+      "in_sample": {
+        "trades": 27,
+        "sharpe": 0.029,
+        "sharpe_cost_stress_2x": -0.065,
+        "max_dd_pct": -3.08,
+        "wf_sharpe": 0.005269103303191542,
+        "cross_asset_median_sharpe": 0.1725699469209696,
+        "cross_asset_profitable": 3,
+        "yearly_sharpe": {
+          "2019": -1.059,
+          "2020": 0.607,
+          "2021": 0.044,
+          "2022": 0.651,
+          "2023": 0.142,
+          "2024": 0.32
+        },
+        "neg_years": 1
+      },
+      "passed_prescreen": false
+    },
+    {
+      "strategy": "donchian_breakout",
+      "params": {
+        "entry_period": 39,
+        "exit_period": 11,
+        "volume_surge_threshold": 2.1655,
+        "adx_min": 27.5269,
+        "atr_filter_mult": 1.2439,
+        "use_volatility_filter": false,
+        "stop_loss_atr_mult": 4.5653,
+        "take_profit_atr_mult": 4.8779
+      },
+      "in_sample": {
+        "trades": 203,
+        "sharpe": -0.001,
+        "sharpe_cost_stress_2x": -0.047,
+        "max_dd_pct": -11.07,
+        "wf_sharpe": -0.7340396946636667,
+        "cross_asset_median_sharpe": 0.7374973611657883,
+        "cross_asset_profitable": 4,
+        "yearly_sharpe": {
+          "2019": -0.033,
+          "2020": 0.05,
+          "2021": 0.114,
+          "2022": -0.018,
+          "2023": -0.214,
+          "2024": -0.564
+        },
+        "neg_years": 4
+      },
+      "passed_prescreen": false
+    },
+    {
+      "strategy": "dual_ma",
+      "params": {
+        "fast_period": 7,
+        "slow_period": 22,
+        "signal_type": "ema",
+        "require_adx": false,
+        "adx_min": 25.3547,
+        "require_volume": false,
+        "volume_threshold": 1.8715,
+        "stop_loss_atr_mult": 3.3565,
+        "take_profit_atr_mult": 7.451
+      },
+      "in_sample": {
+        "trades": 274,
+        "sharpe": -0.012,
+        "sharpe_cost_stress_2x": -0.11,
+        "max_dd_pct": -10.16,
+        "wf_sharpe": -0.5952788279651657,
+        "cross_asset_median_sharpe": 0.7621161500753192,
+        "cross_asset_profitable": 3,
+        "yearly_sharpe": {
+          "2019": -0.255,
+          "2020": 0.025,
+          "2021": 0.066,
+          "2022": -0.143,
+          "2023": -0.043,
+          "2024": 0.175
+        },
+        "neg_years": 3
+      },
+      "passed_prescreen": false
+    },
+    {
+      "strategy": "fisher_transform",
+      "params": {
+        "period": 13,
+        "signal_threshold": 1.297,
+        "require_divergence": false,
+        "divergence_lookback": 10,
+        "adx_filter": true,
+        "adx_max": 39.1509,
+        "stop_loss_atr_mult": 1.7611,
+        "take_profit_atr_mult": 4.3138
+      },
+      "in_sample": {
+        "trades": 127,
+        "sharpe": -0.044,
+        "sharpe_cost_stress_2x": -0.185,
+        "max_dd_pct": -6.36,
+        "wf_sharpe": -0.4507608946885359,
+        "cross_asset_median_sharpe": -0.238606637009312,
+        "cross_asset_profitable": 0,
+        "yearly_sharpe": {
+          "2019": -0.355,
+          "2020": 0.032,
+          "2021": 0.101,
+          "2022": 0.214,
+          "2023": -0.252,
+          "2024": -1.023
+        },
+        "neg_years": 3
+      },
+      "passed_prescreen": false
+    },
+    {
+      "strategy": "ichimoku_kumo",
+      "params": {
+        "tenkan_period": 8,
+        "kijun_period": 20,
+        "senkou_b_period": 51,
+        "displacement": 24,
+        "require_chikou_confirm": false,
+        "require_tk_cross": false,
+        "adx_min": 23.9303,
+        "stop_loss_atr_mult": 4.788,
+        "take_profit_atr_mult": 6.0922
+      },
+      "in_sample": {
+        "trades": 72,
+        "sharpe": -0.19,
+        "sharpe_cost_stress_2x": -0.221,
+        "max_dd_pct": -10.86,
+        "wf_sharpe": -0.7323796800973479,
+        "cross_asset_median_sharpe": 0.42166712426920505,
+        "cross_asset_profitable": 3,
+        "yearly_sharpe": {
+          "2019": -0.221,
+          "2020": -0.167
+        },
+        "neg_years": 2
+      },
+      "passed_prescreen": false
+    }
+  ]
+}
