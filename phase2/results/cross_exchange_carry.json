@@ -1,0 +1,76 @@
+{
+  "reference_and_venues": [
+    {
+      "exchange": "binanceusdm",
+      "panel": {
+        "start": "2019-09-08",
+        "end": "2026-06-07"
+      },
+      "in_sample": {
+        "window": "is",
+        "n": 248,
+        "ret_pct": 290.84,
+        "turnover": 0.926,
+        "funding_share_pct": 65.17,
+        "ruined": false,
+        "sharpe": 0.1578,
+        "tstat": 2.484
+      },
+      "lockbox": {
+        "window": "lockbox",
+        "n": 105,
+        "ret_pct": 93.03,
+        "turnover": 1.024,
+        "funding_share_pct": 19.81,
+        "ruined": false,
+        "sharpe": 0.2053,
+        "tstat": 2.104,
+        "dsr": 0.9669,
+        "certified": true
+      }
+    },
+    {
+      "exchange": "bybit",
+      "config": {
+        "family": "carry",
+        "k": 4,
+        "rebalance_every": 7,
+        "long_only": false,
+        "dollar_neutral": true,
+        "weight_mode": "equal",
+        "gross": 1.0,
+        "vol_lookback": 20,
+        "carry_lookback": 7
+      },
+      "panel": {
+        "start": "2020-03-25",
+        "end": "2026-06-15",
+        "n_dates": 2274,
+        "n_assets": 30,
+        "lockbox_cutoff": "2024-06-07"
+      },
+      "in_sample": {
+        "window": "is",
+        "n": 220,
+        "ret_pct": 116.48,
+        "turnover": 0.707,
+        "funding_share_pct": 38.94,
+        "ruined": false,
+        "sharpe": 0.14,
+        "tstat": 2.077
+      },
+      "lockbox": {
+        "window": "lockbox",
+        "n": 106,
+        "ret_pct": -36.28,
+        "turnover": 1.035,
+        "funding_share_pct": 13.74,
+        "ruined": false,
+        "sharpe": -0.1113,
+        "tstat": -1.146,
+        "dsr": 0.0432,
+        "certified": false
+      }
+    }
+  ]
+}
