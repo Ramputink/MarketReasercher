@@ -1,0 +1,37 @@
+{
+  "registered_date": "2026-06-15",
+  "forward_start": "2026-06-07",
+  "exchange": "binanceusdm",
+  "configs": {
+    "carry_mn": {
+      "type": "carry_market_neutral",
+      "family": "carry",
+      "carry_lookback": 7,
+      "k": 4,
+      "rebalance_every": 7,
+      "long_only": false,
+      "dollar_neutral": true,
+      "weight_mode": "equal",
+      "gross": 1.0,
+      "vol_lookback": 20
+    },
+    "phase3_ensemble_overlay": {
+      "type": "spot_longonly_ensemble_overlay",
+      "sleeves": [
+        "trend_ts",
+        "breakout",
+        "capitulation"
+      ],
+      "max_positions": 10,
+      "overlay": {
+        "target_vol_ann": 0.15,
+        "vol_lookback": 20,
+        "dd_trigger": -0.2,
+        "dd_reentry": -0.1,
+        "risk_floor": 0.25
+      }
+    }
+  },
+  "hash": "2add33a3f602c95d7340607f54d65d5152bc520c35ca7f700fb462e657490f35",
+  "protocol": "Score each config ONLY on data strictly after forward_start. Never re-fit. Append every run to forward_log.jsonl. The forward Sharpe/return accumulate as a true out-of-sample track record."
+}

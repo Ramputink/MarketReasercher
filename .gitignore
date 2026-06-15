@@ -62,3 +62,6 @@ phase2/snapshots/*.parquet
 # Phase-3: benchmark snapshot parquet is now multi-year (~148MB). Too large to
 # commit; rebuildable from the committed manifest hashes via `python -m benchmark snapshot --force`.
 benchmark/snapshots/*.parquet
+
+# Forward-test live snapshot (regenerable, fetched each run)
+forward_test/live_snapshot/

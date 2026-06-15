@@ -1,0 +1,2 @@
+{"run_date": "2026-06-15", "config": "carry_mn", "prereg_hash": "2add33a3f602c95d7340607f54d65d5152bc520c35ca7f700fb462e657490f35", "forward_start": "2026-06-07", "data_end": "2026-06-15", "n": 0, "status": "no forward data yet"}
+{"run_date": "2026-06-15", "config": "phase3_ensemble_overlay", "prereg_hash": "2add33a3f602c95d7340607f54d65d5152bc520c35ca7f700fb462e657490f35", "forward_start": "2026-06-07", "data_end": "2026-06-15", "n": 8, "total_ret_pct": 0.18, "sharpe_per_obs": 0.2058, "tstat": 0.582, "status": "accumulating (8 obs; >=20 for a believable read)"}

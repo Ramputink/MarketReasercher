@@ -96,8 +96,8 @@ def _exchange(exchange_id: str) -> ccxt.Exchange:
     return ex
 
 
-def build_exchange(exchange_id: str) -> dict:
-    out_dir = os.path.join(PKG_DIR, f"snapshots_{exchange_id}")
+def build_exchange(exchange_id: str, out_dir: str | None = None) -> dict:
+    out_dir = out_dir or os.path.join(PKG_DIR, f"snapshots_{exchange_id}")
     os.makedirs(out_dir, exist_ok=True)
     ex = _exchange(exchange_id)
 
