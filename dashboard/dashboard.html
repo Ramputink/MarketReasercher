@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>MarketReasercher — Strategy Dashboard</title>
+<style>
+  :root{
+    --bg:#0a0e17; --card:#111827; --card2:#0f1626; --border:#1e293b; --dim:#334155;
+    --text:#e2e8f0; --muted:#64748b; --accent:#22d3ee; --green:#10b981; --red:#ef4444;
+    --yellow:#f59e0b; --blue:#3b82f6; --purple:#a855f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1240px;margin:0 auto;padding:28px 22px 80px;}
+  h1{font-size:24px;margin:0 0 4px;font-weight:800;letter-spacing:-0.5px;}
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);
+    font-weight:700;margin:38px 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px;}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:6px}
+  .mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+  .card .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:1.1px;color:var(--muted);font-weight:700}
+  .card .val{font-size:24px;font-weight:800;margin-top:6px}
+  .card .note{font-size:11px;color:var(--muted);margin-top:3px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr}}
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 18px 14px}
+  .panel h3{margin:0 0 2px;font-size:15px;font-weight:700}
+  .panel .ph{color:var(--muted);font-size:12px;margin-bottom:10px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;font-weight:700}
+  td:first-child,th:first-child{text-align:left}
+  tr.ens{background:rgba(34,211,238,.06)}
+  .pos{color:var(--green)} .neg{color:var(--red)} .warn{color:var(--yellow)}
+  .pill{display:inline-block;border-radius:100px;padding:2px 9px;font-size:10px;font-weight:700;
+    letter-spacing:.6px;text-transform:uppercase;border:1px solid}
+  .pill.keep{background:#052e23;color:var(--green);border-color:#065f46}
+  .pill.drop{background:#3a0d0d;color:#fca5a5;border-color:#7f1d1d}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .hm td{text-align:center;font-variant-numeric:tabular-nums;font-size:12px;padding:7px 6px}
+  .hm td:first-child{text-align:left;color:var(--text)}
+  .foot{color:var(--muted);font-size:12px;margin-top:40px;line-height:1.6}
+  .tag{display:inline-block;background:var(--dim);color:var(--text);border-radius:6px;
+    padding:2px 8px;font-size:11px;margin-right:6px}
+  .verdict{background:linear-gradient(180deg,#0f1c1a,#0d1420);border:1px solid #14532d;
+    border-radius:12px;padding:16px 18px;font-size:13.5px;line-height:1.6}
+  .verdict b{color:var(--green)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>MarketReasercher — Strategy Performance</h1>
+  <div class="sub">Spot long-only (Phase 3) · sealed 2-year lockbox OOS &nbsp;|&nbsp; cross-sectional carry (Phase 2) · <span id="genstamp"></span></div>
+
+  <div id="kpis" class="cards"></div>
+
+  <h2>Phase 3 — Long-only sleeves: In-sample vs Sealed OOS</h2>
+  <div class="sub">In-sample = all history before 2024-06-07. OOS = sealed 2-year lockbox the strategies never saw. Buy &amp; hold basket over the same OOS window: <b class="neg" id="bh"></b>.</div>
+  <div class="panel" style="margin-bottom:18px">
+    <table id="tbl"></table>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--green)"></span>cash-gated sleeve (kept)</span>
+      <span><span class="dot" style="background:var(--red)"></span>always-invested / counter-trend (dropped)</span>
+      <span>OOS = out-of-sample · DD = max drawdown</span>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h3>OOS equity curves (lockbox)</h3>
+      <div class="ph">Daily cumulative growth of $1 over the sealed 2y window</div>
+      <div id="eqchart"></div>
+    </div>
+    <div class="panel">
+      <h3>OOS return vs market</h3>
+      <div class="ph">Total return over the bear lockbox (basket = −46%)</div>
+      <div id="oosbars"></div>
+    </div>
+  </div>
+
+  <h2>Annual Sharpe (in-sample) per sleeve</h2>
+  <div class="panel">
+    <table class="hm" id="heat"></table>
+    <div class="ph" style="margin-top:8px">Green = positive risk-adjusted year, red = negative. 2022 (crypto bear) separates the cash-gated sleeves from the always-invested ones.</div>
+  </div>
+
+  <h2>Recommended ensemble (3 cash-gated sleeves)</h2>
+  <div class="grid2">
+    <div class="panel">
+      <h3>trend_ts + breakout + capitulation</h3>
+      <div class="ph" id="recrule"></div>
+      <div id="reccards" class="cards"></div>
+    </div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <h2>Phase 2 — Cross-sectional carry (perps, market-neutral)</h2>
+  <div class="grid2">
+    <div class="panel">
+      <h3>Best lockbox config</h3>
+      <div class="ph">Search over <span id="p2n"></span> pre-specified configs · certified by strict DSR≥0.95</div>
+      <div id="p2cards" class="cards"></div>
+    </div>
+    <div class="panel">
+      <h3>Best market-neutral Sharpe by year</h3>
+      <div class="ph">Annual Sharpe of the best carry config (negative years = no edge that year)</div>
+      <div id="p2heat"></div>
+    </div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+const DATA = {"rows": [{"key": "trend_ts", "label": "Trend (TS)", "cash_gated": true, "is": {"cagr_pct": 95.96, "total_ret_pct": 2343.45, "sharpe": 1.302, "sortino": 1.597, "max_dd_pct": -74.27, "calmar": 1.292, "avg_exposure_pct": 62.1, "days_in_market_pct": 85.4, "n_days": 1734, "per_year": {"2019": 0.0, "2020": 1.648, "2021": 2.47, "2022": -2.238, "2023": 1.544, "2024": 0.658}}, "oos": {"cagr_pct": -1.36, "total_ret_pct": -2.71, "sharpe": 0.243, "sortino": 0.304, "max_dd_pct": -54.74, "calmar": -0.025, "avg_exposure_pct": 61.2, "days_in_market_pct": 95.8, "n_days": 731, "per_year": {"2024": 0.953, "2025": -0.023, "2026": -0.737}}}, {"key": "rel_strength", "label": "Relative Strength", "cash_gated": false, "is": {"cagr_pct": 102.3, "total_ret_pct": 2742.14, "sharpe": 1.284, "sortino": 1.661, "max_dd_pct": -82.8, "calmar": 1.235, "avg_exposure_pct": 88.4, "days_in_market_pct": 94.8, "n_days": 1734, "per_year": {"2019": -0.432, "2020": 2.325, "2021": 2.722, "2022": -1.292, "2023": 1.895, "2024": 0.441}}, "oos": {"cagr_pct": -17.71, "total_ret_pct": -32.32, "sharpe": 0.049, "sortino": 0.071, "max_dd_pct": -69.48, "calmar": -0.255, "avg_exposure_pct": 99.9, "days_in_market_pct": 99.9, "n_days": 731, "per_year": {"2024": 1.222, "2025": -0.099, "2026": -1.511}}}, {"key": "dip_in_uptrend", "label": "Dip in Uptrend", "cash_gated": false, "is": {"cagr_pct": 23.18, "total_ret_pct": 169.2, "sharpe": 0.667, "sortino": 0.686, "max_dd_pct": -46.96, "calmar": 0.493, "avg_exposure_pct": 24.2, "days_in_market_pct": 58.7, "n_days": 1734, "per_year": {"2019": 0.0, "2020": 0.076, "2021": 1.954, "2022": -1.438, "2023": 0.402, "2024": -0.588}}, "oos": {"cagr_pct": -27.18, "total_ret_pct": -47.02, "sharpe": -0.882, "sortino": -0.805, "max_dd_pct": -47.9, "calmar": -0.567, "avg_exposure_pct": 23.7, "days_in_market_pct": 62.0, "n_days": 731, "per_year": {"2024": -1.64, "2025": -0.452, "2026": -2.117}}}, {"key": "capitulation", "label": "Capitulation", "cash_gated": true, "is": {"cagr_pct": 92.87, "total_ret_pct": 2165.79, "sharpe": 1.753, "sortino": 1.557, "max_dd_pct": -32.53, "calmar": 2.855, "avg_exposure_pct": 28.5, "days_in_market_pct": 36.9, "n_days": 1734, "per_year": {"2019": 0.0, "2020": 1.606, "2021": 3.62, "2022": 0.712, "2023": 0.834, "2024": -0.006}}, "oos": {"cagr_pct": -2.14, "total_ret_pct": -4.23, "sharpe": 0.115, "sortino": 0.092, "max_dd_pct": -38.09, "calmar": -0.056, "avg_exposure_pct": 25.0, "days_in_market_pct": 28.0, "n_days": 731, "per_year": {"2024": 0.641, "2025": -0.358, "2026": 0.124}}}, {"key": "breakout", "label": "Breakout", "cash_gated": true, "is": {"cagr_pct": 147.45, "total_ret_pct": 7301.2, "sharpe": 1.817, "sortino": 1.986, "max_dd_pct": -55.56, "calmar": 2.654, "avg_exposure_pct": 43.1, "days_in_market_pct": 74.9, "n_days": 1734, "per_year": {"2019": 0.0, "2020": 2.379, "2021": 2.978, "2022": -0.776, "2023": 1.967, "2024": 0.927}}, "oos": {"cagr_pct": 31.03, "total_ret_pct": 71.81, "sharpe": 0.856, "sortino": 1.012, "max_dd_pct": -37.49, "calmar": 0.828, "avg_exposure_pct": 39.6, "days_in_market_pct": 85.5, "n_days": 731, "per_year": {"2024": 1.772, "2025": 0.588, "2026": -1.129}}}, {"key": "ENSEMBLE_5", "label": "Ensemble (5 sleeves)", "cash_gated": false, "is": {"cagr_pct": 98.19, "total_ret_pct": 2478.14, "sharpe": 1.568, "sortino": 1.983, "max_dd_pct": -48.67, "calmar": 2.017, "avg_exposure_pct": 20.0, "days_in_market_pct": 100.0, "n_days": 1734, "per_year": {"2019": -0.432, "2020": 1.946, "2021": 3.069, "2022": -1.51, "2023": 1.683, "2024": 0.372}}, "oos": {"cagr_pct": -1.99, "total_ret_pct": -3.94, "sharpe": 0.148, "sortino": 0.189, "max_dd_pct": -44.78, "calmar": -0.044, "avg_exposure_pct": 20.0, "days_in_market_pct": 100.0, "n_days": 731, "per_year": {"2024": 0.975, "2025": -0.072, "2026": -1.495}}}], "recommended": {"sleeves": ["trend_ts", "breakout", "capitulation"], "selection_rule": "ex-ante structural: keep only sleeves with a CASH GATE; drop always-invested (rel_strength) and pure counter-trend (dip)", "in_sample": {"cagr_pct": 117.7, "sharpe": 1.73, "max_dd_pct": -45.0}, "lockbox_oos": {"cagr_pct": 10.2, "sharpe": 0.45, "max_dd_pct": -41.8, "per_year": {"2024": 1.197, "2025": 0.085, "2026": -0.801}}, "lockbox_buy_hold": {"total_ret_pct": -46.06, "max_dd_pct": -74.89}}, "buy_hold": {"total_ret_pct": -46.06, "max_dd_pct": -74.89}, "equity": {"ensemble5": [["2024-06-07", 1.0], ["2024-06-11", 0.95277], ["2024-06-15", 0.95474], ["2024-06-19", 0.92594], ["2024-06-23", 0.91538], ["2024-06-27", 0.91906], ["2024-07-01", 0.91759], ["2024-07-05", 0.87346], ["2024-07-09", 0.88685], ["2024-07-13", 0.89985], ["2024-07-17", 0.92424], ["2024-07-21", 0.94229], ["2024-07-25", 0.89994], ["2024-07-29", 0.90784], ["2024-08-02", 0.87194], ["2024-08-06", 0.84367], ["2024-08-10", 0.87713], ["2024-08-14", 0.87179], ["2024-08-18", 0.87189], ["2024-08-22", 0.8898], ["2024-08-26", 0.87115], ["2024-08-30", 0.85128], ["2024-09-03", 0.83216], ["2024-09-07", 0.82489], ["2024-09-11", 0.83218], ["2024-09-15", 0.83348], ["2024-09-19", 0.85056], ["2024-09-23", 0.85667], ["2024-09-27", 0.8908], ["2024-10-01", 0.81551], ["2024-10-05", 0.81862], ["2024-10-09", 0.81348], ["2024-10-13", 0.83513], ["2024-10-17", 0.83132], ["2024-10-21", 0.8475], ["2024-10-25", 0.8134], ["2024-10-29", 0.86831], ["2024-11-02", 0.82523], ["2024-11-06", 0.86331], ["2024-11-10", 0.95746], ["2024-11-14", 0.95755], ["2024-11-18", 1.09969], ["2024-11-22", 1.24142], ["2024-11-26", 1.2582], ["2024-11-30", 1.44686], ["2024-12-04", 1.61328], ["2024-12-08", 1.68838], ["2024-12-12", 1.58494], ["2024-12-16", 1.54274], ["2024-12-20", 1.30287], ["2024-12-24", 1.3602], ["2024-12-28", 1.27892], ["2025-01-01", 1.29146], ["2025-01-05", 1.36694], ["2025-01-09", 1.23309], ["2025-01-13", 1.24228], ["2025-01-17", 1.38934], ["2025-01-21", 1.31198], ["2025-01-25", 1.28379], ["2025-01-29", 1.23396], ["2025-02-02", 1.11853], ["2025-02-06", 1.05651], ["2025-02-10", 1.08839], ["2025-02-14", 1.11507], ["2025-02-18", 1.07889], ["2025-02-22", 1.08511], ["2025-02-26", 1.03005], ["2025-03-02", 1.07635], ["2025-03-06", 1.02551], ["2025-03-10", 0.96342], ["2025-03-14", 0.98409], ["2025-03-18", 0.98186], ["2025-03-22", 0.98217], ["2025-03-26", 0.98421], ["2025-03-30", 0.95869], ["2025-04-03", 0.95988], ["2025-04-07", 0.93705], ["2025-04-11", 0.96151], ["2025-04-15", 0.9576], ["2025-04-19", 0.96427], ["2025-04-23", 0.98552], ["2025-04-27", 0.98226], ["2025-05-01", 0.99031], ["2025-05-05", 0.96678], ["2025-05-09", 1.04341], ["2025-05-13", 1.08781], ["2025-05-17", 1.00559], ["2025-05-21", 1.0433], ["2025-05-25", 1.05372], ["2025-05-29", 1.0355], ["2025-06-02", 1.0075], ["2025-06-06", 0.98536], ["2025-06-10", 1.0483], ["2025-06-14", 0.97741], ["2025-06-18", 0.9794], ["2025-06-22", 0.94255], ["2025-06-26", 0.95958], ["2025-06-30", 0.969], ["2025-07-04", 0.96455], ["2025-07-08", 0.97503], ["2025-07-12", 1.02281], ["2025-07-16", 1.09019], ["2025-07-20", 1.16502], ["2025-07-24", 1.09916], ["2025-07-28", 1.11453], ["2025-08-01", 1.0398], ["2025-08-05", 1.05898], ["2025-08-09", 1.17582], ["2025-08-13", 1.24616], ["2025-08-17", 1.17426], ["2025-08-21", 1.11005], ["2025-08-25", 1.06716], ["2025-08-29", 1.05463], ["2025-09-02", 1.06919], ["2025-09-06", 1.05074], ["2025-09-10", 1.08796], ["2025-09-14", 1.11074], ["2025-09-18", 1.14036], ["2025-09-22", 1.07558], ["2025-09-26", 1.05668], ["2025-09-30", 1.08852], ["2025-10-04", 1.21621], ["2025-10-08", 1.22468], ["2025-10-12", 1.19136], ["2025-10-16", 1.12253], ["2025-10-20", 1.15402], ["2025-10-24", 1.14176], ["2025-10-28", 1.16628], ["2025-11-01", 1.2042], ["2025-11-05", 1.21157], ["2025-11-09", 1.23581], ["2025-11-13", 1.1705], ["2025-11-17", 1.19107], ["2025-11-21", 1.14224], ["2025-11-25", 1.14043], ["2025-11-29", 1.13324], ["2025-12-03", 1.1098], ["2025-12-07", 1.09669], ["2025-12-11", 1.12051], ["2025-12-15", 1.08999], ["2025-12-19", 1.09991], ["2025-12-23", 1.0885], ["2025-12-27", 1.1095], ["2025-12-31", 1.10131], ["2026-01-04", 1.11596], ["2026-01-08", 1.09901], ["2026-01-12", 1.09644], ["2026-01-16", 1.12921], ["2026-01-20", 1.08071], ["2026-01-24", 1.0795], ["2026-01-28", 1.07689], ["2026-02-01", 1.00484], ["2026-02-05", 0.95676], ["2026-02-09", 0.98084], ["2026-02-13", 0.98241], ["2026-02-17", 0.98089], ["2026-02-21", 0.98133], ["2026-02-25", 0.97647], ["2026-03-01", 0.96403], ["2026-03-05", 0.96691], ["2026-03-09", 0.95939], ["2026-03-13", 0.96574], ["2026-03-17", 0.97565], ["2026-03-21", 0.96061], ["2026-03-25", 0.96434], ["2026-03-29", 0.95323], ["2026-04-02", 0.95621], ["2026-04-06", 0.95892], ["2026-04-10", 0.98193], ["2026-04-14", 0.97005], ["2026-04-18", 0.96768], ["2026-04-22", 0.96605], ["2026-04-26", 0.9759], ["2026-04-30", 0.97295], ["2026-05-04", 0.99079], ["2026-05-08", 1.05302], ["2026-05-12", 1.0326], ["2026-05-16", 0.98697], ["2026-05-20", 1.03076], ["2026-05-24", 1.04042], ["2026-05-28", 1.01488], ["2026-06-01", 1.02851], ["2026-06-05", 0.95133], ["2026-06-07", 0.96061]], "capitulation": [["2024-06-07", 1.0], ["2024-06-11", 0.96598], ["2024-06-15", 0.95768], ["2024-06-19", 0.91472], ["2024-06-23", 0.89746], ["2024-06-27", 0.90462], ["2024-07-01", 0.90421], ["2024-07-05", 0.90421], ["2024-07-09", 0.90421], ["2024-07-13", 0.90421], ["2024-07-17", 0.8833], ["2024-07-21", 0.92291], ["2024-07-25", 0.81682], ["2024-07-29", 0.8301], ["2024-08-02", 0.74134], ["2024-08-06", 0.64561], ["2024-08-10", 0.65204], ["2024-08-14", 0.64915], ["2024-08-18", 0.64915], ["2024-08-22", 0.64915], ["2024-08-26", 0.63068], ["2024-08-30", 0.61438], ["2024-09-03", 0.59435], ["2024-09-07", 0.59537], ["2024-09-11", 0.59537], ["2024-09-15", 0.58176], ["2024-09-19", 0.61754], ["2024-09-23", 0.63671], ["2024-09-27", 0.68318], ["2024-10-01", 0.60911], ["2024-10-05", 0.61578], ["2024-10-09", 0.60824], ["2024-10-13", 0.64361], ["2024-10-17", 0.66693], ["2024-10-21", 0.68503], ["2024-10-25", 0.65467], ["2024-10-29", 0.68819], ["2024-11-02", 0.65729], ["2024-11-06", 0.7041], ["2024-11-10", 0.7871], ["2024-11-14", 0.81218], ["2024-11-18", 0.91976], ["2024-11-22", 1.03788], ["2024-11-26", 1.06339], ["2024-11-30", 1.2085], ["2024-12-04", 1.45193], ["2024-12-08", 1.47652], ["2024-12-12", 1.39611], ["2024-12-16", 1.35158], ["2024-12-20", 1.1305], ["2024-12-24", 1.1982], ["2024-12-28", 1.14628], ["2025-01-01", 1.10867], ["2025-01-05", 1.20147], ["2025-01-09", 1.14424], ["2025-01-13", 1.13934], ["2025-01-17", 1.1538], ["2025-01-21", 1.13697], ["2025-01-25", 1.13835], ["2025-01-29", 1.08929], ["2025-02-02", 0.94677], ["2025-02-06", 0.89337], ["2025-02-10", 0.89909], ["2025-02-14", 0.89895], ["2025-02-18", 0.89895], ["2025-02-22", 0.89895], ["2025-02-26", 0.89895], ["2025-03-02", 0.89895], ["2025-03-06", 0.89895], ["2025-03-10", 0.89895], ["2025-03-14", 0.89895], ["2025-03-18", 0.89895], ["2025-03-22", 0.89895], ["2025-03-26", 0.89895], ["2025-03-30", 0.89895], ["2025-04-03", 0.89895], ["2025-04-07", 0.89895], ["2025-04-11", 0.89895], ["2025-04-15", 0.86939], ["2025-04-19", 0.90417], ["2025-04-23", 0.98868], ["2025-04-27", 0.98647], ["2025-05-01", 0.9855], ["2025-05-05", 0.92472], ["2025-05-09", 1.08527], ["2025-05-13", 1.15999], ["2025-05-17", 1.06087], ["2025-05-21", 1.07745], ["2025-05-25", 1.05097], ["2025-05-29", 1.01938], ["2025-06-02", 0.9841], ["2025-06-06", 0.94449], ["2025-06-10", 0.9993], ["2025-06-14", 0.95136], ["2025-06-18", 0.95127], ["2025-06-22", 0.95112], ["2025-06-26", 0.94083], ["2025-06-30", 0.96357], ["2025-07-04", 0.9481], ["2025-07-08", 0.98883], ["2025-07-12", 1.09043], ["2025-07-16", 1.19044], ["2025-07-20", 1.27946], ["2025-07-24", 1.23455], ["2025-07-28", 1.23224], ["2025-08-01", 1.18215], ["2025-08-05", 1.17456], ["2025-08-09", 1.31235], ["2025-08-13", 1.37773], ["2025-08-17", 1.27341], ["2025-08-21", 1.1957], ["2025-08-25", 1.22847], ["2025-08-29", 1.24669], ["2025-09-02", 1.24032], ["2025-09-06", 1.24032], ["2025-09-10", 1.24032], ["2025-09-14", 1.22034], ["2025-09-18", 1.26359], ["2025-09-22", 1.153], ["2025-09-26", 1.12518], ["2025-09-30", 1.15737], ["2025-10-04", 1.32252], ["2025-10-08", 1.37919], ["2025-10-12", 1.20036], ["2025-10-16", 1.0752], ["2025-10-20", 1.10091], ["2025-10-24", 1.07129], ["2025-10-28", 1.07082], ["2025-11-01", 1.07025], ["2025-11-05", 1.05733], ["2025-11-09", 1.05717], ["2025-11-13", 1.05717], ["2025-11-17", 1.05717], ["2025-11-21", 1.05717], ["2025-11-25", 1.05717], ["2025-11-29", 1.05717], ["2025-12-03", 1.05717], ["2025-12-07", 1.05717], ["2025-12-11", 1.05717], ["2025-12-15", 1.05717], ["2025-12-19", 1.05717], ["2025-12-23", 1.05717], ["2025-12-27", 1.05717], ["2025-12-31", 1.05717], ["2026-01-04", 1.08656], ["2026-01-08", 1.07648], ["2026-01-12", 1.05082], ["2026-01-16", 1.16691], ["2026-01-20", 1.04], ["2026-01-24", 1.03731], ["2026-01-28", 1.01148], ["2026-02-01", 1.00458], ["2026-02-05", 1.00458], ["2026-02-09", 1.00458], ["2026-02-13", 1.00458], ["2026-02-17", 1.00458], ["2026-02-21", 1.00458], ["2026-02-25", 1.00458], ["2026-03-01", 1.00458], ["2026-03-05", 1.00458], ["2026-03-09", 1.00458], ["2026-03-13", 1.00458], ["2026-03-17", 1.01254], ["2026-03-21", 0.93991], ["2026-03-25", 0.97042], ["2026-03-29", 0.89893], ["2026-04-02", 0.88716], ["2026-04-06", 0.88493], ["2026-04-10", 0.88052], ["2026-04-14", 0.85613], ["2026-04-18", 0.91724], ["2026-04-22", 0.92071], ["2026-04-26", 0.9409], ["2026-04-30", 0.92075], ["2026-05-04", 0.92397], ["2026-05-08", 1.02001], ["2026-05-12", 0.99876], ["2026-05-16", 0.91072], ["2026-05-20", 0.90755], ["2026-05-24", 0.90003], ["2026-05-28", 0.88491], ["2026-06-01", 0.90856], ["2026-06-05", 0.8474], ["2026-06-07", 0.8474]]}, "phase2": {"certified_any": false, "n_configs": 13, "yearly_best_mn": {"2019": 0.0, "2020": 0.151, "2021": -0.061, "2022": -0.318, "2023": 0.086, "2024": 0.086, "2025": 0.267, "2026": -0.101}, "best": {"family": "carry", "k": 4, "dollar_neutral": true, "lockbox": {"sharpe": 0.24980639366250063, "n": 105, "ret_pct": 153.22644200350112, "turnover": 1.2452380952380953, "funding_share_pct": 18.770182125000005, "avg_positions": 8.0, "ruined": false}, "dsr": 0.8478559249751644, "tstat": 2.5597538168815657, "certified": false}}, "generated": "2026-06-15 08:37"};
+const C = {green:"#10b981",red:"#ef4444",yellow:"#f59e0b",blue:"#3b82f6",accent:"#22d3ee",
+  purple:"#a855f7",muted:"#64748b",border:"#1e293b",text:"#e2e8f0"};
+const fmt = (x,d=1)=> (x==null||isNaN(x))?"—":(x>0?"+":"")+Number(x).toFixed(d);
+const cls = x=> x>0?"pos":(x<0?"neg":"");
+
+// ---- KPIs ----
+const rec = DATA.recommended, bh = DATA.buy_hold;
+const breakout = DATA.rows.find(r=>r.key==="breakout");
+document.getElementById("bh").textContent = fmt(bh.total_ret_pct)+"%";
+const kpis = [
+  {lbl:"Ensemble OOS return", val:fmt(rec.lockbox_oos.cagr_pct)+"%", note:"3 cash-gated sleeves, 2y CAGR", c:C.green},
+  {lbl:"Ensemble OOS Sharpe", val:fmt(rec.lockbox_oos.sharpe,2), note:"positive 2024 & 2025", c:C.accent},
+  {lbl:"Best single sleeve OOS", val:fmt(breakout.oos.cagr_pct)+"%", note:"breakout (Sharpe "+fmt(breakout.oos.sharpe,2)+")", c:C.green},
+  {lbl:"Market (buy & hold)", val:fmt(bh.total_ret_pct)+"%", note:"basket over same window", c:C.red},
+  {lbl:"Ensemble max DD", val:fmt(rec.lockbox_oos.max_dd_pct)+"%", note:"vs basket "+fmt(bh.max_dd_pct)+"%", c:C.yellow},
+];
+document.getElementById("kpis").innerHTML = kpis.map(k=>
+  `<div class="card"><div class="lbl">${k.lbl}</div>
+   <div class="val mono" style="color:${k.c}">${k.val}</div>
+   <div class="note">${k.note}</div></div>`).join("");
+
+// ---- main table ----
+const cols = [["CAGR %","cagr_pct",1],["Sharpe","sharpe",2],["Max DD %","max_dd_pct",1],
+  ["Calmar","calmar",2],["Exposure %","avg_exposure_pct",0]];
+let th = `<tr><th>Sleeve</th><th></th><th colspan="${cols.length}" style="text-align:center;color:${C.muted}">IN-SAMPLE</th><th colspan="3" style="text-align:center;color:${C.accent}">SEALED OOS</th></tr>`;
+th += `<tr><th></th><th></th>`+cols.map(c=>`<th>${c[0]}</th>`).join("")
+   + `<th>CAGR %</th><th>Sharpe</th><th>DD %</th></tr>`;
+let body = "";
+for(const r of DATA.rows){
+  const ens = r.key==="ENSEMBLE_5";
+  const pill = ens ? "" : `<span class="pill ${r.cash_gated?"keep":"drop"}">${r.cash_gated?"keep":"drop"}</span>`;
+  body += `<tr class="${ens?"ens":""}">
+    <td><b>${r.label}</b></td><td>${pill}</td>`
+    + cols.map(c=>`<td class="mono">${r.is[c[1]]==null?"—":Number(r.is[c[1]]).toFixed(c[2])}</td>`).join("")
+    + `<td class="mono ${cls(r.oos.cagr_pct)}">${fmt(r.oos.cagr_pct)}</td>`
+    + `<td class="mono ${cls(r.oos.sharpe)}">${fmt(r.oos.sharpe,2)}</td>`
+    + `<td class="mono">${Number(r.oos.max_dd_pct).toFixed(1)}</td></tr>`;
+}
+document.getElementById("tbl").innerHTML = th+body;
+
+// ---- SVG line chart ----
+function lineChart(series, w=520, h=240, pad=34){
+  // series: [{name,color,pts:[[date,val],...]}]
+  let lo=Infinity, hi=-Infinity, n=0;
+  for(const s of series){ for(const p of s.pts){ lo=Math.min(lo,p[1]); hi=Math.max(hi,p[1]); } n=Math.max(n,s.pts.length); }
+  const padv=(hi-lo)*0.08||0.1; lo-=padv; hi+=padv;
+  const X=i=>pad+ i*(w-2*pad)/(n-1);
+  const Y=v=>h-pad-(v-lo)*(h-2*pad)/(hi-lo);
+  let svg=`<svg viewBox="0 0 ${w} ${h}" width="100%" style="display:block">`;
+  // baseline at 1.0
+  if(lo<1 && hi>1){ svg+=`<line x1="${pad}" y1="${Y(1)}" x2="${w-pad}" y2="${Y(1)}" stroke="${C.muted}" stroke-dasharray="3 3" opacity=".5"/>`;
+    svg+=`<text x="${w-pad}" y="${Y(1)-4}" fill="${C.muted}" font-size="9" text-anchor="end">$1.00</text>`; }
+  // y ticks
+  for(const t of [lo,(lo+hi)/2,hi]){ svg+=`<text x="6" y="${Y(t)+3}" fill="${C.muted}" font-size="9">${t.toFixed(2)}</text>`; }
+  for(const s of series){
+    let d="";
+    s.pts.forEach((p,i)=> d+=(i?"L":"M")+X(i).toFixed(1)+" "+Y(p[1]).toFixed(1)+" ");
+    svg+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2"/>`;
+  }
+  // x labels: first & last date
+  const f=series[0].pts;
+  svg+=`<text x="${pad}" y="${h-8}" fill="${C.muted}" font-size="9">${f[0][0]}</text>`;
+  svg+=`<text x="${w-pad}" y="${h-8}" fill="${C.muted}" font-size="9" text-anchor="end">${f[f.length-1][0]}</text>`;
+  svg+="</svg>";
+  return svg;
+}
+const eqSeries=[
+  {name:"Ensemble (5)",color:C.accent,pts:DATA.equity.ensemble5},
+  {name:"Capitulation",color:C.purple,pts:DATA.equity.capitulation},
+];
+document.getElementById("eqchart").innerHTML = lineChart(eqSeries)
+  + `<div class="legend">`+eqSeries.map(s=>`<span><span class="dot" style="background:${s.color}"></span>${s.name}</span>`).join("")+`</div>`;
+
+// ---- OOS bar chart ----
+function barChart(items, w=520, h=240, pad=34){
+  const vals=items.map(i=>i.v).concat([0]);
+  let lo=Math.min(...vals), hi=Math.max(...vals); const padv=(hi-lo)*0.12||1; lo-=padv; hi+=padv;
+  const Y=v=>h-pad-(v-lo)*(h-2*pad)/(hi-lo);
+  const bw=(w-2*pad)/items.length*0.62;
+  let svg=`<svg viewBox="0 0 ${w} ${h}" width="100%" style="display:block">`;
+  svg+=`<line x1="${pad}" y1="${Y(0)}" x2="${w-pad}" y2="${Y(0)}" stroke="${C.muted}" opacity=".6"/>`;
+  items.forEach((it,i)=>{
+    const cx=pad+(i+0.5)*(w-2*pad)/items.length;
+    const y0=Y(0), y1=Y(it.v);
+    svg+=`<rect x="${cx-bw/2}" y="${Math.min(y0,y1)}" width="${bw}" height="${Math.abs(y1-y0)}" rx="3" fill="${it.c}"/>`;
+    svg+=`<text x="${cx}" y="${(it.v>=0?y1-5:y1+12)}" fill="${C.text}" font-size="10" text-anchor="middle">${fmt(it.v)}%</text>`;
+    svg+=`<text x="${cx}" y="${h-8}" fill="${C.muted}" font-size="9" text-anchor="middle">${it.l}</text>`;
+  });
+  svg+="</svg>"; return svg;
+}
+const oosItems = DATA.rows.filter(r=>r.key!=="ENSEMBLE_5").map(r=>({
+  l:r.label.split(" ")[0], v:r.oos.cagr_pct, c:r.oos.cagr_pct>=0?C.green:C.red}))
+  .concat([{l:"Ens-3",v:rec.lockbox_oos.cagr_pct,c:C.accent},{l:"Market",v:bh.total_ret_pct,c:C.red}]);
+document.getElementById("oosbars").innerHTML = barChart(oosItems);
+
+// ---- heatmap ----
+function heat(rows, years){
+  let h=`<tr><th>Sleeve</th>`+years.map(y=>`<th style="text-align:center">${y}</th>`).join("")+`</tr>`;
+  for(const r of rows){
+    h+=`<tr><td>${r.label}</td>`+years.map(y=>{
+      const v=r.vals[y];
+      if(v==null||v===0) return `<td style="color:${C.muted}">·</td>`;
+      const a=Math.min(Math.abs(v)/2.5,1);
+      const col=v>0?`rgba(16,185,129,${0.15+0.6*a})`:`rgba(239,68,68,${0.15+0.6*a})`;
+      return `<td style="background:${col};border-radius:4px">${v.toFixed(2)}</td>`;
+    }).join("")+`</tr>`;
+  }
+  return h;
+}
+const yrs=["2019","2020","2021","2022","2023","2024"];
+const hrows=DATA.rows.filter(r=>r.key!=="ENSEMBLE_5").map(r=>({label:r.label,vals:r.is.per_year}));
+document.getElementById("heat").innerHTML = heat(hrows, yrs);
+
+// ---- recommended ensemble ----
+document.getElementById("recrule").textContent = rec.selection_rule;
+const rc=[
+  {lbl:"OOS CAGR",val:fmt(rec.lockbox_oos.cagr_pct)+"%",c:C.green},
+  {lbl:"OOS Sharpe",val:fmt(rec.lockbox_oos.sharpe,2),c:C.accent},
+  {lbl:"OOS Max DD",val:fmt(rec.lockbox_oos.max_dd_pct)+"%",c:C.yellow},
+  {lbl:"In-sample CAGR",val:fmt(rec.in_sample.cagr_pct)+"%",c:C.text},
+];
+document.getElementById("reccards").innerHTML = rc.map(k=>
+  `<div class="card"><div class="lbl">${k.lbl}</div><div class="val mono" style="color:${k.c}">${k.val}</div></div>`).join("");
+document.getElementById("verdict").innerHTML =
+  `<b>Structural law (proven on the sealed lockbox):</b> long-only profitability through a bear
+   requires sleeves that <b>go to cash on weakness</b> (breakout, trend) — not always-invested
+   (rel_strength) or knife-catching (dip). The 3-sleeve cash-gating ensemble returned
+   <b>${fmt(rec.lockbox_oos.cagr_pct)}%</b> while the basket lost <b style="color:${C.red}">${fmt(bh.total_ret_pct)}%</b>.
+   <br><br>Open issue: ensemble max DD ${fmt(rec.lockbox_oos.max_dd_pct)}% (sleeves co-invest in drops).
+   Next: portfolio-level regime / drawdown cap, then validate on <i>forward</i> data — not by re-reading this lockbox.`;
+
+// ---- phase 2 ----
+const p2=DATA.phase2;
+document.getElementById("p2n").textContent = p2.n_configs;
+const b=p2.best;
+const p2cards=[
+  {lbl:"Family",val:b?b.family:"—",c:C.text},
+  {lbl:"Lockbox Sharpe",val:b?fmt(b.lockbox.sharpe,3):"—",c:C.accent},
+  {lbl:"Lockbox return",val:b?fmt(b.lockbox.ret_pct)+"%":"—",c:b&&b.lockbox.ret_pct>0?C.green:C.red},
+  {lbl:"DSR (need ≥.95)",val:b?fmt(b.dsr,3):"—",c:C.red},
+  {lbl:"Certified",val:p2.certified_any?"YES":"NO",c:p2.certified_any?C.green:C.red},
+];
+document.getElementById("p2cards").innerHTML = p2cards.map(k=>
+  `<div class="card"><div class="lbl">${k.lbl}</div><div class="val mono" style="color:${k.c};font-size:19px">${k.val}</div></div>`).join("");
+// phase2 yearly heat
+const p2years=Object.keys(p2.yearly_best_mn);
+document.getElementById("p2heat").innerHTML =
+  `<table class="hm">`+heat([{label:"Carry MN",vals:p2.yearly_best_mn}], p2years)+`</table>`;
+
+document.getElementById("foot").innerHTML =
+  `<b>Reading this honestly.</b> The Phase-3 OOS numbers are a single sealed read on one 2-year bear window —
+   encouraging, not certified. Phase-2 carry is the only economically pre-specified edge found, but it does
+   not pass strict DSR≥0.95. Neither result licenses live capital without forward (paper) validation.
+   <br>Generated from <span class="tag">reports/phase3_five_strategies_results.json</span>
+   <span class="tag">phase2/results/phase2_focused_30assets_2yr.json</span> · regenerate with
+   <span class="mono">python3 dashboard/build_dashboard.py</span>`;
+document.getElementById("genstamp").textContent = "generated " + (DATA.generated||"");
+</script>
+</body>
+</html>
