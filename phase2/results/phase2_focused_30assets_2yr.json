@@ -1,0 +1,668 @@
+{
+  "mode": "focused",
+  "n_configs": 13,
+  "certified_any": false,
+  "timestamp": "2026-06-07",
+  "yearly_best_mn": {
+    "2019": 0.0,
+    "2020": 0.151,
+    "2021": -0.061,
+    "2022": -0.318,
+    "2023": 0.086,
+    "2024": 0.086,
+    "2025": 0.267,
+    "2026": -0.101
+  },
+  "results": [
+    {
+      "cfg": {
+        "family": "momentum",
+        "k": 4,
+        "rebalance_every": 7,
+        "long_only": false,
+        "dollar_neutral": true,
+        "weight_mode": "equal",
+        "gross": 1.0,
+        "vol_lookback": 20,
+        "mom_lookback": 60,
+        "mom_skip": 1,
+        "carry_lookback": 7,
+        "combo_mom_w": 0.5,
+        "mom_risk_adj": true,
+        "combo_idio": false
+      },
+      "kind": "alpha(MN)",
+      "train": {
+        "sharpe": 0.021683444505244398,
+        "n": 149,
+        "ret_pct": -3.203496758598534,
+        "turnover": 0.5721476510067114,
+        "funding_share_pct": 4.324016875,
+        "avg_positions": 6.523489932885906,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.0535299397011789,
+        "n": 99,
+        "ret_pct": 12.409848372453624,
+        "turnover": 0.6414141414141414,
+        "funding_share_pct": 5.989087499999997,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": 0.029161219855687863,
+        "n": 105,
+        "ret_pct": 3.730821792339478,
+        "turnover": 0.6261904761904762,
+        "funding_share_pct": 6.389641375000002,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "dsr": 0.07688946901048155,
+      "sr_star": 0.166228333269671,
+      "tstat": 0.29881358413655695,
+      "certified": false
+    },
+    {
+      "cfg": {
+        "family": "momentum",
+        "k": 5,
+        "rebalance_every": 7,
+        "long_only": false,
+        "dollar_neutral": true,
+        "weight_mode": "equal",
+        "gross": 1.0,
+        "vol_lookback": 20,
+        "mom_lookback": 90,
+        "mom_skip": 1,
+        "carry_lookback": 7,
+        "combo_mom_w": 0.5,
+        "mom_risk_adj": true,
+        "combo_idio": false
+      },
+      "kind": "alpha(MN)",
+      "train": {
+        "sharpe": 0.021193517857444444,
+        "n": 149,
+        "ret_pct": -3.3726417943365727,
+        "turnover": 0.38087248322147643,
+        "funding_share_pct": 3.292487075000003,
+        "avg_positions": 7.852348993288591,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.09571560930815873,
+        "n": 99,
+        "ret_pct": 27.906194754738188,
+        "turnover": 0.4909090909090909,
+        "funding_share_pct": 4.2760663,
+        "avg_positions": 10.0,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": 0.04134736840879871,
+        "n": 105,
+        "ret_pct": 9.512484314128745,
+        "turnover": 0.5123809523809524,
+        "funding_share_pct": 5.430260900000001,
+        "avg_positions": 10.0,
+        "ruined": false
+      },
+      "dsr": 0.09917324954412188,
+      "sr_star": 0.166228333269671,
+      "tstat": 0.4236844483869537,
+      "certified": false
+    },
+    {
+      "cfg": {
+        "family": "momentum",
+        "k": 5,
+        "rebalance_every": 7,
+        "long_only": false,
+        "dollar_neutral": true,
+        "weight_mode": "equal",
+        "gross": 1.0,
+        "vol_lookback": 20,
+        "mom_lookback": 120,
+        "mom_skip": 1,
+        "carry_lookback": 7,
+        "combo_mom_w": 0.5,
+        "mom_risk_adj": true,
+        "combo_idio": false
+      },
+      "kind": "alpha(MN)",
+      "train": {
+        "sharpe": -0.05543016127502194,
+        "n": 149,
+        "ret_pct": -40.628957515817454,
+        "turnover": 0.3224832214765101,
+        "funding_share_pct": 5.320386550000001,
+        "avg_positions": 7.583892617449664,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.11758451225369985,
+        "n": 99,
+        "ret_pct": 35.68026431197475,
+        "turnover": 0.4161616161616162,
+        "funding_share_pct": 0.4816662000000002,
+        "avg_positions": 10.0,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": 0.11992975128488813,
+        "n": 105,
+        "ret_pct": 50.16287594807744,
+        "turnover": 0.4819047619047619,
+        "funding_share_pct": 4.5493289,
+        "avg_positions": 10.0,
+        "ruined": false
+      },
+      "dsr": 0.3078573635777545,
+      "sr_star": 0.166228333269671,
+      "tstat": 1.2289142567900284,
+      "certified": false
+    },
+    {
+      "cfg": {
+        "family": "idio",
+        "k": 4,
+        "rebalance_every": 7,
+        "long_only": false,
+        "dollar_neutral": true,
+        "weight_mode": "equal",
+        "gross": 1.0,
+        "vol_lookback": 20,
+        "mom_lookback": 45,
+        "mom_skip": 1,
+        "carry_lookback": 7,
+        "combo_mom_w": 0.5,
+        "mom_risk_adj": false,
+        "combo_idio": false
+      },
+      "kind": "alpha(MN)",
+      "train": {
+        "sharpe": 0.002021980367547547,
+        "n": 149,
+        "ret_pct": -15.317548869758223,
+        "turnover": 0.5822147651006712,
+        "funding_share_pct": 5.391969500000003,
+        "avg_positions": 6.630872483221476,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.06219472140294671,
+        "n": 99,
+        "ret_pct": 17.441511040802894,
+        "turnover": 0.6717171717171717,
+        "funding_share_pct": 3.081369374999999,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": 0.05304791663522979,
+        "n": 105,
+        "ret_pct": 15.737371478225292,
+        "turnover": 0.7690476190476191,
+        "funding_share_pct": 6.840834000000003,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "dsr": 0.11685114325054974,
+      "sr_star": 0.166228333269671,
+      "tstat": 0.5435793899979288,
+      "certified": false
+    },
+    {
+      "cfg": {
+        "family": "idio",
+        "k": 4,
+        "rebalance_every": 7,
+        "long_only": false,
+        "dollar_neutral": true,
+        "weight_mode": "equal",
+        "gross": 1.0,
+        "vol_lookback": 20,
+        "mom_lookback": 60,
+        "mom_skip": 1,
+        "carry_lookback": 7,
+        "combo_mom_w": 0.5,
+        "mom_risk_adj": false,
+        "combo_idio": false
+      },
+      "kind": "alpha(MN)",
+      "train": {
+        "sharpe": -0.012381349957358423,
+        "n": 149,
+        "ret_pct": -31.285342564635954,
+        "turnover": 0.5369127516778524,
+        "funding_share_pct": 3.9481044999999986,
+        "avg_positions": 6.523489932885906,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.051230995114818295,
+        "n": 99,
+        "ret_pct": 12.984288639306808,
+        "turnover": 0.5934343434343434,
+        "funding_share_pct": 2.8180372499999993,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": 0.001737522318415117,
+        "n": 105,
+        "ret_pct": -9.126074192602973,
+        "turnover": 0.6166666666666667,
+        "funding_share_pct": 5.828664999999999,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "dsr": 0.04658083417829556,
+      "sr_star": 0.166228333269671,
+      "tstat": 0.017804305651555677,
+      "certified": false
+    },
+    {
+      "cfg": {
+        "family": "idio",
+        "k": 5,
+        "rebalance_every": 7,
+        "long_only": false,
+        "dollar_neutral": true,
+        "weight_mode": "equal",
+        "gross": 1.0,
+        "vol_lookback": 20,
+        "mom_lookback": 90,
+        "mom_skip": 1,
+        "carry_lookback": 7,
+        "combo_mom_w": 0.5,
+        "mom_risk_adj": false,
+        "combo_idio": false
+      },
+      "kind": "alpha(MN)",
+      "train": {
+        "sharpe": 0.01882647177069931,
+        "n": 149,
+        "ret_pct": -6.994598272105124,
+        "turnover": 0.4033557046979865,
+        "funding_share_pct": 3.5462606500000007,
+        "avg_positions": 7.852348993288591,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.09952843469302106,
+        "n": 99,
+        "ret_pct": 31.154944906933647,
+        "turnover": 0.44848484848484854,
+        "funding_share_pct": 2.5635803999999993,
+        "avg_positions": 10.0,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": 0.10091960084534761,
+        "n": 105,
+        "ret_pct": 37.53000694697506,
+        "turnover": 0.4647619047619048,
+        "funding_share_pct": 6.0508803,
+        "avg_positions": 10.0,
+        "ruined": false
+      },
+      "dsr": 0.24763280070368798,
+      "sr_star": 0.166228333269671,
+      "tstat": 1.0341181811825715,
+      "certified": false
+    },
+    {
+      "cfg": {
+        "family": "idio",
+        "k": 4,
+        "rebalance_every": 7,
+        "long_only": false,
+        "dollar_neutral": true,
+        "weight_mode": "equal",
+        "gross": 1.0,
+        "vol_lookback": 20,
+        "mom_lookback": 60,
+        "mom_skip": 1,
+        "carry_lookback": 7,
+        "combo_mom_w": 0.5,
+        "mom_risk_adj": true,
+        "combo_idio": false
+      },
+      "kind": "alpha(MN)",
+      "train": {
+        "sharpe": 0.014359260638275844,
+        "n": 149,
+        "ret_pct": -9.674484860805531,
+        "turnover": 0.540268456375839,
+        "funding_share_pct": 3.8164437499999995,
+        "avg_positions": 6.523489932885906,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.03558031847596821,
+        "n": 99,
+        "ret_pct": 6.586712833709041,
+        "turnover": 0.6313131313131313,
+        "funding_share_pct": 4.45624275,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": 0.033229409596983256,
+        "n": 105,
+        "ret_pct": 5.643939861436875,
+        "turnover": 0.6904761904761905,
+        "funding_share_pct": 5.418390500000002,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "dsr": 0.08229771868392788,
+      "sr_star": 0.166228333269671,
+      "tstat": 0.34050012412219277,
+      "certified": false
+    },
+    {
+      "cfg": {
+        "family": "idio",
+        "k": 5,
+        "rebalance_every": 7,
+        "long_only": false,
+        "dollar_neutral": true,
+        "weight_mode": "equal",
+        "gross": 1.0,
+        "vol_lookback": 20,
+        "mom_lookback": 90,
+        "mom_skip": 1,
+        "carry_lookback": 7,
+        "combo_mom_w": 0.5,
+        "mom_risk_adj": true,
+        "combo_idio": false
+      },
+      "kind": "alpha(MN)",
+      "train": {
+        "sharpe": 0.0019875722576345365,
+        "n": 149,
+        "ret_pct": -14.77092583573205,
+        "turnover": 0.3939597315436241,
+        "funding_share_pct": 1.9627847499999986,
+        "avg_positions": 7.852348993288591,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.0660980159948065,
+        "n": 99,
+        "ret_pct": 16.776832986453073,
+        "turnover": 0.501010101010101,
+        "funding_share_pct": 2.569159799999999,
+        "avg_positions": 10.0,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": 0.032875295309240875,
+        "n": 105,
+        "ret_pct": 5.832297476345882,
+        "turnover": 0.4838095238095238,
+        "funding_share_pct": 5.330281399999999,
+        "avg_positions": 10.0,
+        "ruined": false
+      },
+      "dsr": 0.08546217738992706,
+      "sr_star": 0.166228333269671,
+      "tstat": 0.3368715324501738,
+      "certified": false
+    },
+    {
+      "cfg": {
+        "family": "idio",
+        "k": 6,
+        "rebalance_every": 7,
+        "long_only": false,
+        "dollar_neutral": true,
+        "weight_mode": "equal",
+        "gross": 1.0,
+        "vol_lookback": 20,
+        "mom_lookback": 120,
+        "mom_skip": 1,
+        "carry_lookback": 7,
+        "combo_mom_w": 0.5,
+        "mom_risk_adj": true,
+        "combo_idio": false
+      },
+      "kind": "alpha(MN)",
+      "train": {
+        "sharpe": -0.02200424710229603,
+        "n": 149,
+        "ret_pct": -27.770011178698574,
+        "turnover": 0.31152125279642057,
+        "funding_share_pct": 2.6603675833333305,
+        "avg_positions": 9.033557046979865,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.10924449553236866,
+        "n": 99,
+        "ret_pct": 31.759302225986662,
+        "turnover": 0.3922558922558923,
+        "funding_share_pct": -0.7836630000000001,
+        "avg_positions": 12.0,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": 0.08779495269927132,
+        "n": 105,
+        "ret_pct": 28.086552957907564,
+        "turnover": 0.3507936507936508,
+        "funding_share_pct": 4.113527666666666,
+        "avg_positions": 12.0,
+        "ruined": false
+      },
+      "dsr": 0.20665534867105612,
+      "sr_star": 0.166228333269671,
+      "tstat": 0.8996305578091849,
+      "certified": false
+    },
+    {
+      "cfg": {
+        "family": "carry",
+        "k": 4,
+        "rebalance_every": 7,
+        "long_only": false,
+        "dollar_neutral": true,
+        "weight_mode": "equal",
+        "gross": 1.0,
+        "vol_lookback": 20,
+        "mom_lookback": 60,
+        "mom_skip": 1,
+        "carry_lookback": 3,
+        "combo_mom_w": 0.5,
+        "mom_risk_adj": false,
+        "combo_idio": false
+      },
+      "kind": "alpha(MN)",
+      "train": {
+        "sharpe": 0.1554100101995637,
+        "n": 149,
+        "ret_pct": 162.36752866388522,
+        "turnover": 1.016778523489933,
+        "funding_share_pct": 48.760550375,
+        "avg_positions": 7.006711409395973,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": -0.010335979913637426,
+        "n": 99,
+        "ret_pct": -7.511372193347176,
+        "turnover": 1.1363636363636365,
+        "funding_share_pct": 20.319117500000004,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": 0.24980639366250063,
+        "n": 105,
+        "ret_pct": 153.22644200350112,
+        "turnover": 1.2452380952380953,
+        "funding_share_pct": 18.770182125000005,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "dsr": 0.8478559249751644,
+      "sr_star": 0.166228333269671,
+      "tstat": 2.5597538168815657,
+      "certified": false
+    },
+    {
+      "cfg": {
+        "family": "carry",
+        "k": 4,
+        "rebalance_every": 7,
+        "long_only": false,
+        "dollar_neutral": true,
+        "weight_mode": "equal",
+        "gross": 1.0,
+        "vol_lookback": 20,
+        "mom_lookback": 60,
+        "mom_skip": 1,
+        "carry_lookback": 7,
+        "combo_mom_w": 0.5,
+        "mom_risk_adj": false,
+        "combo_idio": false
+      },
+      "kind": "alpha(MN)",
+      "train": {
+        "sharpe": 0.2253443951531378,
+        "n": 149,
+        "ret_pct": 282.4049683330034,
+        "turnover": 0.9194630872483222,
+        "funding_share_pct": 44.16159649999999,
+        "avg_positions": 6.953020134228188,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": -0.09441532345707385,
+        "n": 99,
+        "ret_pct": -25.605485982782305,
+        "turnover": 0.9823232323232324,
+        "funding_share_pct": 20.412065999999992,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": 0.20531988220200562,
+        "n": 105,
+        "ret_pct": 93.02850530753032,
+        "turnover": 1.0238095238095237,
+        "funding_share_pct": 19.806188874999997,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "dsr": 0.6788264450006561,
+      "sr_star": 0.166228333269671,
+      "tstat": 2.1039027241965758,
+      "certified": false
+    },
+    {
+      "cfg": {
+        "family": "combo",
+        "k": 4,
+        "rebalance_every": 7,
+        "long_only": false,
+        "dollar_neutral": true,
+        "weight_mode": "equal",
+        "gross": 1.0,
+        "vol_lookback": 20,
+        "mom_lookback": 90,
+        "mom_skip": 1,
+        "carry_lookback": 7,
+        "combo_mom_w": 0.5,
+        "mom_risk_adj": true,
+        "combo_idio": true
+      },
+      "kind": "alpha(MN)",
+      "train": {
+        "sharpe": 0.16368475866025523,
+        "n": 149,
+        "ret_pct": 139.3351153119939,
+        "turnover": 0.5956375838926175,
+        "funding_share_pct": 25.8970675,
+        "avg_positions": 6.308724832214765,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.05389350568491919,
+        "n": 99,
+        "ret_pct": 12.236692888086242,
+        "turnover": 0.7702020202020202,
+        "funding_share_pct": 15.963807625000001,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": 0.17607404318231012,
+        "n": 105,
+        "ret_pct": 84.53501008487481,
+        "turnover": 0.7714285714285715,
+        "funding_share_pct": 15.739175500000002,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "dsr": 0.5439842942549324,
+      "sr_star": 0.166228333269671,
+      "tstat": 1.8042220516525762,
+      "certified": false
+    },
+    {
+      "cfg": {
+        "family": "idio",
+        "k": 5,
+        "rebalance_every": 7,
+        "long_only": true,
+        "dollar_neutral": false,
+        "weight_mode": "equal",
+        "gross": 1.0,
+        "vol_lookback": 20,
+        "mom_lookback": 90,
+        "mom_skip": 1,
+        "carry_lookback": 7,
+        "combo_mom_w": 0.5,
+        "mom_risk_adj": false,
+        "combo_idio": false
+      },
+      "kind": "BETA(LO)",
+      "train": {
+        "sharpe": 0.16956748252323245,
+        "n": 149,
+        "ret_pct": 594.6557125233517,
+        "turnover": 0.3422818791946309,
+        "funding_share_pct": -40.10498000000002,
+        "avg_positions": 3.959731543624161,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.1393149199433664,
+        "n": 99,
+        "ret_pct": 133.6745870431403,
+        "turnover": 0.38989898989898986,
+        "funding_share_pct": -6.294687000000001,
+        "avg_positions": 5.0,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": 0.053472940362970726,
+        "n": 105,
+        "ret_pct": 4.491678817355882,
+        "turnover": 0.40952380952380957,
+        "funding_share_pct": 5.727843800000005,
+        "avg_positions": 5.0,
+        "ruined": false
+      },
+      "dsr": 0.12496307164138454,
+      "sr_star": 0.166228333269671,
+      "tstat": 0.5479345872104547,
+      "certified": false
+    }
+  ]
+}

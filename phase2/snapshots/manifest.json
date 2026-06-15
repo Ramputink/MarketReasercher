@@ -1,0 +1,76 @@
+{
+  "exchange": "binanceusdm",
+  "universe": [
+    "BTC",
+    "ETH",
+    "SOL",
+    "XRP",
+    "ADA",
+    "AVAX",
+    "LINK",
+    "DOGE",
+    "BNB",
+    "LTC",
+    "DOT",
+    "POL",
+    "ATOM",
+    "NEAR",
+    "APT",
+    "BCH",
+    "TRX",
+    "ETC",
+    "XLM",
+    "DASH",
+    "ZEC",
+    "VET",
+    "THETA",
+    "ALGO",
+    "COMP",
+    "CRV",
+    "RUNE",
+    "SUSHI",
+    "EGLD",
+    "UNI"
+  ],
+  "base_tf": "1d",
+  "n_dates": 2465,
+  "start": "2019-09-08",
+  "end": "2026-06-07",
+  "lockbox_days": 730,
+  "lockbox_cutoff_ts": 1717718400000,
+  "lockbox_cutoff_date": "2024-06-07",
+  "files": {
+    "close": {
+      "path": "close.parquet",
+      "sha256": "bedf332eed72145b153565c7be9292de1b37847d4fea27e92dfd2f08d8b177a7",
+      "shape": [
+        2465,
+        30
+      ]
+    },
+    "open": {
+      "path": "open.parquet",
+      "sha256": "c8a0cedba9ea36062e3f0fabda347a6ac88da59a3db6e3d0041b831ef389c0fb",
+      "shape": [
+        2465,
+        30
+      ]
+    },
+    "ret": {
+      "path": "ret.parquet",
+      "sha256": "076613d3befcb994d749895efc7a66d1dbb5facd6b5738127136fcc6df80ad8e",
+      "shape": [
+        2465,
+        30
+      ]
+    },
+    "funding": {
+      "path": "funding.parquet",
+      "sha256": "5526a7a0880ed74a6c0ae5f571016a73f0fc8f760953c7e0cee45591c08f1284",
+      "shape": [
+        2465,
+        30
+      ]
+    }
+  }
+}

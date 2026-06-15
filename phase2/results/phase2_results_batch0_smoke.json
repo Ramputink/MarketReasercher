@@ -1,0 +1,130 @@
+{
+  "timestamp_utc": "2026-06-07",
+  "n_trials_per_family": 15,
+  "total_trials": 45,
+  "lockbox_days": 365,
+  "dsr_cert_threshold": 0.95,
+  "families": {
+    "momentum": {
+      "best_candidate": {
+        "family": "momentum",
+        "k": 2,
+        "rebalance_every": 7,
+        "long_only": true,
+        "dollar_neutral": true,
+        "weight_mode": "score_prop",
+        "gross": 1.49,
+        "vol_lookback": 10,
+        "mom_lookback": 20,
+        "mom_skip": 1,
+        "carry_lookback": 10,
+        "combo_mom_w": 0.75
+      },
+      "in_sample": {
+        "sharpe": 0.13294606905507123,
+        "n": 300,
+        "ret_pct": 843.8907308032268,
+        "turnover": 1.414738255351596,
+        "funding_share_pct": -93.63190199384992,
+        "avg_positions": 1.8533333333333333,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": -0.2719659747079961,
+        "n": 53,
+        "ret_pct": -93.02992010191954,
+        "turnover": 1.730913634774864,
+        "funding_share_pct": 1.885493869901621,
+        "avg_positions": 2.0,
+        "ruined": false
+      },
+      "dsr": 0.005493131740364032,
+      "dsr_sr_star": 0.09270804537999398,
+      "lockbox_sharpe": -0.2719659747079961,
+      "tstat": -1.9799421820194976,
+      "trials_sharpe_std": 0.041468231903559125,
+      "certified": false
+    },
+    "carry": {
+      "best_candidate": {
+        "family": "carry",
+        "k": 3,
+        "rebalance_every": 5,
+        "long_only": true,
+        "dollar_neutral": true,
+        "weight_mode": "vol_parity",
+        "gross": 1.07,
+        "vol_lookback": 30,
+        "mom_lookback": 120,
+        "mom_skip": 5,
+        "carry_lookback": 5,
+        "combo_mom_w": 0.6
+      },
+      "in_sample": {
+        "sharpe": 0.10803988357646649,
+        "n": 420,
+        "ret_pct": 1511.1461502675156,
+        "turnover": 0.8714629623563609,
+        "funding_share_pct": -8.284478814524645,
+        "avg_positions": 2.780952380952381,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": -0.11766544240747377,
+        "n": 73,
+        "ret_pct": -64.81881006836304,
+        "turnover": 0.7624267991523777,
+        "funding_share_pct": 14.423779962790018,
+        "avg_positions": 3.0,
+        "ruined": false
+      },
+      "dsr": 0.05641136228464716,
+      "dsr_sr_star": 0.06564521192704859,
+      "lockbox_sharpe": -0.11766544240747377,
+      "tstat": -1.0053339806239001,
+      "trials_sharpe_std": 0.02936304891761394,
+      "certified": false
+    },
+    "combo": {
+      "best_candidate": {
+        "family": "combo",
+        "k": 5,
+        "rebalance_every": 7,
+        "long_only": true,
+        "dollar_neutral": false,
+        "weight_mode": "score_prop",
+        "gross": 1.93,
+        "vol_lookback": 30,
+        "mom_lookback": 120,
+        "mom_skip": 0,
+        "carry_lookback": 7,
+        "combo_mom_w": 0.51
+      },
+      "in_sample": {
+        "sharpe": 0.1747984074036789,
+        "n": 300,
+        "ret_pct": 3906.59300888372,
+        "turnover": 1.0665066766042113,
+        "funding_share_pct": -52.303821046348,
+        "avg_positions": 4.4,
+        "ruined": false
+      },
+      "lockbox": {
+        "sharpe": -0.06980071305203898,
+        "n": 53,
+        "ret_pct": -70.31232652115591,
+        "turnover": 1.1657347169958852,
+        "funding_share_pct": 14.370796515308202,
+        "avg_positions": 5.0,
+        "ruined": false
+      },
+      "dsr": 0.09864605592720205,
+      "dsr_sr_star": 0.10951677536570463,
+      "lockbox_sharpe": -0.06980071305203898,
+      "tstat": -0.5081568613689808,
+      "trials_sharpe_std": 0.048986762902619246,
+      "certified": false
+    }
+  },
+  "certified_any": false
+}

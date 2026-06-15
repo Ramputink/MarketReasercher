@@ -1,0 +1,411 @@
+{
+  "timestamp_utc": "2026-06-07",
+  "n_trials_per_family": 1200,
+  "total_trials": 4800,
+  "lockbox_days": 730,
+  "dsr_cert_threshold": 0.95,
+  "families": {
+    "momentum": {
+      "best_candidate": {
+        "family": "momentum",
+        "k": 4,
+        "rebalance_every": 7,
+        "long_only": true,
+        "dollar_neutral": false,
+        "weight_mode": "equal",
+        "gross": 1.47,
+        "vol_lookback": 14,
+        "mom_lookback": 90,
+        "mom_skip": 0,
+        "carry_lookback": 14,
+        "combo_mom_w": 0.58,
+        "mom_risk_adj": false,
+        "combo_idio": false
+      },
+      "train": {
+        "sharpe": 0.18681404316237474,
+        "n": 149,
+        "ret_pct": 1027.3286607285957,
+        "turnover": 0.5672818791946309,
+        "funding_share_pct": -57.709662412500016,
+        "avg_positions": 3.1677852348993287,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.1863602526449234,
+        "n": 99,
+        "ret_pct": 396.3362566268339,
+        "turnover": 0.5345454545454545,
+        "funding_share_pct": -7.4092501875,
+        "avg_positions": 4.0,
+        "ruined": false
+      },
+      "robust_is_sharpe": 0.1863602526449234,
+      "lockbox": {
+        "sharpe": 0.052070792038712205,
+        "n": 105,
+        "ret_pct": -32.73856468714052,
+        "turnover": 0.5670000000000001,
+        "funding_share_pct": 11.594475059999999,
+        "avg_positions": 4.0,
+        "ruined": false
+      },
+      "dsr": 0.07768504377402413,
+      "dsr_sr_star": 0.19061400809582216,
+      "lockbox_sharpe": 0.052070792038712205,
+      "tstat": 0.533566842365205,
+      "trials_sharpe_std": 0.051835453462042456,
+      "certified": false
+    },
+    "idio": {
+      "best_candidate": {
+        "family": "idio",
+        "k": 4,
+        "rebalance_every": 5,
+        "long_only": true,
+        "dollar_neutral": true,
+        "weight_mode": "score_prop",
+        "gross": 1.6,
+        "vol_lookback": 14,
+        "mom_lookback": 20,
+        "mom_skip": 0,
+        "carry_lookback": 7,
+        "combo_mom_w": 0.24,
+        "mom_risk_adj": false,
+        "combo_idio": true
+      },
+      "train": {
+        "sharpe": 0.15770448387972993,
+        "n": 208,
+        "ret_pct": 1048.084172662291,
+        "turnover": 1.1676387235517582,
+        "funding_share_pct": -50.13355367752192,
+        "avg_positions": 3.4423076923076925,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.16133688936516571,
+        "n": 139,
+        "ret_pct": 528.8851992159052,
+        "turnover": 1.373452260458508,
+        "funding_share_pct": -2.0238503817423896,
+        "avg_positions": 4.0,
+        "ruined": false
+      },
+      "robust_is_sharpe": 0.15770448387972993,
+      "lockbox": {
+        "sharpe": 0.08960492401630901,
+        "n": 146,
+        "ret_pct": 26.47691048008234,
+        "turnover": 1.2896817125355369,
+        "funding_share_pct": 20.430132868772635,
+        "avg_positions": 4.0,
+        "ruined": false
+      },
+      "dsr": 0.12997438957007468,
+      "dsr_sr_star": 0.17705273006035802,
+      "lockbox_sharpe": 0.08960492401630901,
+      "tstat": 1.0827004163495102,
+      "trials_sharpe_std": 0.04814760804335873,
+      "certified": false
+    },
+    "carry": {
+      "best_candidate": {
+        "family": "carry",
+        "k": 4,
+        "rebalance_every": 7,
+        "long_only": true,
+        "dollar_neutral": false,
+        "weight_mode": "vol_parity",
+        "gross": 1.26,
+        "vol_lookback": 30,
+        "mom_lookback": 10,
+        "mom_skip": 2,
+        "carry_lookback": 30,
+        "combo_mom_w": 0.36,
+        "mom_risk_adj": true,
+        "combo_idio": true
+      },
+      "train": {
+        "sharpe": 0.1672408745961416,
+        "n": 149,
+        "ret_pct": 434.676062637163,
+        "turnover": 0.5084132058392579,
+        "funding_share_pct": -5.831589979736886,
+        "avg_positions": 3.4093959731543624,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.1620732628158739,
+        "n": 99,
+        "ret_pct": 176.49887744764135,
+        "turnover": 0.5180415630264391,
+        "funding_share_pct": 18.81983217003002,
+        "avg_positions": 4.0,
+        "ruined": false
+      },
+      "robust_is_sharpe": 0.1620732628158739,
+      "lockbox": {
+        "sharpe": -0.03459504795200445,
+        "n": 105,
+        "ret_pct": -68.65088224485653,
+        "turnover": 0.5770516371424078,
+        "funding_share_pct": 24.545339034076854,
+        "avg_positions": 4.0,
+        "ruined": false
+      },
+      "dsr": 0.004118979014267388,
+      "dsr_sr_star": 0.226515637277823,
+      "lockbox_sharpe": -0.03459504795200445,
+      "tstat": -0.35449375311020104,
+      "trials_sharpe_std": 0.06159851991904488,
+      "certified": false
+    },
+    "combo": {
+      "best_candidate": {
+        "family": "combo",
+        "k": 4,
+        "rebalance_every": 7,
+        "long_only": false,
+        "dollar_neutral": true,
+        "weight_mode": "vol_parity",
+        "gross": 1.27,
+        "vol_lookback": 20,
+        "mom_lookback": 20,
+        "mom_skip": 1,
+        "carry_lookback": 30,
+        "combo_mom_w": 0.3,
+        "mom_risk_adj": true,
+        "combo_idio": true
+      },
+      "train": {
+        "sharpe": 0.2559978440676214,
+        "n": 149,
+        "ret_pct": 433.5320901622362,
+        "turnover": 0.8097085317018433,
+        "funding_share_pct": 37.6615000551694,
+        "avg_positions": 6.791946308724833,
+        "ruined": false
+      },
+      "val": {
+        "sharpe": 0.33461214128590183,
+        "n": 99,
+        "ret_pct": 163.5929235397806,
+        "turnover": 1.0395018439606318,
+        "funding_share_pct": 19.968497554208618,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "robust_is_sharpe": 0.2559978440676214,
+      "lockbox": {
+        "sharpe": 0.140792582761393,
+        "n": 105,
+        "ret_pct": 60.03506256331504,
+        "turnover": 0.9550668600890433,
+        "funding_share_pct": 19.747149310143588,
+        "avg_positions": 8.0,
+        "ruined": false
+      },
+      "dsr": 0.2980377603196089,
+      "dsr_sr_star": 0.1907402049495556,
+      "lockbox_sharpe": 0.140792582761393,
+      "tstat": 1.442694663768286,
+      "trials_sharpe_std": 0.05186977135506671,
+      "certified": false
+    }
+  },
+  "certified_any": false,
+  "landscape": {
+    "family": {
+      "carry": {
+        "mean": 0.03085702527169314,
+        "max": 0.1620732628158739,
+        "n": 1200
+      },
+      "combo": {
+        "mean": 0.048468561788852844,
+        "max": 0.2559978440676214,
+        "n": 1200
+      },
+      "idio": {
+        "mean": 0.01592002339165188,
+        "max": 0.15770448387972993,
+        "n": 1200
+      },
+      "momentum": {
+        "mean": 0.008260231881257801,
+        "max": 0.1863602526449234,
+        "n": 1200
+      }
+    },
+    "k": {
+      "1": {
+        "mean": 0.022393415577665398,
+        "max": 0.2377392916751802,
+        "n": 965
+      },
+      "2": {
+        "mean": 0.025272273565459673,
+        "max": 0.18230567215604046,
+        "n": 945
+      },
+      "3": {
+        "mean": 0.024011376966401696,
+        "max": 0.24888873591994082,
+        "n": 947
+      },
+      "4": {
+        "mean": 0.0292893604037566,
+        "max": 0.2559978440676214,
+        "n": 956
+      },
+      "5": {
+        "mean": 0.028344137502701705,
+        "max": 0.22087705718694114,
+        "n": 987
+      }
+    },
+    "rebalance_every": {
+      "1": {
+        "mean": 0.011580527590490771,
+        "max": 0.07416697547682136,
+        "n": 948
+      },
+      "2": {
+        "mean": 0.027362618058978983,
+        "max": 0.11970306458940981,
+        "n": 903
+      },
+      "3": {
+        "mean": 0.022192508430175853,
+        "max": 0.14467358928049992,
+        "n": 1011
+      },
+      "5": {
+        "mean": 0.03370541527405268,
+        "max": 0.18230567215604046,
+        "n": 983
+      },
+      "7": {
+        "mean": 0.03450385057570888,
+        "max": 0.2559978440676214,
+        "n": 955
+      }
+    },
+    "long_only": {
+      "False": {
+        "mean": 0.009532600564652535,
+        "max": 0.2559978440676214,
+        "n": 3598
+      },
+      "True": {
+        "mean": 0.07479926286899082,
+        "max": 0.24888873591994082,
+        "n": 1202
+      }
+    },
+    "dollar_neutral": {
+      "False": {
+        "mean": 0.02415536934451376,
+        "max": 0.2377392916751802,
+        "n": 1478
+      },
+      "True": {
+        "mean": 0.026642195938878826,
+        "max": 0.2559978440676214,
+        "n": 3322
+      }
+    },
+    "weight_mode": {
+      "equal": {
+        "mean": 0.028688453847084617,
+        "max": 0.1863602526449234,
+        "n": 1605
+      },
+      "score_prop": {
+        "mean": 0.029000948491066023,
+        "max": 0.2377392916751802,
+        "n": 1609
+      },
+      "vol_parity": {
+        "mean": 0.019860981244294293,
+        "max": 0.2559978440676214,
+        "n": 1586
+      }
+    },
+    "mom_lookback": {
+      "10": {
+        "mean": 0.033617041969860574,
+        "max": 0.18230567215604046,
+        "n": 664
+      },
+      "120": {
+        "mean": 0.014909954493539627,
+        "max": 0.1620732628158739,
+        "n": 670
+      },
+      "20": {
+        "mean": 0.031472846945953925,
+        "max": 0.2559978440676214,
+        "n": 709
+      },
+      "30": {
+        "mean": 0.03378089074659763,
+        "max": 0.2377392916751802,
+        "n": 637
+      },
+      "45": {
+        "mean": 0.01984819916619845,
+        "max": 0.17583703692955635,
+        "n": 687
+      },
+      "60": {
+        "mean": 0.014916898991781042,
+        "max": 0.16179512076785435,
+        "n": 724
+      },
+      "90": {
+        "mean": 0.03332496732580535,
+        "max": 0.1863602526449234,
+        "n": 709
+      }
+    },
+    "carry_lookback": {
+      "10": {
+        "mean": 0.021392328278584543,
+        "max": 0.15852392368720086,
+        "n": 695
+      },
+      "14": {
+        "mean": 0.032415453750168334,
+        "max": 0.2377392916751802,
+        "n": 702
+      },
+      "21": {
+        "mean": 0.04012359557176125,
+        "max": 0.22087705718694114,
+        "n": 665
+      },
+      "3": {
+        "mean": 0.011062346292983296,
+        "max": 0.17238176900436167,
+        "n": 701
+      },
+      "30": {
+        "mean": 0.04073158352095934,
+        "max": 0.2559978440676214,
+        "n": 679
+      },
+      "5": {
+        "mean": 0.016054253883501672,
+        "max": 0.15672171084362505,
+        "n": 673
+      },
+      "7": {
+        "mean": 0.019978890851068368,
+        "max": 0.24888873591994082,
+        "n": 685
+      }
+    }
+  }
+}
