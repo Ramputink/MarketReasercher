@@ -120,11 +120,11 @@ def _exec(bar_hours: float) -> ExecModel:
 # Parallel worker: load the in-sample df once per process, evaluate genomes
 # ─────────────────────────────────────────────────────────────────────────────
 
+# The in-sample df is set in the PARENT before each Pool is forked. With the fork
+# start method the workers inherit it copy-on-write — one shared physical copy for
+# ALL cores, not one per worker. That removes the per-worker memory blowup that
+# caused the OOM, so we can run at full core count.
 _WDF = None
-
-def _winit(path: str):
-    global _WDF
-    _WDF = pd.read_pickle(path)
 
 def _weval(args):
     strategy, params, conf_tfs, bar_hours = args
@@ -151,9 +151,10 @@ def sweep(n_samples: int = 250, cores: int = 0, seed: int = 42):
         pass
     os.makedirs(RESULTS, exist_ok=True)
     rng = random.Random(seed)
+    # Full multicore: copy-on-write sharing means more workers cost ~no extra RAM.
     cores = cores if cores > 0 else max(1, mp.cpu_count() - 1)
+    print(f"sweep: {cores} cores (fork + copy-on-write shared in-sample df)", flush=True)
     results = []
-    tmp = "/tmp/sweep_is.pkl"
 
     # Fastest TFs first (fewest bars) so higher-TF results — where a directional
     # edge is most plausible — land within minutes, not behind the slow 15m run.
@@ -166,12 +167,16 @@ def sweep(n_samples: int = 250, cores: int = 0, seed: int = 42):
             in_s, lock = _prepare(sym, base_tf)
             other = [s for s in SWEEP_SYMBOLS if s != sym][0]
             _, other_lock = _prepare(other, base_tf)
-            in_s.to_pickle(tmp)
 
+            # Share the in-sample df with workers via fork copy-on-write (set in
+            # the parent, inherited read-only by every worker — no per-worker copy).
+            global _WDF
+            _WDF = in_s
             genomes = [random_genome(rng.choice(DIRECTIONAL), generation=0) for _ in range(n_samples)]
             tasks = [(g.strategy, g.params, conf_tfs, bh) for g in genomes]
-            with mp.Pool(processes=cores, initializer=_winit, initargs=(tmp,)) as pool:
+            with mp.Pool(processes=cores) as pool:
                 evald = [x for x in pool.map(_weval, tasks) if x is not None]
+            _WDF = None
 
             best = max(evald, key=lambda x: x[0]) if evald else None
             row = {"tf": base_tf, "symbol": sym, "confirm": conf_tfs,
