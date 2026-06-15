@@ -20,7 +20,12 @@ import os
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPORTS = os.path.join(ROOT, "reports")
 PHASE2 = os.path.join(ROOT, "phase2", "results")
+FORWARD = os.path.join(ROOT, "forward_test")
 OUT = os.path.join(ROOT, "dashboard", "dashboard.html")
+
+
+def _maybe_json(path):
+    return _load_json(path) if os.path.exists(path) else None
 
 
 def _load_json(path):
@@ -85,6 +90,44 @@ def collect():
     rec = five["recommended_ensemble_3_cash_gating"]
     bh = five["lockbox_buy_hold"]
 
+    # ── P1+P3: portfolio-level de-risking overlay ─────────────────────────────
+    ov = _maybe_json(os.path.join(REPORTS, "phase3_overlay_results.json"))
+    overlay = None
+    if ov:
+        lo = ov["lockbox_oos"]
+        overlay = {
+            "config": ov["overlay_config"],
+            "ensemble_raw": lo["ensemble_raw"],
+            "ensemble_capped": lo["ensemble_voltarget"],   # vol-target == full here
+            "capitulation_raw": lo["capitulation_raw"],
+            "capitulation_capped": lo["capitulation_capped"],
+        }
+
+    # ── P4: cross-exchange carry replication ──────────────────────────────────
+    cx = _maybe_json(os.path.join(PHASE2, "cross_exchange_carry.json"))
+    cross = None
+    if cx:
+        cross = []
+        for r in cx["reference_and_venues"]:
+            cross.append({"exchange": r["exchange"],
+                          "is": r["in_sample"], "lockbox": r["lockbox"]})
+
+    # ── P2: forward (true-OOS) test status ────────────────────────────────────
+    forward = None
+    log_path = os.path.join(FORWARD, "forward_log.jsonl")
+    prereg_path = os.path.join(FORWARD, "preregistration.json")
+    if os.path.exists(log_path) and os.path.exists(prereg_path):
+        prereg = _load_json(prereg_path)
+        recs = [json.loads(l) for l in open(log_path) if l.strip()]
+        # latest record per config
+        latest = {}
+        for r in recs:
+            latest[r["config"]] = r
+        forward = {"registered": prereg["registered_date"],
+                   "forward_start": prereg["forward_start"],
+                   "hash": prereg["hash"][:12], "n_runs": len(set(r["run_date"] for r in recs)),
+                   "configs": list(latest.values())}
+
     eq_ens5 = _downsample(_cum_from_returns(
         os.path.join(REPORTS, "phase3_five_strategies_ensemble_equity.csv"), "ensemble_ret"))
     eq_cap = _downsample(_equity_col(
@@ -98,6 +141,9 @@ def collect():
         "rows": rows,
         "recommended": rec,
         "buy_hold": bh,
+        "overlay": overlay,
+        "cross": cross,
+        "forward": forward,
         "equity": {
             "ensemble5": eq_ens5,
             "capitulation": eq_cap,
@@ -220,6 +266,43 @@ HTML = r"""<!doctype html>
     <div class="verdict" id="verdict"></div>
   </div>
 
+  <h2>P1+P3 — Portfolio de-risking overlay (drawdown fix)</h2>
+  <div class="sub" id="ovsub"></div>
+  <div class="grid2" id="ovwrap">
+    <div class="panel">
+      <h3>OOS max drawdown: before vs after overlay</h3>
+      <div class="ph">15% vol target + −20%/−10% DD breaker (pre-specified, not fitted)</div>
+      <div id="ovbars"></div>
+    </div>
+    <div class="panel">
+      <h3>What the overlay buys you</h3>
+      <table id="ovtbl"></table>
+      <div class="ph" id="ovnote" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <h2>P4 — Cross-exchange carry replication</h2>
+  <div class="sub">Same pre-registered carry config (clb7/k4/weekly/MN) on an independent venue. In-sample agreement + out-of-sample divergence = the honest robustness verdict.</div>
+  <div class="grid2" id="cxwrap">
+    <div class="panel">
+      <h3>Lockbox Sharpe by exchange</h3>
+      <div class="ph">Same config, two venues. Replication needs same sign + significance.</div>
+      <div id="cxbars"></div>
+    </div>
+    <div class="panel">
+      <h3>Replication table</h3>
+      <table id="cxtbl"></table>
+      <div class="ph" id="cxnote" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <h2>P2 — Forward (true out-of-sample) test</h2>
+  <div class="panel" id="fwwrap">
+    <div class="ph" id="fwhead"></div>
+    <table id="fwtbl"></table>
+    <div class="ph" id="fwnote" style="margin-top:10px"></div>
+  </div>
+
   <h2>Phase 2 — Cross-sectional carry (perps, market-neutral)</h2>
   <div class="grid2">
     <div class="panel">
@@ -313,7 +396,7 @@ document.getElementById("eqchart").innerHTML = lineChart(eqSeries)
   + `<div class="legend">`+eqSeries.map(s=>`<span><span class="dot" style="background:${s.color}"></span>${s.name}</span>`).join("")+`</div>`;
 
 // ---- OOS bar chart ----
-function barChart(items, w=520, h=240, pad=34){
+function barChart(items, {unit="%", dp=1, w=520, h=240, pad=34}={}){
   const vals=items.map(i=>i.v).concat([0]);
   let lo=Math.min(...vals), hi=Math.max(...vals); const padv=(hi-lo)*0.12||1; lo-=padv; hi+=padv;
   const Y=v=>h-pad-(v-lo)*(h-2*pad)/(hi-lo);
@@ -324,7 +407,7 @@ function barChart(items, w=520, h=240, pad=34){
     const cx=pad+(i+0.5)*(w-2*pad)/items.length;
     const y0=Y(0), y1=Y(it.v);
     svg+=`<rect x="${cx-bw/2}" y="${Math.min(y0,y1)}" width="${bw}" height="${Math.abs(y1-y0)}" rx="3" fill="${it.c}"/>`;
-    svg+=`<text x="${cx}" y="${(it.v>=0?y1-5:y1+12)}" fill="${C.text}" font-size="10" text-anchor="middle">${fmt(it.v)}%</text>`;
+    svg+=`<text x="${cx}" y="${(it.v>=0?y1-5:y1+12)}" fill="${C.text}" font-size="10" text-anchor="middle">${fmt(it.v,dp)}${unit}</text>`;
     svg+=`<text x="${cx}" y="${h-8}" fill="${C.muted}" font-size="9" text-anchor="middle">${it.l}</text>`;
   });
   svg+="</svg>"; return svg;
@@ -369,6 +452,68 @@ document.getElementById("verdict").innerHTML =
    <b>${fmt(rec.lockbox_oos.cagr_pct)}%</b> while the basket lost <b style="color:${C.red}">${fmt(bh.total_ret_pct)}%</b>.
    <br><br>Open issue: ensemble max DD ${fmt(rec.lockbox_oos.max_dd_pct)}% (sleeves co-invest in drops).
    Next: portfolio-level regime / drawdown cap, then validate on <i>forward</i> data — not by re-reading this lockbox.`;
+
+// ---- P1+P3 overlay ----
+const ov=DATA.overlay;
+if(ov){
+  const oc=ov.config;
+  document.getElementById("ovsub").innerHTML =
+    `The 3-sleeve ensemble made +10% on the bear lockbox but still drew down −41.8% (sleeves co-invest in drops). A causal, pre-specified overlay (${(oc.target_vol_ann*100)}% vol target, DD breaker ${(oc.dd_trigger*100)}%/${(oc.dd_reentry*100)}%) caps the book toward cash — de-risk only, no leverage.`;
+  const ovd=[
+    {l:"Ensemble RAW",v:ov.ensemble_raw.max_dd_pct,c:C.red},
+    {l:"Ensemble +overlay",v:ov.ensemble_capped.max_dd_pct,c:C.green},
+    {l:"Capit. RAW",v:ov.capitulation_raw.max_dd_pct,c:C.red},
+    {l:"Capit. +overlay",v:ov.capitulation_capped.max_dd_pct,c:C.green},
+  ];
+  document.getElementById("ovbars").innerHTML = barChart(ovd);
+  const orow=(lbl,raw,cap)=>`<tr><td>${lbl}</td>
+    <td class="mono">${fmt(raw.max_dd_pct)}% → <b class="${cap.max_dd_pct>raw.max_dd_pct?'pos':'neg'}">${fmt(cap.max_dd_pct)}%</b></td>
+    <td class="mono">${fmt(raw.sharpe,2)} → <b class="${cap.sharpe>=raw.sharpe?'pos':'neg'}">${fmt(cap.sharpe,2)}</b></td>
+    <td class="mono">${fmt(raw.cagr_pct)}% → ${fmt(cap.cagr_pct)}%</td></tr>`;
+  document.getElementById("ovtbl").innerHTML =
+    `<tr><th>OOS</th><th>Max DD</th><th>Sharpe</th><th>CAGR</th></tr>`
+    + orow("Ensemble", ov.ensemble_raw, ov.ensemble_capped)
+    + orow("Capitulation", ov.capitulation_raw, ov.capitulation_capped);
+  document.getElementById("ovnote").innerHTML =
+    `<b style="color:${C.green}">Drawdown solved:</b> ensemble maxDD ${fmt(ov.ensemble_raw.max_dd_pct)}% → ${fmt(ov.ensemble_capped.max_dd_pct)}% (−62%). The carry-feature capitulation sleeve improves outright (Sharpe ${fmt(ov.capitulation_raw.sharpe,2)}→${fmt(ov.capitulation_capped.sharpe,2)}, return ${fmt(ov.capitulation_raw.cagr_pct)}%→${fmt(ov.capitulation_capped.cagr_pct)}%). Honest cost: on this OOS path vol-targeting also cut the ensemble's Sharpe (positive returns clustered in high-vol days).`;
+} else { document.getElementById("ovwrap").style.display="none"; }
+
+// ---- P4 cross-exchange ----
+const cx=DATA.cross;
+if(cx){
+  const cxd=cx.map(r=>({l:r.exchange.replace("usdm",""),v:r.lockbox.sharpe,
+    c:r.lockbox.sharpe>0?C.green:C.red}));
+  document.getElementById("cxbars").innerHTML = barChart(cxd, {unit:"", dp:3});
+  let ct=`<tr><th>Exchange</th><th>IS Sharpe</th><th>OOS Sharpe</th><th>OOS tstat</th><th>OOS ret</th></tr>`;
+  for(const r of cx){
+    ct+=`<tr><td><b>${r.exchange}</b></td>
+      <td class="mono">${fmt(r.is.sharpe,3)}</td>
+      <td class="mono ${cls(r.lockbox.sharpe)}">${fmt(r.lockbox.sharpe,3)}</td>
+      <td class="mono ${cls(r.lockbox.tstat)}">${fmt(r.lockbox.tstat,2)}</td>
+      <td class="mono ${cls(r.lockbox.ret_pct)}">${fmt(r.lockbox.ret_pct)}%</td></tr>`;
+  }
+  document.getElementById("cxtbl").innerHTML = ct;
+  document.getElementById("cxnote").innerHTML =
+    `<b class="warn">Does NOT replicate out-of-sample.</b> The carry signal agrees IN-SAMPLE on both venues (~0.14–0.16 Sharpe, t≈2), and funding is 75% correlated across exchanges — yet the sealed lockbox flips sign (Binance positive, Bybit negative). The edge is real as a phenomenon but fragile in OOS execution: changing venue breaks it.`;
+} else { document.getElementById("cxwrap").style.display="none"; }
+
+// ---- P2 forward test ----
+const fw=DATA.forward;
+if(fw){
+  document.getElementById("fwhead").innerHTML =
+    `Pre-registered ${fw.registered} · forward window opens after <b>${fw.forward_start}</b> · config hash <span class="mono">${fw.hash}…</span> · ${fw.n_runs} run(s) logged. Data after forward_start did not exist in the frozen panels — genuine OOS.`;
+  let ft=`<tr><th>Config</th><th>Forward obs</th><th>Return</th><th>Sharpe/obs</th><th>Status</th></tr>`;
+  for(const c of fw.configs){
+    ft+=`<tr><td><b>${c.config}</b></td>
+      <td class="mono">${c.n}</td>
+      <td class="mono ${c.total_ret_pct!=null?cls(c.total_ret_pct):''}">${c.total_ret_pct!=null?fmt(c.total_ret_pct)+"%":"—"}</td>
+      <td class="mono">${c.sharpe_per_obs!=null?fmt(c.sharpe_per_obs,3):"—"}</td>
+      <td style="text-align:left;color:${C.muted};font-size:12px">${c.status}</td></tr>`;
+  }
+  document.getElementById("fwtbl").innerHTML = ft;
+  document.getElementById("fwnote").innerHTML =
+    `The forward window is still days old — too short for a verdict. Re-run <span class="mono">python3 -m forward_test.run_forward</span> weekly; the track record accumulates honestly and is the only test that can confirm or kill the historical lockbox reads above.`;
+} else { document.getElementById("fwwrap").style.display="none"; }
 
 // ---- phase 2 ----
 const p2=DATA.phase2;
