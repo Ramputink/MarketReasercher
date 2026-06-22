@@ -69,3 +69,25 @@ data (daily):     tmp *_daily_feat.pkl with REAL BMSB (140d/147d) for 8 majors
 - **Next (Cycle 2 = Part A):** parameter search for mr_vwap_reversion &
   vol_expansion_long across coins with OOS holdout; honestly assess if any
   long-only intraday edge clears costs.
+
+### Cycle 2 · 2026-06-22 23:50 — Part A (intraday OOS parameter search)
+- **Hypothesis:** train-searched params reveal a robust long-only intraday edge
+  in mr_vwap_reversion / vol_expansion_long on some coin(s).
+- **Method:** evaluate_holdout (30 train samples, first 60%) frozen onto unseen
+  40%, L=1, 10 coins. Tool: tmp/partA_search.py.
+- **Result (honest, negative):**
+  - mr_vwap_reversion: OOS mean **0.930x**, median 0.923x, only **1/10** coins
+    clear 1.02x (LTC 1.04).
+  - vol_expansion_long: OOS mean **0.902x**, **0/10** clear; train→test collapse
+    (AVAX 1.56→0.88, ETH 1.42→0.93) = overfit signature.
+  - Evolution substrate agrees: neither new intraday strategy is in the HoF
+    (leader = legacy volatility_squeeze, fit 2.85).
+- **Decision: REJECT** long-only intraday micro-vol as deployable. Mechanism:
+  long-only can't harvest the dominant down-moves; reversal/breakout edges are
+  eaten by 0.1%+5bps costs. Strategies kept in repo (documented as negative).
+- **Gate:** no code change this cycle → golden unaffected (verified 12/12).
+- **Next (Cycle 3 = Part B):** add volatility-targeted sizing (Barroso–Santa-
+  Clara) to bmsb_long via Signal.strength; measure OOS risk-adjusted (Calmar) vs
+  flat sizing. Then (Cycle 4 = Part A) pivot to a cross-sectional long-top-k
+  momentum BASKET (APT) — relative strength across coins, the more promising
+  intraday/swing angle than single-asset timing.

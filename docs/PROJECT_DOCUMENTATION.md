@@ -98,8 +98,12 @@ Rule: report the OOS, liquidation-aware number — not the in-sample full-period
 | SOL | 23.3x | 48.0x | 72% | 96% | ❌ (lagged a vertical bull) |
 | BNB | 21.1x | 60.6x | 87% | 76% | ❌ |
 
-**Part A intraday:** both new long-only strategies land <1.0 out-of-sample across coins.
-Honest read: no robust long-only intraday edge in a broadly bearish sample.
+**Part A intraday (confirmed negative, Cycle 2):** OOS parameter search across 10 coins
+(train 60% → unseen 40%, L=1) — `mr_vwap_reversion` OOS mean **0.930x** (1/10 coins
+>1.02x), `vol_expansion_long` OOS mean **0.902x** (0/10), with a clear train→test
+collapse (overfit). No robust long-only intraday edge after costs. Next angle: a
+cross-sectional long-top-k momentum basket (APT), which trades relative strength across
+coins rather than single-asset timing.
 
 **Coin × strategy suitability** (see `docs/COIN_SUITABILITY_MATRIX.md`): legacy genomes
 are XRP-overfit (only beat 1.0 on XRP). Mechanism-justified matches: trend→BTC/ETH,
