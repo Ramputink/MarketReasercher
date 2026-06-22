@@ -129,3 +129,24 @@ data (daily):     tmp *_daily_feat.pkl with REAL BMSB (140d/147d) for 8 majors
 - **Next (Cycle 5 = Part B):** multi-coin BMSB PORTFOLIO (equal-weight BMSB across
   BTC/ETH/BNB/SOL/ADA/LINK) — expect diversification to cut drawdown vs single-coin
   while keeping the trend capture. OOS train/test, compare to single-coin & buy&hold.
+
+### Cycle 5 · 2026-06-23 01:48 — Part B (multi-coin BMSB portfolio) — ✅ ACCEPT
+- **Hypothesis:** equal-weight BMSB across 6 majors cuts drawdown vs single-coin
+  (Markowitz diversification) while keeping trend capture.
+- **Method:** each coin long-or-cash on its own band, equal capital, independent
+  compounding, date-aligned; report FULL + recent-40% (OOS-style) vs eq-wt buy&hold
+  and vs avg single-coin. Tool: tools/bmsb_portfolio.py.
+- **Result (robust, both windows):**
+  - FULL (8y): portfolio **5.12x** vs B&H 2.67x; DD **63.9%** vs avg-single 67.9%
+    vs B&H 89.5%; Sharpe 0.81 vs 0.64.
+  - TEST (recent 40%): portfolio **0.82x** vs B&H 0.70x; DD **38.9%** vs avg-single
+    55.1% vs B&H 64.9%.
+  - Beats buy&hold on return in BOTH windows AND cuts drawdown in BOTH.
+- **Decision: ACCEPT.** First accepted improvement. Mechanism (diversification) is
+  sound and the benefit is OOS-confirmed. Value-add = RISK reduction (return ≈ avg
+  sleeve by construction; DD dramatically lower). Recommended Part-B deployment =
+  equal-weight BMSB portfolio, not single-coin.
+- **Gate:** golden 12/12 (standalone tool; no engine/strategy change).
+- **Next (Cycle 6 = Part B):** regime-aware exposure — scale total portfolio
+  exposure by BREADTH (% of majors above their band), expecting further DD cut;
+  then re-validate the accepted portfolio on a second untouched holdout.

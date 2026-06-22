@@ -98,6 +98,12 @@ Rule: report the OOS, liquidation-aware number — not the in-sample full-period
 | SOL | 23.3x | 48.0x | 72% | 96% | ❌ (lagged a vertical bull) |
 | BNB | 21.1x | 60.6x | 87% | 76% | ❌ |
 
+**Part B BMSB PORTFOLIO (Cycle 5, ACCEPTED — recommended deployment):** equal-weight
+BMSB across 6 majors (BTC/ETH/BNB/SOL/ADA/LINK). FULL 8y: **5.12x vs buy&hold 2.67x**,
+maxDD **63.9% vs 89.5%**, Sharpe 0.81 vs 0.64. Recent-40% (OOS-style): 0.82x vs B&H
+0.70x, maxDD **38.9% vs 64.9%**. Diversification beats buy&hold and cuts drawdown in both
+windows — the honest value-add is risk reduction (Markowitz). Tool: `tools/bmsb_portfolio.py`.
+
 **Part A intraday (confirmed negative, Cycle 2):** OOS parameter search across 10 coins
 (train 60% → unseen 40%, L=1) — `mr_vwap_reversion` OOS mean **0.930x** (1/10 coins
 >1.02x), `vol_expansion_long` OOS mean **0.902x** (0/10), with a clear train→test
