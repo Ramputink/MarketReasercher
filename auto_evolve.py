@@ -261,6 +261,48 @@ STRATEGY_REGISTRY = {
             "take_profit_atr_mult": ("float", 2.5, 7.0),
         },
     },
+    # ── New long-only strategies (2026-06, papers->practice) ──
+    "mr_vwap_reversion": {
+        "module": "strategies.mr_vwap_reversion",
+        "function": "mr_vwap_reversion_strategy",
+        "params_dict": "PARAMS",
+        "param_space": {
+            "dislocation_atr": ("float", 0.4, 2.0),
+            "bb_pct_b_max": ("float", 0.05, 0.30),
+            "rsi_oversold": ("float", 20.0, 45.0),
+            "adx_max": ("float", 18.0, 35.0),
+            "require_recovery": ("bool",),
+            "close_location_min": ("float", 0.30, 0.60),
+            "stop_loss_atr_mult": ("float", 1.0, 3.0),
+            "take_profit_atr_mult": ("float", 1.5, 4.0),
+        },
+    },
+    "vol_expansion_long": {
+        "module": "strategies.vol_expansion_long",
+        "function": "vol_expansion_long_strategy",
+        "params_dict": "PARAMS",
+        "param_space": {
+            "vol_ratio_min": ("float", 1.05, 1.5),
+            "breakout_lookback": ("int", 12, 48),
+            "mom_min": ("float", -0.01, 0.02),
+            "volume_ratio_min": ("float", 1.0, 2.0),
+            "adx_min": ("float", 12.0, 30.0),
+            "stop_loss_atr_mult": ("float", 1.5, 3.5),
+            "take_profit_atr_mult": ("float", 3.0, 9.0),
+        },
+    },
+    "bmsb_long": {
+        "module": "strategies.bmsb_long",
+        "function": "bmsb_long_strategy",
+        "params_dict": "PARAMS",
+        "param_space": {
+            "entry_buffer": ("float", 0.0, 0.05),
+            "exit_buffer": ("float", 0.0, 0.08),
+            "require_band_bullish": ("bool",),
+            "confirm_bars": ("int", 0, 5),
+            "stop_loss_pct": ("float", 0.10, 0.30),
+        },
+    },
 }
 
 

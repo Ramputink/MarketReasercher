@@ -27,8 +27,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd
 
 GOLDEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden_backtester.json")
-PREP_CACHE = "/tmp/crypto_evolve/bench_prepared_df.pkl"
-PARQUET = "data/binance_XRP_USDT_1h.parquet"
+PREP_CACHE = "/tmp/crypto_evolve/bench_prepared_df_pinned.pkl"
+# PINNED data snapshot: the golden harness must be reproducible and must NOT drift
+# when the live OHLCV cache is refreshed (fetching advances the rolling window and
+# silently breaks the golden). Falls back to the live parquet if the pin is absent.
+_PINNED = "data/pinned_XRP_USDT_1h.parquet"
+PARQUET = _PINNED if os.path.exists(_PINNED) else "data/binance_XRP_USDT_1h.parquet"
 TOL = 1e-9  # tolerancia de igualdad numérica
 
 
