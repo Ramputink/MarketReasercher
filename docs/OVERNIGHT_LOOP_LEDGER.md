@@ -52,3 +52,20 @@ data (daily):     tmp *_daily_feat.pkl with REAL BMSB (140d/147d) for 8 majors
 - Launched 10h evolution substrate. Committed + pushed (commit on branch).
 - **Next (Cycle 1 = Part B):** add volatility-targeted sizing to bmsb_long and a
   small entry/exit-buffer search with train/test holdout on BTC/ETH/BNB/SOL.
+
+### Cycle 1 · 2026-06-22 23:1x — Part B (BMSB buffer/confirm search)
+- **Hypothesis:** tuning entry_buffer / exit_buffer / confirm_bars / band-bullish
+  improves BMSB risk-adjusted return out-of-sample.
+- **Method:** grid of 72 rules; pick ONE global rule by mean train risk-adjusted
+  score (Calmar-like) over BTC/ETH/BNB/SOL/ADA/LINK (first 60%), measure frozen
+  rule on unseen last 40%. Tool: `tools/bmsb_search.py` (reusable).
+- **Result:** train-best = no buffer/no confirm. OOS = **wash**: tuned mean
+  1.393x vs default 1.417x; tuned beats default on only 4/6 coins; both beat
+  buy&hold on 4/6. No robust improvement over the default.
+- **Decision: REJECT** the param change (anti-overfit: OOS not clearly better).
+  Keep defaults. Keep the search tool (reusable each Part-B cycle).
+- **Gate:** golden 12/12 (no engine/strategy logic changed). **Commit:** tool +
+  this entry, pushed.
+- **Next (Cycle 2 = Part A):** parameter search for mr_vwap_reversion &
+  vol_expansion_long across coins with OOS holdout; honestly assess if any
+  long-only intraday edge clears costs.
