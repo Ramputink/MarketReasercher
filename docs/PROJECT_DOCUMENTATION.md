@@ -101,9 +101,15 @@ Rule: report the OOS, liquidation-aware number — not the in-sample full-period
 **Part A intraday (confirmed negative, Cycle 2):** OOS parameter search across 10 coins
 (train 60% → unseen 40%, L=1) — `mr_vwap_reversion` OOS mean **0.930x** (1/10 coins
 >1.02x), `vol_expansion_long` OOS mean **0.902x** (0/10), with a clear train→test
-collapse (overfit). No robust long-only intraday edge after costs. Next angle: a
-cross-sectional long-top-k momentum basket (APT), which trades relative strength across
-coins rather than single-asset timing.
+collapse (overfit). No robust long-only intraday edge after costs.
+
+**Part A CLOSED (Cycle 4):** the cross-sectional long-top-k momentum basket (APT) also
+fails — best train rule had Sharpe −0.15 (no in-sample edge), OOS 0.674x (loss), does
+not beat cash. **Conclusion (proven from two independent angles):** in a broad bear
+market, long-only short-horizon strategies are always-in-the-market and get chopped up.
+The only long-only defense against a bear is sitting in CASH — which is precisely what
+the long-horizon BMSB trend filter (Part B) does. Short-horizon long-only has no robust
+edge in this universe/period; the lab's long-only edge lives entirely in Part B.
 
 **Coin × strategy suitability** (see `docs/COIN_SUITABILITY_MATRIX.md`): legacy genomes
 are XRP-overfit (only beat 1.0 on XRP). Mechanism-justified matches: trend→BTC/ETH,

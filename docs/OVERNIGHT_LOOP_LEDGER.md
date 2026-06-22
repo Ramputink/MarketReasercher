@@ -108,3 +108,24 @@ data (daily):     tmp *_daily_feat.pkl with REAL BMSB (140d/147d) for 8 majors
 - **Next (Cycle 4 = Part A):** build cross-sectional long-top-k momentum BASKET
   (APT): rank coin universe by trailing return, hold top-k equal-weight, rebalance;
   OOS train/test. This is the more promising intraday/swing angle.
+
+### Cycle 4 · 2026-06-23 01:09 — Part A (cross-sectional momentum basket, APT)
+- **Hypothesis:** long-only top-k relative-strength rotation beats single-asset
+  timing and clears costs.
+- **Method:** rank 15-coin universe by trailing momentum, hold top-k equal-weight
+  (positive-momentum only), rebalance with turnover costs; train(60%) picks
+  (lookback,k,rebal) by Sharpe, test(40%). Tool: tools/xsec_momentum.py.
+- **Result (negative):** best train rule already had Sharpe **−0.15** (no in-sample
+  edge). OOS **0.674x** (loss), Sharpe −1.81, DD 36%, ann.turnover 91x. Marginally
+  beats equal-weight-all (0.644) but both lose; loses to BTC hold (0.745); does NOT
+  beat cash.
+- **Decision: REJECT. → PART A CLOSED.** Mechanism (now proven from 2 angles): in a
+  broad bear, long-only short-horizon strategies are always-in-market and get chopped;
+  the only long-only bear defense is CASH — which is exactly the long-horizon BMSB
+  trend filter (Part B). Short-horizon long-only has no robust edge here.
+- **Gate:** golden 12/12 (standalone analysis tool; no engine/strategy change).
+- **LOOP REDIRECT:** Part A is disproven; remaining cycles focus on **Part B** where
+  genuine gains remain.
+- **Next (Cycle 5 = Part B):** multi-coin BMSB PORTFOLIO (equal-weight BMSB across
+  BTC/ETH/BNB/SOL/ADA/LINK) — expect diversification to cut drawdown vs single-coin
+  while keeping the trend capture. OOS train/test, compare to single-coin & buy&hold.
