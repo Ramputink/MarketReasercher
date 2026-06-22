@@ -91,3 +91,20 @@ data (daily):     tmp *_daily_feat.pkl with REAL BMSB (140d/147d) for 8 majors
   flat sizing. Then (Cycle 4 = Part A) pivot to a cross-sectional long-top-k
   momentum BASKET (APT) — relative strength across coins, the more promising
   intraday/swing angle than single-asset timing.
+
+### Cycle 3 · 2026-06-23 00:30 — Part B (BMSB vol-targeted sizing)
+- **Hypothesis:** Barroso–Santa-Clara vol-targeting (size entry inversely to recent
+  realized vol, via Signal.strength) improves BMSB risk-adjusted return OOS.
+- **Method:** added `enable_vol_target` to bmsb_long; train (60%) picks
+  vol_target_annual by mean Calmar, test (40%) compares vs flat. 6 coins.
+- **Result (wash):** train picked vol_target=1.5 (highest → feature nearly inert).
+  OOS identical to flat on 5/6 coins; mean Calmar 0.944 vs flat 0.931 (+1.4%, noise);
+  better on only 1/6 (ADA). 
+- **Decision: REJECT** as default (keep `enable_vol_target=False`). Mechanism:
+  vol-targeting tames equity *momentum crashes*, but in long-only crypto trend the
+  high-vol periods coincide with the up-moves you want — downsizing just forfeits
+  return. Code kept as documented, off-by-default option.
+- **Gate:** golden 12/12 (bmsb_long not in golden; change is inert by default).
+- **Next (Cycle 4 = Part A):** build cross-sectional long-top-k momentum BASKET
+  (APT): rank coin universe by trailing return, hold top-k equal-weight, rebalance;
+  OOS train/test. This is the more promising intraday/swing angle.

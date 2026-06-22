@@ -29,7 +29,32 @@ PARAMS = {
     "stop_loss_pct": 0.18,       # wide disaster stop (band exit is the real exit)
     "take_profit_pct": 5.0,      # effectively off; we ride trends, exit on band break
     "time_stop_hours": 24 * 400, # long horizon: no time stop in practice
+    # Volatility targeting (Barroso & Santa-Clara 2015): size the ENTRY inversely to
+    # recent realized vol so high-vol regimes get a smaller position (lower drawdown).
+    # Applied via Signal.strength, which the engine multiplies into position size.
+    "enable_vol_target": False,  # off by default (preserves flat-sizing behavior)
+    "vol_target_annual": 0.60,   # target ~60% annualized vol (crypto is high-vol)
+    "vol_lookback": 30,          # bars (days on daily data) for realized-vol estimate
+    "strength_floor": 0.20,      # never size below 20% of full
 }
+
+
+def _vol_target_strength(df, bar_idx, p):
+    """clip(vol_target / realized_vol_annualized, floor, 1.0). Causal: uses only
+    closes up to bar_idx. Returns 1.0 if disabled or vol cannot be estimated."""
+    if not p.get("enable_vol_target", False):
+        return 1.0
+    lb = int(p.get("vol_lookback", 30))
+    if bar_idx < lb + 1:
+        return 1.0
+    closes = df["close"].iloc[bar_idx - lb:bar_idx + 1].to_numpy(dtype=float)
+    rets = closes[1:] / closes[:-1] - 1.0
+    sd = float(np.std(rets))
+    if sd <= 0:
+        return 1.0
+    ann = sd * np.sqrt(365.0)
+    s = p["vol_target_annual"] / ann
+    return float(min(max(s, p["strength_floor"]), 1.0))
 
 
 def _band(cur):
@@ -79,12 +104,13 @@ def bmsb_long_strategy(
         if not np.all(recent["close"].to_numpy(dtype=float) > tops):
             return None
 
+    strength = _vol_target_strength(df, bar_idx, p)
     return Signal(
         timestamp=int(cur["timestamp"]),
         side="long",
-        strength=1.0,
+        strength=strength,
         strategy="bmsb_long",
-        reason=f"Close {close:.2f} above BMSB top {band_top:.2f} (bull regime)",
+        reason=f"Close {close:.2f} above BMSB top {band_top:.2f} (bull regime, strength={strength:.2f})",
         stop_loss=close * (1.0 - p["stop_loss_pct"]),
         take_profit=close * (1.0 + p["take_profit_pct"]),
         time_stop_hours=p["time_stop_hours"],
