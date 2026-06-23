@@ -1,5 +1,20 @@
 # MarketResearcher — Autonomous Quantitative Research & Evolution System
 
+> **📌 Start here:** [`docs/PROJECT_DOCUMENTATION.md`](docs/PROJECT_DOCUMENTATION.md) is the complete,
+> current reference. Companion docs: [`OVERNIGHT_LOOP_LEDGER.md`](docs/OVERNIGHT_LOOP_LEDGER.md)
+> (per-cycle research reasoning), [`HONEST_RETURNS_FEASIBILITY.md`](docs/HONEST_RETURNS_FEASIBILITY.md)
+> (why 10x/6mo is not honestly reachable), [`COIN_SUITABILITY_MATRIX.md`](docs/COIN_SUITABILITY_MATRIX.md).
+>
+> **Honest verdict:** a legitimate **10x-in-6-months is NOT achievable** without cheating
+> (in-sample fitting / cherry-picked windows / leverage with no liquidation modeling).
+> **What does work (long-only):** the **breadth-scaled multi-coin Bull Market Support Band (BMSB)
+> portfolio** — long-horizon, trend-or-cash on majors. It **beats buy-and-hold and roughly halves
+> drawdown** (e.g. BTC 17.2x vs 9.9x at 42% vs 77% DD; portfolio recent-window positive at ~30% DD
+> vs buy-and-hold's loss at 67%). Run it: `./venv/bin/python tools/bmsb_breadth.py`.
+> Short-horizon long-only intraday has **no robust edge** in this data (proven two ways).
+> All numbers are out-of-sample, liquidation-aware, real-cost (0.1% + 5bps).
+
+
 <p align="center">
   <img src="https://img.shields.io/badge/Asset-XRP%2FUSDT-blue" />
   <img src="https://img.shields.io/badge/Exchange-Binance-yellow" />

@@ -217,3 +217,13 @@ data (daily):     tmp *_daily_feat.pkl with REAL BMSB (140d/147d) for 8 majors
 - **Next (Cycle 10):** final end-to-end sanity check — golden + reproduce the headline
   breadth-portfolio numbers from a clean run; record. Then, if levers/docs are done,
   prepare to wind down toward the 09:09 deadline.
+
+### Cycle 10 · 2026-06-23 05:02 — final sanity check + README polish
+- **Sanity check (PASS, reproducible):** golden 12/12; bmsb_breadth reproduces exactly —
+  MAJORS TEST40 breadth **1.087x DD30% Cal0.84** vs flat 0.875x DD35% vs B&H 0.745x DD67%;
+  2nd subset TEST40 1.303x (breadth Cal0.85 ≥ flat 0.83). VERDICT both better — confirmed.
+- **README:** added an honest-summary banner at the top pointing to docs + stating the
+  verdict (10x/6mo not honest) and recommended deployment (breadth BMSB portfolio).
+- **Decision:** finalization progress. **Gate:** golden 12/12 (no engine change).
+- **Next (Cycle 11):** optional last lever (inverse-vol sleeve weighting vs equal-weight,
+  OOS + 2nd holdout); else begin FINAL SUMMARY wind-down toward 09:09.
