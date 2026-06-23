@@ -36,6 +36,10 @@ PARAMS = {
     "vol_target_annual": 0.60,   # target ~60% annualized vol (crypto is high-vol)
     "vol_lookback": 30,          # bars (days on daily data) for realized-vol estimate
     "strength_floor": 0.20,      # never size below 20% of full
+    # Optional buy-the-dip-to-band entry (tested Cycle 8): enter pullbacks that hold
+    # the band in an uptrend, not just clean breakouts above it. Off by default.
+    "dip_entry": False,
+    "dip_tolerance": 0.0,        # allow entry slightly below band_bot (fraction)
 }
 
 
@@ -88,15 +92,28 @@ def bmsb_long_strategy(
                           reason=f"Close {close:.2f} below band {band_bot:.2f} -> to cash")
         return None
 
-    # ---- entry logic: price holding above the band ----
+    # ---- entry logic ----
     if p["require_band_bullish"] and ema <= sma:
         return None
-    if close <= band_top * (1.0 + p["entry_buffer"]):
+
+    breakout = close > band_top * (1.0 + p["entry_buffer"])
+
+    # OPTIONAL dip-to-band entry: in an established uptrend (EMA>SMA) buy a pullback
+    # that holds the band (price sitting between band_bot and band_top) and is
+    # recovering (close > prior close). Catches cheaper entries than a clean breakout.
+    dip = False
+    if p.get("dip_entry", False) and ema > sma and bar_idx >= 1:
+        prev_close = float(df.iloc[bar_idx - 1]["close"])
+        in_band_zone = band_bot * (1.0 - p.get("dip_tolerance", 0.0)) <= close <= band_top * (1.0 + p["entry_buffer"])
+        if in_band_zone and close > prev_close:
+            dip = True
+
+    if not (breakout or dip):
         return None
 
-    # confirmation: price held above band_top for confirm_bars
+    # confirmation applies to breakout entries only (dip entries are inside the band)
     cb = p["confirm_bars"]
-    if cb > 0 and bar_idx >= cb:
+    if breakout and not dip and cb > 0 and bar_idx >= cb:
         recent = df.iloc[bar_idx - cb:bar_idx + 1]
         st = recent.get("bmsb_sma_real", recent.get("bmsb_sma"))
         et = recent.get("bmsb_ema_real", recent.get("bmsb_ema"))
@@ -105,12 +122,13 @@ def bmsb_long_strategy(
             return None
 
     strength = _vol_target_strength(df, bar_idx, p)
+    kind = "breakout" if breakout else "dip-to-band"
     return Signal(
         timestamp=int(cur["timestamp"]),
         side="long",
         strength=strength,
         strategy="bmsb_long",
-        reason=f"Close {close:.2f} above BMSB top {band_top:.2f} (bull regime, strength={strength:.2f})",
+        reason=f"Close {close:.2f} {kind} @ BMSB top {band_top:.2f} (bull, strength={strength:.2f})",
         stop_loss=close * (1.0 - p["stop_loss_pct"]),
         take_profit=close * (1.0 + p["take_profit_pct"]),
         time_stop_hours=p["time_stop_hours"],

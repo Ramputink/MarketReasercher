@@ -187,3 +187,21 @@ data (daily):     tmp *_daily_feat.pkl with REAL BMSB (140d/147d) for 8 majors
 - **Next (Cycle 8 = Part B):** BMSB buy-the-dip-to-band add-on entry (add on pullbacks
   that hold the band) — test if it improves OOS return without raising DD; else move to
   the doc-hardening cycle.
+
+### Cycle 8 · 2026-06-23 03:43 — Part B (buy-the-dip-to-band entry) — REJECT (wash)
+- **Hypothesis:** entering pullbacks that hold the band (uptrend, recovering) adds OOS
+  return without raising DD vs breakout-only entry.
+- **Method:** added `dip_entry` option to bmsb_long; compared breadth portfolio TEST40
+  with dip_entry off vs on (6 majors). Tool: tmp/cycle8_dip.py.
+- **Result (wash):** off 1.087x DD30.0% Cal0.836 vs on 1.092x DD29.9% Cal0.840 — a 0.5%
+  Calmar change, within noise.
+- **Decision: REJECT** as default (keep dip_entry=False). Reason: single-position engine
+  means dip-entry only fires in the narrow window when flat AND price sits on the band;
+  it catches a few earlier entries but adds nothing material. Code kept as off-by-default
+  option.
+- **Gate:** golden 12/12 (bmsb_long not in golden; change inert by default).
+- **SUBSTANTIVE PART-B LEVERS EXHAUSTED.** Tally: ACCEPT portfolio (C5), ACCEPT breadth
+  (C6); VALIDATE daily band (C7); REJECT vol-target (C3), buffers (C1), dip-entry (C8).
+- **Next (Cycle 9 = DOCS):** harden docs/PROJECT_DOCUMENTATION.md into the complete final
+  reference + FINAL RESULTS summary table (architecture, every strategy, every accept/
+  reject with numbers, how-to-run, honest limitations, 7-papers mapping).
