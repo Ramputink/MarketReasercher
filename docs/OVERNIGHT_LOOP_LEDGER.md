@@ -227,3 +227,44 @@ data (daily):     tmp *_daily_feat.pkl with REAL BMSB (140d/147d) for 8 majors
 - **Decision:** finalization progress. **Gate:** golden 12/12 (no engine change).
 - **Next (Cycle 11):** optional last lever (inverse-vol sleeve weighting vs equal-weight,
   OOS + 2nd holdout); else begin FINAL SUMMARY wind-down toward 09:09.
+
+### Cycle 11 · 2026-06-23 05:41 — Part B (inverse-vol sleeve weighting) — REJECT (not robust)
+- **Hypothesis:** weighting sleeves by 1/recent-realized-vol (equal-risk) beats equal-weight.
+- **Method:** breadth portfolio with inv-vol (30d, lagged/causal, renormalized) vs equal-weight,
+  OOS, on majors AND 2nd subset. Tool: tmp/cycle11_invvol.py.
+- **Result:** MAJORS inv-vol 1.089x DD27% Cal0.861 vs eq-wt 1.087x DD30% Cal0.836 (better);
+  2nd-set inv-vol 1.274x DD53% Cal0.831 vs eq-wt 1.303x DD54% Cal0.846 (WORSE). Not better
+  in BOTH sets → not robust.
+- **Decision: REJECT** (keep equal-weight). Pre-committed criterion: must win both holdouts.
+- **Gate:** golden 12/12 (tmp analysis only; no engine/strategy change).
+
+---
+
+## FINAL SUMMARY · 2026-06-23 05:45 CEST
+
+**Loop ran 11 cycles** (Cycle 0 setup + Cycles 1–11) over ~6.7h of the 10h window; substantive
+research **converged early** — all levers decided, no productive work left, so the loop wound down
+rather than manufacture make-work (per the stop rule). The 10h evolution substrate continues in the
+background to ~09:09.
+
+**Accept/Reject tally (all decisions out-of-sample, real-cost, golden-gated):**
+- ✅ ACCEPT: multi-coin BMSB portfolio (C5); breadth-scaled exposure (C6).
+- ✔️ VALIDATE: daily-140/147 band ≈ true weekly (C7).
+- ❌ REJECT (washes/no edge): BMSB buffers (C1), intraday single-asset (C2), vol-targeting (C3),
+  cross-sectional momentum basket → Part A CLOSED (C4), buy-the-dip entry (C8), inverse-vol
+  weighting (C11).
+
+**Recommended deployment:** breadth-scaled equal-weight multi-coin BMSB portfolio
+(`tools/bmsb_breadth.py`) over BTC/ETH/BNB/SOL/ADA/LINK. Recent OOS window: **+1.087x at 30% DD**
+vs buy-and-hold's **0.745x at 67% DD**; full 8y: **~4.1x at 40% DD** vs eq-wt B&H 2.0x at 82%.
+
+**Honest verdict (unchanged, fully documented):** a legitimate **10x-in-6-months is NOT achievable**
+on this data without cheating. The real long-only edge is the long-horizon BMSB portfolio — it beats
+buy-and-hold and roughly halves drawdown. Short-horizon long-only intraday has no robust edge
+(proven two ways).
+
+**Artifacts:** 14 commits pushed to origin/auto/12h-loop (Ramputink/MarketReasercher). New code:
+strategies/{bmsb_long,mr_vwap_reversion,vol_expansion_long}.py; tools/{honest_eval,bmsb_search,
+bmsb_portfolio,bmsb_breadth,bmsb_weekly_check,bmsb_dip_check,xsec_momentum,partA_search}.py; pinned
+golden data. Docs: PROJECT_DOCUMENTATION.md, OVERNIGHT_LOOP_LEDGER.md, HONEST_RETURNS_FEASIBILITY.md,
+COIN_SUITABILITY_MATRIX.md. Golden gate 12/12 throughout. **Loop stopped (no further reschedule).**
