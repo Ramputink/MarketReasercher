@@ -104,6 +104,12 @@ maxDD **63.9% vs 89.5%**, Sharpe 0.81 vs 0.64. Recent-40% (OOS-style): 0.82x vs 
 0.70x, maxDD **38.9% vs 64.9%**. Diversification beats buy&hold and cuts drawdown in both
 windows — the honest value-add is risk reduction (Markowitz). Tool: `tools/bmsb_portfolio.py`.
 
+**BMSB portfolio + BREADTH-SCALING (Cycle 6, ACCEPTED):** scale exposure by % of majors
+above their band (lagged 1d, causal) — distrust thin rallies. Improves OOS Calmar in both
+windows vs the flat portfolio; recent-40% turns **positive 1.087x at DD 30%** (flat 0.875x
+DD 35%; B&H 0.745x DD 67%). Re-validated on a 2nd coin subset (still beats its buy&hold).
+Tool: `tools/bmsb_breadth.py`. This is the recommended Part-B deployment.
+
 **Part A intraday (confirmed negative, Cycle 2):** OOS parameter search across 10 coins
 (train 60% → unseen 40%, L=1) — `mr_vwap_reversion` OOS mean **0.930x** (1/10 coins
 >1.02x), `vol_expansion_long` OOS mean **0.902x** (0/10), with a clear train→test

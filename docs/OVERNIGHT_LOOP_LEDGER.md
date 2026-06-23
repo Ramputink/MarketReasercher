@@ -150,3 +150,24 @@ data (daily):     tmp *_daily_feat.pkl with REAL BMSB (140d/147d) for 8 majors
 - **Next (Cycle 6 = Part B):** regime-aware exposure — scale total portfolio
   exposure by BREADTH (% of majors above their band), expecting further DD cut;
   then re-validate the accepted portfolio on a second untouched holdout.
+
+### Cycle 6 · 2026-06-23 02:26 — Part B (breadth-scaled exposure + 2nd holdout) — ✅ ACCEPT
+- **Hypothesis:** scaling portfolio exposure by breadth (% of majors above their band,
+  lagged 1 day = causal) cuts drawdown / improves Calmar; and the diversification win
+  re-validates on a different coin subset.
+- **Method:** tools/bmsb_breadth.py — daily-return compounding (the correct equal-weight
+  calc, vs Cycle 5's mean-of-curves), flat vs breadth-scaled, on majors + a 2nd subset.
+- **Result:**
+  - MAJORS breadth vs flat — FULL: 4.12x DD40% Cal2.95 vs 3.55x DD46% Cal2.43; 
+    TEST40: **1.087x DD30% Cal0.84** vs flat 0.875x DD35% Cal0.65 (and vs B&H 0.745x DD67%).
+    Breadth improves return AND DD in BOTH windows; turns the recent bear window POSITIVE.
+  - 2nd SUBSET {XRP,LTC,ADA,LINK} (re-validation): TEST40 portfolio 1.332x vs B&H 1.303x
+    (still beats B&H), DD cut holds; breadth Calmar 0.85 ≥ flat 0.83. Benefit is real,
+    thinner on weak coins.
+- **Decision: ACCEPT** breadth-scaling as a portfolio enhancement (2nd accept). Mechanism
+  (distrust thin rallies) is sound; OOS-confirmed in both windows + a 2nd holdout.
+- **Note:** Cycle-6 daily-return compounding (3.55x flat FULL) is the more correct
+  equal-weight figure than Cycle-5's mean-of-curves (5.12x); same qualitative story.
+- **Gate:** golden 12/12 (standalone tools; no engine/strategy change).
+- **Next (Cycle 7 = Part B):** weekly-resampled band vs daily-140/147 approximation
+  (does true weekly BMSB differ materially?); then a doc-hardening cycle.
