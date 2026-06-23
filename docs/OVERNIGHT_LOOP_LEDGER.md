@@ -205,3 +205,15 @@ data (daily):     tmp *_daily_feat.pkl with REAL BMSB (140d/147d) for 8 majors
 - **Next (Cycle 9 = DOCS):** harden docs/PROJECT_DOCUMENTATION.md into the complete final
   reference + FINAL RESULTS summary table (architecture, every strategy, every accept/
   reject with numbers, how-to-run, honest limitations, 7-papers mapping).
+
+### Cycle 9 · 2026-06-23 04:23 — DOCUMENTATION hardening
+- **Work:** rewrote docs/PROJECT_DOCUMENTATION.md into the FINAL reference: TL;DR + honest
+  verdict, FINAL RESULTS table, architecture & frozen-vs-editable, engine facts +
+  leverage/liquidation caveat, all tools, every strategy (Part A negative / Part B edge),
+  the 8-cycle accept/reject table with metrics, how-to-run, honest limitations, 7-papers
+  mapping.
+- **Decision:** substantial docs improvement = progress. No code change.
+- **Gate:** golden 12/12 (docs-only). **Commit:** docs, pushed.
+- **Next (Cycle 10):** final end-to-end sanity check — golden + reproduce the headline
+  breadth-portfolio numbers from a clean run; record. Then, if levers/docs are done,
+  prepare to wind down toward the 09:09 deadline.
