@@ -171,3 +171,19 @@ data (daily):     tmp *_daily_feat.pkl with REAL BMSB (140d/147d) for 8 majors
 - **Gate:** golden 12/12 (standalone tools; no engine/strategy change).
 - **Next (Cycle 7 = Part B):** weekly-resampled band vs daily-140/147 approximation
   (does true weekly BMSB differ materially?); then a doc-hardening cycle.
+
+### Cycle 7 · 2026-06-23 03:05 — Part B (weekly band vs daily approx) — VALIDATED (keep daily)
+- **Hypothesis:** the daily-140/147 band may differ materially from the TRUE weekly
+  (20W SMA/21W EMA resampled) band; if weekly is clearly better, switch.
+- **Method:** resample daily→weekly (W-SUN), 20W SMA + 21W EMA, ffill to daily (causal),
+  run bmsb_long with each band on 6 majors. Tool: tools/bmsb_weekly_check.py.
+- **Result:** OOS(TEST40) mean **1.417x daily vs 1.422x weekly = 0.3% diff (immaterial)**.
+  Per-coin a wash (weekly better on BTC 1.97 vs 1.79 lower DD; worse on ETH/LINK). FULL
+  in-sample weekly slightly higher on SOL/BNB but similar DD.
+- **Decision: KEEP daily-140/147 approximation** (validated as a faithful weekly proxy;
+  simpler, no resample/ffill in the hot path). Important robustness confirmation since all
+  of Part B rests on this band. Counts as a decisive proven finding (progress).
+- **Gate:** golden 12/12 (standalone check; no engine/strategy change).
+- **Next (Cycle 8 = Part B):** BMSB buy-the-dip-to-band add-on entry (add on pullbacks
+  that hold the band) — test if it improves OOS return without raising DD; else move to
+  the doc-hardening cycle.
